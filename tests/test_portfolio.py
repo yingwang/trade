@@ -56,7 +56,7 @@ class TestPortfolioOptimizer:
         opt = PortfolioOptimizer(config)
         weights = pd.Series({"A": 0.5, "B": 0.5})
         entry = pd.Series({"A": 100.0, "B": 100.0})
-        current = pd.Series({"A": 88.0, "B": 100.0})  # A dropped 12% > 8% stop
+        current = pd.Series({"A": 85.0, "B": 100.0})  # A dropped 15% > 12% stop
         result = opt.check_stop_losses(weights, entry, current)
         assert result["A"] == 0.0
         assert result["B"] > 0.0

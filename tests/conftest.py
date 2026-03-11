@@ -16,9 +16,9 @@ def config():
         },
         "data": {"lookback_years": 2, "frequency": "1d"},
         "signals": {
-            "momentum_windows": [21, 63, 126],
+            "momentum_windows": [63, 126, 252],
             "mean_reversion_window": 20,
-            "mean_reversion_zscore_threshold": 2.0,
+            "mean_reversion_zscore_threshold": 3.0,
             "volatility_window": 63,
             "sma_short": 50,
             "sma_long": 200,
@@ -34,7 +34,7 @@ def config():
         "risk": {
             "max_drawdown_limit": 0.20,
             "max_sector_weight": 0.30,
-            "stop_loss_pct": 0.08,
+            "stop_loss_pct": 0.12,
         },
         "backtest": {
             "start_date": "2020-01-01",
