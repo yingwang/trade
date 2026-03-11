@@ -1,6 +1,7 @@
 """Market data acquisition using yfinance."""
 
 import logging
+import time
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -71,22 +72,31 @@ class MarketData:
     # Fundamental / info data
     # ------------------------------------------------------------------
 
-    def fetch_info(self, symbol: str) -> dict:
-        """Return yfinance .info dict for a symbol (cached)."""
+    def fetch_info(self, symbol: str, max_retries: int = 2) -> dict:
+        """Return yfinance .info dict for a symbol (cached, with retry)."""
         if symbol in self._info_cache:
             return self._info_cache[symbol]
 
-        try:
-            info = yf.Ticker(symbol).info
-        except Exception:
-            logger.warning("Failed to fetch info for %s", symbol)
-            info = {}
+        info = {}
+        for attempt in range(max_retries + 1):
+            try:
+                info = yf.Ticker(symbol).info
+                break
+            except Exception:
+                if attempt < max_retries:
+                    time.sleep(1.0 * (attempt + 1))
+                else:
+                    logger.warning("Failed to fetch info for %s after %d attempts", symbol, max_retries + 1)
 
         self._info_cache[symbol] = info
         return info
 
-    def fetch_fundamentals(self) -> pd.DataFrame:
-        """Return a DataFrame of key fundamental ratios for the universe."""
+    def fetch_fundamentals(self, batch_size: int = 50, batch_delay: float = 1.5) -> pd.DataFrame:
+        """Return a DataFrame of key fundamental ratios for the universe.
+
+        Fetches in batches with delays to avoid yfinance rate limits.
+        分批获取基本面数据，避免触发 yfinance 速率限制。
+        """
         rows = []
         fields = [
             "trailingPE", "forwardPE", "priceToBook", "pegRatio",
@@ -94,12 +104,21 @@ class MarketData:
             "debtToEquity", "earningsGrowth", "revenueGrowth",
             "marketCap", "sector",
         ]
-        for sym in self.symbols:
+        total = len(self.symbols)
+        for i, sym in enumerate(self.symbols):
             info = self.fetch_info(sym)
             row = {"symbol": sym}
             for f in fields:
                 row[f] = info.get(f)
             rows.append(row)
+
+            # Progress logging and rate-limit delay between batches
+            done = i + 1
+            if done % batch_size == 0 or done == total:
+                logger.info("Fundamentals progress: %d / %d symbols fetched", done, total)
+                if done < total:
+                    time.sleep(batch_delay)
+
         return pd.DataFrame(rows).set_index("symbol")
 
     # ------------------------------------------------------------------
