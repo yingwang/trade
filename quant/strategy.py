@@ -85,7 +85,11 @@ class MultiFactorStrategy:
             weights = self.optimizer.optimize_weights(
                 selected.tolist(), day_scores, cov
             )
-            weights = self.optimizer.apply_vol_scaling(weights, cov)
+            # Dynamic leverage: detect market regime from benchmark vol
+            spy_col = self.data.benchmark
+            spy_ret = returns[spy_col].loc[:date] if spy_col in returns.columns else None
+            regime = self.optimizer.detect_regime(spy_ret)
+            weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
             # Do NOT renormalize after vol scaling — the remainder is held as cash.
             # This preserves the vol-targeting effect.
 
@@ -146,9 +150,12 @@ class MultiFactorStrategy:
             index=symbols, columns=symbols,
         )
 
-        # Optimize weights
+        # Optimize weights with dynamic leverage
         weights = self.optimizer.optimize_weights(symbols, day_scores, cov)
-        weights = self.optimizer.apply_vol_scaling(weights, cov)
+        spy_col = self.data.benchmark
+        spy_ret = returns[spy_col] if spy_col in returns.columns else None
+        regime = self.optimizer.detect_regime(spy_ret)
+        weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
         # Do NOT renormalize — remainder is cash buffer for vol targeting.
 
         # Build output table

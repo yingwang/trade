@@ -31,6 +31,14 @@ class PortfolioOptimizer:
         self.max_sector_weight = rcfg["max_sector_weight"]
         self.stop_loss_pct = rcfg["stop_loss_pct"]
 
+        # Dynamic leverage / regime config (backward-compatible defaults)
+        lcfg = config.get("leverage", {})
+        self.max_leverage = lcfg.get("max_leverage", 1.0)
+        self.spy_vol_window = lcfg.get("regime_spy_vol_window", 63)
+        self.regime_thresholds = lcfg.get("regime_thresholds", {"low": 0.12, "high": 0.20})
+        self.regime_caps = lcfg.get("regime_leverage_caps",
+                                    {"low_vol": 1.0, "normal": 1.0, "high_vol": 0.7})
+
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
         valid = scores.dropna().sort_values(ascending=False)
@@ -92,17 +100,42 @@ class PortfolioOptimizer:
         w = s / s.sum()
         return w.clip(lower=self.min_weight, upper=self.max_weight).pipe(lambda x: x / x.sum())
 
+    def detect_regime(self, spy_returns: pd.Series) -> str:
+        """Detect market regime from SPY realized volatility.
+
+        Returns 'low_vol', 'normal', or 'high_vol'.
+        """
+        if spy_returns is None or len(spy_returns) < self.spy_vol_window:
+            return "normal"
+        recent = spy_returns.tail(self.spy_vol_window)
+        spy_vol = recent.std() * np.sqrt(252)
+        if spy_vol < self.regime_thresholds["low"]:
+            return "low_vol"
+        elif spy_vol > self.regime_thresholds["high"]:
+            return "high_vol"
+        return "normal"
+
     def apply_vol_scaling(self, weights: pd.Series,
-                          cov_matrix: pd.DataFrame) -> pd.Series:
-        """Scale portfolio to target annualized volatility."""
+                          cov_matrix: pd.DataFrame,
+                          regime: str = "normal") -> pd.Series:
+        """Scale portfolio to target vol with dynamic leverage based on regime.
+
+        In calm markets (low_vol regime), allows leveraging up via margin.
+        In stressed markets (high_vol regime), forces de-leveraging.
+        """
         selected = weights.index.tolist()
         cov = cov_matrix.reindex(index=selected, columns=selected).fillna(0).values
         w = weights.values
 
+        leverage_cap = min(self.regime_caps.get(regime, 1.0), self.max_leverage)
         port_vol = np.sqrt(w @ cov @ w) * np.sqrt(252)
         if port_vol > 0:
-            scale = min(self.target_vol / port_vol, 1.0)  # never lever up
+            scale = self.target_vol / port_vol
+            scale = min(scale, leverage_cap)
             weights = weights * scale
+            logger.info("Vol scaling: port_vol=%.1f%%, regime=%s, scale=%.2f, "
+                        "invested=%.1f%%", port_vol * 100, regime, scale,
+                        weights.sum() * 100)
 
         return weights
 

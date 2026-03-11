@@ -36,6 +36,13 @@ def config():
             "max_sector_weight": 0.30,
             "stop_loss_pct": 0.12,
         },
+        "leverage": {
+            "max_leverage": 1.5,
+            "regime_spy_vol_window": 63,
+            "regime_thresholds": {"low": 0.12, "high": 0.20},
+            "regime_leverage_caps": {"low_vol": 1.5, "normal": 1.3, "high_vol": 0.7},
+            "margin_annual_rate": 0.06,
+        },
         "backtest": {
             "start_date": "2020-01-01",
             "end_date": "2023-01-01",
