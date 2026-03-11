@@ -111,3 +111,64 @@ class MultiFactorStrategy:
 
         signals = self.signal_gen.generate(prices, returns, fundamentals)
         return signals.iloc[-1].sort_values(ascending=False)
+
+    def get_current_portfolio(self, capital: float = None) -> pd.DataFrame:
+        """Get optimized target portfolio with weights and dollar amounts.
+
+        Parameters
+        ----------
+        capital : float, optional
+            Total capital to allocate. Defaults to config initial_capital.
+
+        Returns
+        -------
+        DataFrame with columns: score, weight, dollars, shares, price
+        """
+        if capital is None:
+            capital = self.config["backtest"]["initial_capital"]
+
+        prices = self.data.fetch_prices()
+        returns = MarketData.compute_returns(prices)
+        try:
+            fundamentals = self.data.fetch_fundamentals()
+        except Exception:
+            fundamentals = pd.DataFrame()
+
+        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        day_scores = signals.iloc[-1].dropna()
+
+        # Select top stocks
+        selected = self.optimizer.select_top_stocks(day_scores)
+
+        # Covariance from trailing returns
+        symbols = selected.tolist()
+        ret_window = returns[symbols].tail(126)
+        cov = ret_window.cov() if len(ret_window) > 20 else pd.DataFrame(
+            np.eye(len(symbols)) * 0.04 / 252,
+            index=symbols, columns=symbols,
+        )
+
+        # Optimize weights
+        weights = self.optimizer.optimize_weights(symbols, day_scores, cov)
+        weights = self.optimizer.apply_vol_scaling(weights, cov)
+        if weights.sum() > 0:
+            weights /= weights.sum()
+
+        # Build output table
+        latest_prices = prices[symbols].iloc[-1]
+        dollars = weights * capital
+        shares = (dollars / latest_prices).apply(np.floor)
+
+        result = pd.DataFrame({
+            "score": day_scores.reindex(weights.index),
+            "weight": weights,
+            "weight_pct": (weights * 100).round(2),
+            "dollars": dollars.round(2),
+            "shares": shares.astype(int),
+            "price": latest_prices.round(2),
+        })
+        result = result.sort_values("weight", ascending=False)
+
+        logger.info("Portfolio: %d positions, $%.0f allocated (%.1f%% of $%.0f)",
+                     len(result), dollars.sum(), dollars.sum() / capital * 100, capital)
+        return result
