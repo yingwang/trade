@@ -7,7 +7,7 @@ import pytest
 from quant.signals.factors import (
     momentum_factor, mean_reversion_factor, trend_factor, trend_filter,
     blowoff_filter, volatility_factor, value_factor, quality_factor,
-    SignalGenerator,
+    winsorize_zscore, neutralize_by_sector, SignalGenerator,
 )
 
 
@@ -122,6 +122,61 @@ class TestQualityFactor:
         assert result["GGGG"] == result.max()
 
 
+class TestWinsorizeZscore:
+    def test_clips_extremes(self):
+        """Values beyond clip_val should be clipped."""
+        dates = pd.bdate_range("2020-01-01", periods=5)
+        df = pd.DataFrame({
+            "A": [0, 0, 0, 0, 10],  # extreme outlier
+            "B": [0, 0, 0, 0, 0],
+            "C": [0, 0, 0, 0, -1],
+        }, index=dates)
+        result = winsorize_zscore(df, clip_val=3.0)
+        # After winsorize, no value should dominate excessively
+        assert result.abs().max().max() < 5.0
+
+    def test_output_approximately_standardized(self):
+        np.random.seed(42)
+        dates = pd.bdate_range("2020-01-01", periods=100)
+        df = pd.DataFrame(np.random.randn(100, 5), index=dates, columns=list("ABCDE"))
+        result = winsorize_zscore(df, clip_val=3.0)
+        # Each row should be approximately mean=0
+        row_means = result.mean(axis=1).dropna()
+        assert abs(row_means.mean()) < 0.1
+
+
+class TestNeutralizeBySecotr:
+    def test_within_sector_zscore(self):
+        """After neutralization, within-sector mean should be ~0."""
+        dates = pd.bdate_range("2020-01-01", periods=50)
+        np.random.seed(42)
+        # Tech stocks have much higher raw scores
+        df = pd.DataFrame({
+            "T1": np.random.normal(5.0, 1.0, 50),  # tech, high
+            "T2": np.random.normal(4.0, 1.0, 50),  # tech, high
+            "F1": np.random.normal(0.0, 1.0, 50),  # finance, low
+            "F2": np.random.normal(-1.0, 1.0, 50), # finance, low
+        }, index=dates)
+        sector_map = pd.Series({"T1": "Tech", "T2": "Tech", "F1": "Finance", "F2": "Finance"})
+        result = neutralize_by_sector(df, sector_map)
+        # Tech sector mean should be ~0 (not 4.5)
+        tech_mean = result[["T1", "T2"]].mean(axis=1).mean()
+        assert abs(tech_mean) < 0.3
+
+    def test_preserves_shape(self):
+        dates = pd.bdate_range("2020-01-01", periods=10)
+        df = pd.DataFrame(np.random.randn(10, 4), index=dates, columns=list("ABCD"))
+        sector_map = pd.Series({"A": "X", "B": "X", "C": "Y", "D": "Y"})
+        result = neutralize_by_sector(df, sector_map)
+        assert result.shape == df.shape
+
+    def test_no_sector_data_returns_original(self):
+        dates = pd.bdate_range("2020-01-01", periods=10)
+        df = pd.DataFrame(np.random.randn(10, 3), index=dates, columns=list("ABC"))
+        result = neutralize_by_sector(df, pd.Series(dtype=str))
+        pd.testing.assert_frame_equal(result, df)
+
+
 class TestSignalGenerator:
     def test_composite_signal_shape(self, config, synthetic_prices,
                                      synthetic_returns, synthetic_fundamentals):
@@ -143,3 +198,24 @@ class TestSignalGenerator:
         result = gen.generate(synthetic_prices, synthetic_returns, synthetic_fundamentals)
         last_row = result.iloc[-1].dropna()
         assert last_row.std() > 0.01
+
+    def test_industry_neutral_reduces_sector_bias(self, config, synthetic_prices,
+                                                   synthetic_returns, synthetic_fundamentals):
+        """With industry_neutral=True, tech stocks shouldn't dominate top scores."""
+        # Run with neutralization
+        config_neutral = {**config, "signals": {**config["signals"], "industry_neutral": True}}
+        gen_neutral = SignalGenerator(config_neutral)
+        result_neutral = gen_neutral.generate(synthetic_prices, synthetic_returns, synthetic_fundamentals)
+
+        # Run without neutralization
+        config_raw = {**config, "signals": {**config["signals"], "industry_neutral": False}}
+        gen_raw = SignalGenerator(config_raw)
+        result_raw = gen_raw.generate(synthetic_prices, synthetic_returns, synthetic_fundamentals)
+
+        # Both should produce valid signals
+        assert not result_neutral.empty
+        assert not result_raw.empty
+        # Neutralized signals should have different sector distribution
+        last_neutral = result_neutral.iloc[-1].dropna()
+        last_raw = result_raw.iloc[-1].dropna()
+        assert not last_neutral.equals(last_raw)

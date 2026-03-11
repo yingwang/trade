@@ -17,6 +17,59 @@ logger = logging.getLogger(__name__)
 
 
 # ======================================================================
+# Factor standardization utilities
+# ======================================================================
+
+def winsorize_zscore(df: pd.DataFrame, clip_val: float = 3.0) -> pd.DataFrame:
+    """Winsorize to [-clip_val, clip_val] then re-zscore cross-sectionally.
+
+    Applied per-row (per-date) to ensure each factor has controlled scale
+    before composite weighting.
+    """
+    # Clip extremes
+    clipped = df.clip(lower=-clip_val, upper=clip_val, axis=1)
+    # Re-zscore after clipping
+    mean = clipped.mean(axis=1)
+    std = clipped.std(axis=1).replace(0, 1)
+    return clipped.sub(mean, axis=0).div(std, axis=0)
+
+
+def neutralize_by_sector(factor_df: pd.DataFrame,
+                         sector_map: pd.Series) -> pd.DataFrame:
+    """Industry-neutral z-score: z-score within each sector, then combine.
+
+    Parameters
+    ----------
+    factor_df : DataFrame (dates x symbols)
+        Raw factor scores.
+    sector_map : Series (symbol -> sector string)
+        Sector assignment for each symbol.
+
+    Returns
+    -------
+    DataFrame of industry-neutralized z-scores (same shape as input).
+    """
+    result = factor_df.copy()
+    symbols = factor_df.columns
+    sectors = sector_map.reindex(symbols).dropna()
+    if sectors.empty:
+        return factor_df
+
+    unique_sectors = sectors.unique()
+    for sector in unique_sectors:
+        mask = sectors[sectors == sector].index.tolist()
+        mask = [s for s in mask if s in symbols]
+        if len(mask) < 2:
+            continue
+        sector_data = factor_df[mask]
+        mean = sector_data.mean(axis=1)
+        std = sector_data.std(axis=1).replace(0, 1)
+        result[mask] = sector_data.sub(mean, axis=0).div(std, axis=0)
+
+    return result
+
+
+# ======================================================================
 # Price-based factors
 # ======================================================================
 
@@ -162,6 +215,8 @@ class SignalGenerator:
         self.sma_short = sig_cfg["sma_short"]
         self.sma_long = sig_cfg["sma_long"]
         self.benchmark = config["universe"]["benchmark"]
+        self.industry_neutral = sig_cfg.get("industry_neutral", False)
+        self.winsorize_clip = sig_cfg.get("winsorize_clip", 3.0)
 
         # Factor weights — configurable from config.yaml, with defaults
         default_weights = {
@@ -214,6 +269,21 @@ class SignalGenerator:
                 # Align columns
                 df = df.reindex(columns=px.columns)
                 factors[name] = df
+
+        # --- Industry neutralization + winsorization ---
+        sector_map = None
+        if self.industry_neutral and fundamentals is not None and "sector" in fundamentals.columns:
+            sector_map = fundamentals["sector"]
+            logger.info("Applying industry-neutral z-scoring")
+
+        for name in list(factors.keys()):
+            f = factors[name].reindex(index=px.index, columns=px.columns)
+            # Industry-neutral z-score (within-sector ranking)
+            if sector_map is not None:
+                f = neutralize_by_sector(f, sector_map)
+            # Winsorize + re-zscore to control outliers
+            f = winsorize_zscore(f, clip_val=self.winsorize_clip)
+            factors[name] = f
 
         # Weighted composite (only factors with weight > 0 contribute)
         composite = pd.DataFrame(0.0, index=px.index, columns=px.columns)
