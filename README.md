@@ -197,7 +197,32 @@ risk:
 
 ### Customizing the Universe
 
-Edit the `symbols` list in `config.yaml`. The system works with any US equities available on Yahoo Finance.
+Edit the `symbols` list in `config.yaml`. The system works with any US equities available on Yahoo Finance. The default includes 50 stocks spanning mega-cap tech (NVDA, AMD, CRM, PLTR, etc.) and blue-chip defensives (JNJ, PG, KO, etc.).
+
+### Tuning Factor Weights
+
+Factor weights control the portfolio's style. Edit `signals.factor_weights` in `config.yaml`:
+
+```yaml
+signals:
+  factor_weights:
+    momentum: 0.30       # Recent price winners
+    mean_reversion: 0.10 # Oversold bounce candidates
+    trend: 0.25          # Stocks above key moving averages
+    volatility: 0.05     # Prefer low-vol (higher = more defensive)
+    value: 0.15          # Cheap on P/E and P/B
+    quality: 0.15        # High ROE, margins, growth
+```
+
+**Presets:**
+
+| Style | momentum | trend | value | volatility | mean_rev | quality |
+|-------|----------|-------|-------|------------|----------|---------|
+| Growth/Tech | 0.35 | 0.30 | 0.05 | 0.00 | 0.10 | 0.20 |
+| Balanced (default) | 0.30 | 0.25 | 0.15 | 0.05 | 0.10 | 0.15 |
+| Defensive/Income | 0.15 | 0.10 | 0.25 | 0.25 | 0.10 | 0.15 |
+
+Weights must sum to 1.0.
 
 ### Adjusting Risk
 

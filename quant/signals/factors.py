@@ -137,8 +137,8 @@ class SignalGenerator:
         self.sma_long = sig_cfg["sma_long"]
         self.benchmark = config["universe"]["benchmark"]
 
-        # Default factor weights (equal-weighted)
-        self.weights = {
+        # Factor weights — configurable from config.yaml, with defaults
+        default_weights = {
             "momentum": 0.30,
             "mean_reversion": 0.15,
             "trend": 0.20,
@@ -146,6 +146,7 @@ class SignalGenerator:
             "value": 0.15,
             "quality": 0.10,
         }
+        self.weights = {**default_weights, **sig_cfg.get("factor_weights", {})}
 
     def generate(self, prices: pd.DataFrame, returns: pd.DataFrame,
                  fundamentals: pd.DataFrame = None) -> pd.DataFrame:

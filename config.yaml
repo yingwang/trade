@@ -33,6 +33,26 @@ universe:
     - ACN
     - ABT
     - DHR
+    - AMD
+    - CRM
+    - ADBE
+    - ORCL
+    - NFLX
+    - INTC
+    - QCOM
+    - AMAT
+    - NOW
+    - SNOW
+    - PLTR
+    - SQ
+    - SHOP
+    - UBER
+    - CRWD
+    - PANW
+    - MRVL
+    - ARM
+    - SMCI
+    - MU
   benchmark: SPY
 
 data:
@@ -52,6 +72,15 @@ signals:
   # Trend
   sma_short: 50
   sma_long: 200
+  # Factor weights (must sum to 1.0) — adjust to change portfolio style
+  # Higher momentum/trend = more growth/tech; higher value/volatility = more stable/defensive
+  factor_weights:
+    momentum: 0.30
+    mean_reversion: 0.10
+    trend: 0.25
+    volatility: 0.05
+    value: 0.15
+    quality: 0.15
 
 portfolio:
   max_positions: 20
