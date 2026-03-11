@@ -22,6 +22,8 @@ def config():
             "volatility_window": 63,
             "sma_short": 50,
             "sma_long": 200,
+            "industry_neutral": True,
+            "winsorize_clip": 3.0,
         },
         "portfolio": {
             "max_positions": 5,

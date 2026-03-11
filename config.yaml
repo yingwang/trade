@@ -133,6 +133,9 @@ signals:
   sma_long: 200
   # Volatility
   volatility_window: 63
+  # Industry-neutral z-scoring: rank within sector before combining
+  industry_neutral: true           # z-score within each sector to prevent tech crowding
+  winsorize_clip: 3.0              # clip extreme z-scores to [-3, 3] before composite
   # Factor weights (must sum to 1.0) — trend/mean_reversion now applied as filters, not scored
   # 因子权重（必须加总为 1.0）— trend 和 mean_reversion 改为过滤器，不参与评分
   factor_weights:
