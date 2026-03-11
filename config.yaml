@@ -1,0 +1,73 @@
+# Quant Trading System Configuration
+
+universe:
+  # Stock universe - S&P 500 large caps by default
+  symbols:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - NVDA
+    - META
+    - TSLA
+    - BRK-B
+    - JPM
+    - JNJ
+    - V
+    - UNH
+    - HD
+    - PG
+    - MA
+    - XOM
+    - LLY
+    - ABBV
+    - MRK
+    - COST
+    - PEP
+    - KO
+    - AVGO
+    - TMO
+    - WMT
+    - MCD
+    - CSCO
+    - ACN
+    - ABT
+    - DHR
+  benchmark: SPY
+
+data:
+  lookback_years: 3
+  frequency: 1d  # daily bars
+
+signals:
+  # Momentum
+  momentum_windows: [21, 63, 126, 252]  # 1m, 3m, 6m, 12m in trading days
+  # Mean reversion
+  mean_reversion_window: 20
+  mean_reversion_zscore_threshold: 2.0
+  # Value
+  # (fundamentals fetched from yfinance)
+  # Volatility
+  volatility_window: 63
+  # Trend
+  sma_short: 50
+  sma_long: 200
+
+portfolio:
+  max_positions: 20
+  max_position_weight: 0.10  # 10% max single position
+  min_position_weight: 0.02  # 2% min
+  target_volatility: 0.15    # 15% annualized
+  rebalance_frequency_days: 21  # monthly rebalance
+  transaction_cost_bps: 10  # 10 basis points per trade
+
+risk:
+  max_drawdown_limit: 0.20   # 20% max drawdown halt
+  max_sector_weight: 0.30    # 30% max in one sector
+  stop_loss_pct: 0.08        # 8% individual stop loss
+
+backtest:
+  start_date: "2022-01-01"
+  end_date: null  # null = today
+  initial_capital: 1000000
+  slippage_bps: 5
