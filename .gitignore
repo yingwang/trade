@@ -14,3 +14,7 @@ venv/
 *.csv
 *.pkl
 .DS_Store
+
+# Logs and trading state (contains personal trading data)
+logs/
+*.log

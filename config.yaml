@@ -1,534 +1,121 @@
 # Quant Trading System Configuration
 
 universe:
-  # Stock universe - S&P 500 constituents (~503 tickers)
-  # 股票池 - 标普500全部成分股（约503只）
-  # Last updated: 2025 Q4. Tickers with dots use dashes for yfinance (e.g. BRK-B).
+  # Stock universe - Top 100 Most Liquid US Stocks
+  # Curated for trading performance and Yahoo Finance API reliability
   symbols:
-    # -- Information Technology / 信息技术 --
+    # Mega-Cap Tech (15)
     - AAPL
     - MSFT
+    - GOOGL
+    - AMZN
     - NVDA
+    - META
+    - TSLA
     - AVGO
     - ORCL
     - CRM
     - ADBE
     - AMD
-    - CSCO
-    - ACN
-    - IBM
     - INTC
+    - QCOM
+    - CSCO
+    # Tech/Software (10)
     - INTU
     - NOW
-    - QCOM
+    - IBM
     - TXN
+    - PANW
+    - CRWD
+    - SNOW
+    - DDOG
+    - ZS
+    - NET
+    # Semiconductors (10)
     - AMAT
-    - ADI
     - LRCX
     - MU
     - KLAC
-    - SNPS
-    - CDNS
-    - MCHP
-    - MSI
-    - APH
-    - FTNT
+    - ADI
+    - MRVL
     - NXPI
+    - MCHP
     - "ON"
     - MPWR
-    - KEYS
-    - TEL
-    - IT
-    - FSLR
-    - CDW
-    - ANSS
-    - HPE
-    - HPQ
-    - GLW
-    - TDY
-    - TRMB
-    - PTC
-    - ZBRA
-    - JNPR
-    - GEN
-    - FFIV
-    - NTAP
-    - EPAM
-    - SWKS
-    - MRVL
-    - ARM
-    - SMCI
-    - PLTR
-    - CRWD
-    - PANW
-    - ADSK
-    - FICO
-    - TER
-    - GDDY
-    - WDC
-    - TYL
-    - CTSH
-    # -- Communication Services / 通信服务 --
-    - META
-    - GOOGL
-    - GOOG
-    - NFLX
-    - DIS
-    - CMCSA
-    - T
-    - VZ
-    - TMUS
-    - CHTR
-    - EA
-    - TTWO
-    - WBD
-    - OMC
-    - IPG
-    - MTCH
-    - PARA
-    - NWSA
-    - NWS
-    - FOX
-    - FOXA
-    - LYV
-    - APP
-    - DASH
-    # -- Consumer Discretionary / 非必需消费品 --
-    - AMZN
-    - TSLA
-    - HD
-    - MCD
-    - NKE
-    - LOW
-    - SBUX
-    - TJX
-    - BKNG
-    - ABNB
-    - CMG
-    - MAR
-    - HLT
-    - ORLY
-    - AZO
-    - ROST
-    - DHI
-    - LEN
-    - PHM
-    - NVR
-    - GM
-    - F
-    - GPC
-    - TSCO
-    - ULTA
-    - BBY
-    - EBAY
-    - ETSY
-    - POOL
-    - DRI
-    - YUM
-    - LVS
-    - CZR
-    - WYNN
-    - MGM
-    - CCL
-    - RCL
-    - NCLH
-    - EXPE
-    - APTV
-    - BWA
-    - DPZ
-    - GRMN
-    - HAS
-    - KMX
-    - MHK
-    - RL
-    - UBER
-    - DECK
-    - TPR
-    - VFC
-    - LULU
-    - LKQ
-    - BLDR
-    - LW
-    - COIN
-    # -- Consumer Staples / 必需消费品 --
-    - PG
-    - KO
-    - PEP
-    - COST
-    - WMT
-    - PM
-    - MO
-    - MDLZ
-    - CL
-    - EL
-    - ADM
-    - SYY
-    - KHC
-    - GIS
-    - HSY
-    - K
-    - KDP
-    - STZ
-    - MKC
-    - CLX
-    - SJM
-    - CPB
-    - CAG
-    - HRL
-    - TSN
-    - TAP
-    - BG
-    - CHD
-    - MNST
-    - KR
-    - WBA
-    # -- Health Care / 医疗保健 --
-    - UNH
+    # Finance (15)
+    - JPM
+    - BAC
+    - WFC
+    - GS
+    - MS
+    - C
+    - USB
+    - PNC
+    - TFC
+    - SCHW
+    - V
+    - MA
+    - AXP
+    - COF
+    - BLK
+    # Healthcare/Pharma (15)
     - JNJ
+    - UNH
     - LLY
     - ABBV
     - MRK
     - TMO
     - ABT
     - DHR
-    - PFE
     - BMY
     - AMGN
     - GILD
-    - ISRG
-    - MDT
-    - ELV
-    - CI
-    - CVS
-    - SYK
-    - BSX
     - VRTX
     - REGN
-    - ZTS
-    - BDX
-    - HCA
-    - IDXX
-    - EW
-    - IQV
-    - A
-    - DXCM
-    - MTD
-    - RMD
-    - BAX
-    - ALGN
-    - HOLX
-    - ILMN
-    - COO
-    - TECH
-    - CNC
-    - MOH
-    - HUM
-    - BIIB
-    - GEHC
-    - WST
-    - LH
-    - DGX
-    - CRL
-    - INCY
-    - MRNA
-    - RVTY
-    - PODD
-    - STE
-    - SOLV
-    # -- Financials / 金融 --
-    - BRK-B
-    - JPM
-    - V
-    - MA
-    - BAC
-    - WFC
-    - GS
-    - MS
-    - SPGI
-    - BLK
-    - C
-    - SCHW
-    - CB
-    - MMC
-    - AXP
-    - PGR
-    - ICE
-    - AON
-    - CME
-    - MCO
-    - PNC
-    - USB
-    - AIG
-    - MET
-    - TFC
-    - AFL
-    - PRU
-    - TRV
-    - ALL
-    - AJG
-    - BK
-    - STT
-    - COF
-    - DFS
-    - FITB
-    - MTB
-    - HBAN
-    - RF
-    - CFG
-    - KEY
-    - NTRS
-    - CINF
-    - WRB
-    - ERIE
-    - MSCI
-    - FDS
-    - NDAQ
-    - CBOE
-    - RJF
-    - BRO
-    - L
-    - GL
-    - RE
-    - SYF
-    - TROW
-    - BEN
-    - IVZ
-    - KKR
-    - ARES
-    - ACGL
-    - WTW
-    - CPAY
-    - EG
-    # -- Energy / 能源 --
+    - ISRG
+    - ELV
+    # Consumer Discretionary (10)
+    - WMT
+    - HD
+    - MCD
+    - NKE
+    - COST
+    - TJX
+    - LOW
+    - SBUX
+    - TGT
+    - BKNG
+    # Consumer Staples (5)
+    - PG
+    - KO
+    - PEP
+    - MDLZ
+    - CL
+    # Energy (5)
     - XOM
     - CVX
     - COP
     - EOG
     - SLB
-    - MPC
-    - PSX
-    - VLO
-    - OXY
-    - WMB
-    - HES
-    - HAL
-    - KMI
-    - DVN
-    - FANG
-    - BKR
-    - CTRA
-    - OKE
-    - TRGP
-    - EQT
-    - MRO
-    - APA
-    # -- Industrials / 工业 --
-    - GE
+    # Industrials (8)
     - CAT
+    - BA
+    - GE
     - RTX
     - HON
-    - UNP
-    - BA
     - UPS
-    - DE
     - LMT
-    - ADP
-    - GD
-    - NOC
-    - MMM
-    - ITW
-    - CSX
-    - NSC
-    - EMR
-    - ETN
-    - PH
-    - WM
-    - RSG
-    - CMI
-    - FDX
-    - JCI
-    - PCAR
-    - TT
-    - CARR
-    - OTIS
-    - CPRT
-    - FAST
-    - CTAS
-    - PAYX
-    - ROK
-    - AME
-    - DOV
-    - GWW
-    - SWK
-    - XYL
-    - IEX
-    - WAB
-    - HUBB
-    - BR
-    - NDSN
-    - AOS
-    - LHX
-    - TDG
-    - VRSK
-    - PWR
-    - IR
-    - SNA
-    - HWM
-    - RHI
-    - DAL
-    - UAL
-    - LUV
-    - ALK
-    - EFX
-    - AXON
-    - LDOS
-    - J
-    - PAYC
-    - ROL
-    - GNRC
-    - ODFL
-    - URI
-    - VLTO
-    - GEV
-    - ROP
-    # -- Materials / 原材料 --
+    - DE
+    # Materials (3)
     - LIN
     - APD
-    - SHW
-    - ECL
     - FCX
-    - NEM
-    - NUE
-    - DOW
-    - DD
-    - PPG
-    - VMC
-    - MLM
-    - CTVA
-    - IFF
-    - FMC
-    - CF
-    - MOS
-    - ALB
-    - EMN
-    - CE
-    - BALL
-    - PKG
-    - IP
-    - AVY
-    - SEE
-    - AMCR
-    - STLD
-    - WRK
-    - SW
-    # -- Real Estate / 房地产 --
+    # Utilities (2)
+    - NEE
+    - DUK
+    # Real Estate (2)
     - AMT
     - PLD
-    - CCI
-    - EQIX
-    - PSA
-    - O
-    - SPG
-    - WELL
-    - DLR
-    - VICI
-    - ARE
-    - AVB
-    - EQR
-    - ESS
-    - MAA
-    - UDR
-    - CPT
-    - HST
-    - KIM
-    - REG
-    - FRT
-    - BXP
-    - VTR
-    - PEAK
-    - SBA
-    - INVH
-    - IRM
-    - CBRE
-    - DOC
-    - WY
-    - EXR
-    # -- Utilities / 公用事业 --
-    - NEE
-    - SO
-    - DUK
-    - D
-    - SRE
-    - AEP
-    - EXC
-    - XEL
-    - ED
-    - WEC
-    - AWK
-    - ES
-    - EIX
-    - ETR
-    - DTE
-    - FE
-    - PPL
-    - AEE
-    - CMS
-    - ATO
-    - CNP
-    - NI
-    - EVRG
-    - PNW
-    - LNT
-    - NRG
-    - CEG
-    - PCG
-    - VST
-    # -- Additional S&P 500 members / 其他成分股 --
-    - WAT
-    - JBHT
-    - CHRW
-    - EXPD
-    - BF-B
-    - BIO
-    - HSIC
-    - TFX
-    - BBWI
-    - ENPH
-    - VTRS
-    - ALLE
-    - AES
-    - CDAY
-    - JKHY
-    - MKTX
-    - AIZ
-    - CMA
-    - ZION
-    - FI
-    - TOST
-    - SPOT
-    - RBLX
-    - CSGP
-    - DDOG
-    - TEAM
-    - ZS
-    - NET
-    - HUBS
-    - VEEV
-    - MSTR
-    - TTD
-    - LPLA
-    - RBA
-    - EMCR
-    - WSM
-    - TKO
-    - EXE
-    - KVUE
-    - NTNX
-    - SMMT
-    - LNTH
-    - ICLR
-    - PSTG
-    - TPL
   benchmark: SPY
 
 data:
