@@ -34,7 +34,7 @@ universe:
     - APH
     - FTNT
     - NXPI
-    - ON
+    - "ON"
     - MPWR
     - KEYS
     - TEL
