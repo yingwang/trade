@@ -13,12 +13,14 @@ def monthly_returns_table(equity_curve: pd.Series) -> pd.DataFrame:
         "return": monthly.values,
     })
     pivot = table.pivot_table(values="return", index="year", columns="month", aggfunc="sum")
-    pivot.columns = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    month_names = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+                   7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"}
+    pivot = pivot.rename(columns=month_names)
 
     # Add annual return column
     annual = equity_curve.resample("YE").last().pct_change().dropna()
-    pivot["Annual"] = annual.values[:len(pivot)]
+    annual_by_year = pd.Series(annual.values, index=annual.index.year)
+    pivot["Annual"] = annual_by_year.reindex(pivot.index)
     return pivot
 
 

@@ -75,7 +75,7 @@ class BacktestEngine:
                 rebalance_dates.add(rd)
 
         for date in dates:
-            px = prices.loc[date, symbols].fillna(method="ffill")
+            px = prices.loc[date, symbols].ffill()
             portfolio_value = cash + (holdings * px).sum()
 
             # Rebalance if this is a rebalance date

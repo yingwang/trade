@@ -135,6 +135,7 @@ class SignalGenerator:
         self.vol_window = sig_cfg["volatility_window"]
         self.sma_short = sig_cfg["sma_short"]
         self.sma_long = sig_cfg["sma_long"]
+        self.benchmark = config["universe"]["benchmark"]
 
         # Default factor weights (equal-weighted)
         self.weights = {
@@ -152,7 +153,7 @@ class SignalGenerator:
 
         Returns DataFrame (dates x symbols) of composite z-scores.
         """
-        symbols = [c for c in prices.columns if c != "SPY"]
+        symbols = [c for c in prices.columns if c != self.benchmark]
         px = prices[symbols]
         ret = returns[[c for c in symbols if c in returns.columns]]
 
