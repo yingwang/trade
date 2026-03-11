@@ -203,7 +203,7 @@ risk:
 
 ### Customizing the Universe / 自定义股票池
 
-编辑 `config.yaml` 中的 `symbols` 列表。系统支持 Yahoo Finance 上所有可用的美股。默认包含 50 只股票，涵盖大型科技股（NVDA、AMD、CRM、PLTR 等）和蓝筹防御股（JNJ、PG、KO 等）。
+编辑 `config.yaml` 中的 `symbols` 列表。系统支持 Yahoo Finance 上所有可用的美股。默认包含 S&P 500 全部约 503 只成分股，按行业分类排列。首次运行时基本面数据获取可能需要几分钟（系统会自动分批获取并显示进度）。
 
 ### Tuning Factor Weights / 调整因子权重
 
