@@ -49,8 +49,53 @@ class TestPortfolioOptimizer:
             [[0.10, 0.02], [0.02, 0.10]],
             index=["A", "B"], columns=["A", "B"],
         )
-        scaled = opt.apply_vol_scaling(weights, cov)
+        scaled = opt.apply_vol_scaling(weights, cov, regime="high_vol")
         assert scaled.sum() <= weights.sum()
+
+    def test_vol_scaling_levers_up_in_low_vol(self, config):
+        opt = PortfolioOptimizer(config)
+        weights = pd.Series({"A": 0.5, "B": 0.5})
+        # Very low vol covariance → scale should exceed 1.0
+        cov = pd.DataFrame(
+            [[0.0001, 0.0], [0.0, 0.0001]],
+            index=["A", "B"], columns=["A", "B"],
+        )
+        scaled = opt.apply_vol_scaling(weights, cov, regime="low_vol")
+        assert scaled.sum() > 1.0  # leveraged
+        assert scaled.sum() <= config["leverage"]["regime_leverage_caps"]["low_vol"] + 0.01
+
+    def test_detect_regime_low_vol(self, config):
+        np.random.seed(0)
+        opt = PortfolioOptimizer(config)
+        # Low-vol SPY returns: ~5% annualized
+        spy_ret = pd.Series(np.random.normal(0.0003, 0.003, 200))
+        assert opt.detect_regime(spy_ret) == "low_vol"
+
+    def test_detect_regime_high_vol(self, config):
+        np.random.seed(0)
+        opt = PortfolioOptimizer(config)
+        # High-vol SPY returns: ~30% annualized
+        spy_ret = pd.Series(np.random.normal(-0.001, 0.02, 200))
+        assert opt.detect_regime(spy_ret) == "high_vol"
+
+    def test_detect_regime_normal(self, config):
+        np.random.seed(0)
+        opt = PortfolioOptimizer(config)
+        # Normal SPY returns: ~15% annualized vol
+        spy_ret = pd.Series(np.random.normal(0.0003, 0.009, 200))
+        assert opt.detect_regime(spy_ret) == "normal"
+
+    def test_regime_caps_leverage_in_stress(self, config):
+        opt = PortfolioOptimizer(config)
+        weights = pd.Series({"A": 0.5, "B": 0.5})
+        # Very low portfolio vol → would want to lever up
+        cov = pd.DataFrame(
+            [[0.0001, 0.0], [0.0, 0.0001]],
+            index=["A", "B"], columns=["A", "B"],
+        )
+        # But high_vol regime caps at 0.7
+        scaled = opt.apply_vol_scaling(weights, cov, regime="high_vol")
+        assert scaled.sum() <= 0.7 + 0.01
 
     def test_stop_loss(self, config):
         opt = PortfolioOptimizer(config)

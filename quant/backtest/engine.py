@@ -42,6 +42,7 @@ class BacktestEngine:
         self.slippage_bps = bt_cfg["slippage_bps"]
         self.txn_cost_bps = port_cfg["transaction_cost_bps"]
         self.rebalance_freq = port_cfg["rebalance_frequency_days"]
+        self.margin_rate = config.get("leverage", {}).get("margin_annual_rate", 0.0)
 
     def run(self, prices: pd.DataFrame, target_weights_by_date: dict[str, pd.Series],
             benchmark_col: str = "SPY") -> BacktestResult:
@@ -105,6 +106,13 @@ class BacktestEngine:
                 })
 
             portfolio_value = cash + (holdings * px).sum()
+
+            # Charge daily margin interest when cash is negative (leveraged)
+            if cash < 0 and self.margin_rate > 0:
+                daily_interest = abs(cash) * self.margin_rate / 252
+                cash -= daily_interest
+                portfolio_value -= daily_interest
+
             equity_history[date] = portfolio_value
             result.positions_history.append({
                 "date": date,
