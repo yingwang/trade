@@ -5,8 +5,9 @@ import pandas as pd
 import pytest
 
 from quant.signals.factors import (
-    momentum_factor, mean_reversion_factor, trend_factor,
-    volatility_factor, value_factor, quality_factor, SignalGenerator,
+    momentum_factor, mean_reversion_factor, trend_factor, trend_filter,
+    blowoff_filter, volatility_factor, value_factor, quality_factor,
+    SignalGenerator,
 )
 
 
@@ -57,6 +58,40 @@ class TestTrendFactor:
         result = trend_factor(px, short_window=50, long_window=200)
         last = result.iloc[-1]
         assert last["UP"] > last["DOWN"]
+
+
+class TestTrendFilter:
+    def test_uptrend_no_penalty(self):
+        """Stocks above 200d SMA should get multiplier 1.0."""
+        dates = pd.bdate_range("2020-01-01", periods=300)
+        px = pd.DataFrame({"UP": np.linspace(50, 150, 300)}, index=dates)
+        result = trend_filter(px, long_window=200)
+        assert result["UP"].iloc[-1] == 1.0
+
+    def test_downtrend_penalized(self):
+        """Stocks below 200d SMA should get multiplier 0.5."""
+        dates = pd.bdate_range("2020-01-01", periods=300)
+        px = pd.DataFrame({"DOWN": np.linspace(150, 50, 300)}, index=dates)
+        result = trend_filter(px, long_window=200)
+        assert result["DOWN"].iloc[-1] == 0.5
+
+
+class TestBlowoffFilter:
+    def test_normal_stock_no_penalty(self):
+        """Stock with moderate z-score should get multiplier 1.0."""
+        dates = pd.bdate_range("2020-01-01", periods=50)
+        px = pd.DataFrame({"A": np.linspace(100, 110, 50)}, index=dates)
+        result = blowoff_filter(px, window=20, zscore_limit=3.0)
+        assert result["A"].iloc[-1] == 1.0
+
+    def test_parabolic_stock_penalized(self):
+        """Stock with extreme spike should get multiplier 0.5."""
+        dates = pd.bdate_range("2020-01-01", periods=50)
+        # Flat then massive vertical spike — guarantees zscore >> 3
+        prices = np.concatenate([np.full(45, 100), np.array([100, 100, 100, 100, 500])])
+        px = pd.DataFrame({"A": prices}, index=dates)
+        result = blowoff_filter(px, window=20, zscore_limit=3.0)
+        assert result["A"].iloc[-1] == 0.5
 
 
 class TestVolatilityFactor:

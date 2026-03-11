@@ -119,47 +119,45 @@ universe:
   benchmark: SPY
 
 data:
-  lookback_years: 3
+  lookback_years: 5
   frequency: 1d  # daily bars
 
 signals:
-  # Momentum
-  momentum_windows: [21, 63, 126, 252]  # 1m, 3m, 6m, 12m in trading days
-  # Mean reversion
+  # Momentum — 3m/6m/12m; dropped 1m (too noisy)
+  momentum_windows: [63, 126, 252]  # 3m, 6m, 12m in trading days
+  # Mean reversion — used as blowoff filter (zscore > 3 → penalize)
   mean_reversion_window: 20
-  mean_reversion_zscore_threshold: 2.0
-  # Value
-  # (fundamentals fetched from yfinance)
-  # Volatility
-  volatility_window: 63
-  # Trend
+  mean_reversion_zscore_threshold: 3.0
+  # Trend — used as filter: price < 200d SMA → score *= 0.5
   sma_short: 50
   sma_long: 200
-  # Factor weights (must sum to 1.0) — adjusted for AI/growth stocks
-  # Focus on momentum, trend, and quality; ignore value to capture high-growth tech
+  # Volatility
+  volatility_window: 63
+  # Factor weights (must sum to 1.0) — trend/mean_reversion now applied as filters, not scored
+  # 因子权重（必须加总为 1.0）— trend 和 mean_reversion 改为过滤器，不参与评分
   factor_weights:
-    momentum: 0.45      # Strong momentum (recent winners like NVDA, MSFT)
-    trend: 0.30         # Strong uptrends
-    quality: 0.20       # High profit margins, ROE
-    volatility: 0.05    # Slight preference for lower vol
-    value: 0.00         # Ignore P/E ratios (allows expensive AI stocks)
-    mean_reversion: 0.00  # Don't buy dips
+    momentum: 0.45
+    quality: 0.25
+    volatility: 0.10
+    value: 0.05
+    mean_reversion: 0.00   # disabled as scored factor; used as blowoff filter instead
+    trend: 0.00            # disabled as scored factor; used as 200d SMA filter instead
 
 portfolio:
-  max_positions: 15
-  max_position_weight: 0.12  # 12% max single position
-  min_position_weight: 0.04  # 4% min
+  max_positions: 18
+  max_position_weight: 0.10  # 10% max single position
+  min_position_weight: 0.02  # 2% min
   target_volatility: 0.15    # 15% annualized
   rebalance_frequency_days: 21  # monthly rebalance
   transaction_cost_bps: 10  # 10 basis points per trade
 
 risk:
   max_drawdown_limit: 0.20   # 20% max drawdown halt
-  max_sector_weight: 0.30    # 30% max in one sector
-  stop_loss_pct: 0.08        # 8% individual stop loss
+  max_sector_weight: 0.40    # 40% max in one sector (raised for tech-heavy pool)
+  stop_loss_pct: 0.12        # 12% individual stop loss (wider for momentum strategy)
 
 backtest:
-  start_date: "2022-01-01"
+  start_date: "2016-01-01"
   end_date: null  # null = today
   initial_capital: 1000000
   slippage_bps: 5

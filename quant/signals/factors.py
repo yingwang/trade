@@ -71,6 +71,32 @@ def trend_factor(prices: pd.DataFrame, short_window: int = 50,
     return zs
 
 
+def trend_filter(prices: pd.DataFrame, long_window: int = 200,
+                 penalty: float = 0.5) -> pd.DataFrame:
+    """Trend filter: penalize stocks trading below their 200-day SMA.
+
+    Returns a DataFrame of multipliers (1.0 for uptrend, `penalty` for downtrend).
+    Used as a post-composite filter rather than a scored factor.
+    """
+    sma_long = prices.rolling(long_window).mean()
+    above = prices >= sma_long
+    return above.astype(float).replace(0.0, penalty)
+
+
+def blowoff_filter(prices: pd.DataFrame, window: int = 20,
+                    zscore_limit: float = 3.0, penalty: float = 0.5) -> pd.DataFrame:
+    """Penalize stocks with extreme short-term gains (blowoff top protection).
+
+    If a stock's Bollinger z-score exceeds `zscore_limit`, its composite score
+    is multiplied by `penalty`.  Prevents chasing parabolic moves.
+    """
+    rolling_mean = prices.rolling(window).mean()
+    rolling_std = prices.rolling(window).std()
+    zscore = (prices - rolling_mean) / rolling_std
+    overextended = zscore > zscore_limit
+    return (~overextended).astype(float).replace(0.0, penalty)
+
+
 def volatility_factor(returns: pd.DataFrame, window: int = 63) -> pd.DataFrame:
     """Realized volatility factor (low-vol anomaly: prefer lower vol).
 
@@ -152,6 +178,13 @@ class SignalGenerator:
                  fundamentals: pd.DataFrame = None) -> pd.DataFrame:
         """Produce a composite alpha score for each symbol on each date.
 
+        Pipeline:
+          1. Compute scored factors (momentum, volatility, value, quality, etc.)
+          2. Build weighted composite from scored factors
+          3. Apply post-composite filters:
+             - Trend filter: penalize stocks below 200d SMA
+             - Blowoff filter: penalize stocks with extreme short-term gains
+
         Returns DataFrame (dates x symbols) of composite z-scores.
         """
         symbols = [c for c in prices.columns if c != self.benchmark]
@@ -182,17 +215,26 @@ class SignalGenerator:
                 df = df.reindex(columns=px.columns)
                 factors[name] = df
 
-        # Weighted composite
+        # Weighted composite (only factors with weight > 0 contribute)
         composite = pd.DataFrame(0.0, index=px.index, columns=px.columns)
         total_weight = 0.0
         for name, weight in self.weights.items():
-            if name in factors:
+            if weight > 0 and name in factors:
                 f = factors[name].reindex(index=px.index, columns=px.columns)
                 composite += weight * f.fillna(0)
                 total_weight += weight
 
         if total_weight > 0:
             composite /= total_weight
+
+        # --- Post-composite filters ---
+        # Trend filter: penalize stocks below 200d SMA (score *= 0.5)
+        tf = trend_filter(px, long_window=self.sma_long)
+        composite = composite * tf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
+
+        # Blowoff filter: penalize stocks with extreme overbought z-score > threshold
+        bf = blowoff_filter(px, window=self.mr_window, zscore_limit=self.mr_threshold)
+        composite = composite * bf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
 
         logger.info("Generated composite signal: shape=%s", composite.shape)
         return composite

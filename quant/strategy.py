@@ -86,10 +86,8 @@ class MultiFactorStrategy:
                 selected.tolist(), day_scores, cov
             )
             weights = self.optimizer.apply_vol_scaling(weights, cov)
-
-            # Normalize back to sum=1 after vol scaling
-            if weights.sum() > 0:
-                weights /= weights.sum()
+            # Do NOT renormalize after vol scaling — the remainder is held as cash.
+            # This preserves the vol-targeting effect.
 
             target_weights[str(date.date())] = weights
 
@@ -151,8 +149,7 @@ class MultiFactorStrategy:
         # Optimize weights
         weights = self.optimizer.optimize_weights(symbols, day_scores, cov)
         weights = self.optimizer.apply_vol_scaling(weights, cov)
-        if weights.sum() > 0:
-            weights /= weights.sum()
+        # Do NOT renormalize — remainder is cash buffer for vol targeting.
 
         # Build output table
         latest_prices = prices[symbols].iloc[-1]
