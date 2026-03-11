@@ -157,14 +157,14 @@ class MultiFactorStrategy:
         # Build output table
         latest_prices = prices[symbols].iloc[-1]
         dollars = weights * capital
-        shares = (dollars / latest_prices).apply(np.floor)
+        shares = (dollars / latest_prices).apply(np.floor).fillna(0).astype(int)
 
         result = pd.DataFrame({
             "score": day_scores.reindex(weights.index),
             "weight": weights,
             "weight_pct": (weights * 100).round(2),
             "dollars": dollars.round(2),
-            "shares": shares.astype(int),
+            "shares": shares,
             "price": latest_prices.round(2),
         })
         result = result.sort_values("weight", ascending=False)

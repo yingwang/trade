@@ -110,7 +110,7 @@ def run_rebalance(strategy, broker, dry_run=False):
     print(f"  {'-'*55}")
     for sym, row in portfolio.iterrows():
         print(f"  {sym:<8} {row['weight_pct']:>7.1f}% ${row['dollars']:>9,.0f} "
-              f"{row['shares']:>7d}  ${row['price']:>8.2f}")
+              f"{row['shares']:>7.0f}  ${row['price']:>8.2f}")
     print(f"  {'-'*55}")
     print(f"  {'TOTAL':<8} {portfolio['weight_pct'].sum():>7.1f}% "
           f"${portfolio['dollars'].sum():>9,.0f}")
