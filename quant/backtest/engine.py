@@ -62,6 +62,10 @@ class BacktestEngine:
         dates = prices.index.sort_values()
         symbols = [c for c in prices.columns if c != benchmark_col]
 
+        # Forward-fill missing prices along the TIME axis (not cross-symbol)
+        # so that halted/suspended stocks carry their last known price.
+        prices_ffilled = prices[symbols].ffill()
+
         cash = self.initial_capital
         holdings = pd.Series(0.0, index=symbols)  # number of shares
         equity_history = {}
@@ -76,7 +80,7 @@ class BacktestEngine:
                 rebalance_dates.add(rd)
 
         for date in dates:
-            px = prices.loc[date, symbols].ffill()
+            px = prices_ffilled.loc[date, symbols]
             portfolio_value = cash + (holdings * px).sum()
 
             # Rebalance if this is a rebalance date

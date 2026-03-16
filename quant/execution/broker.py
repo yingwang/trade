@@ -2,12 +2,15 @@
 
 Provides a paper-trading broker for simulation and a base class for
 plugging in live broker APIs (e.g., Alpaca, Interactive Brokers).
+
+Safety integration: all orders pass through PreTradeCheck before submission.
 """
 
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Optional
 
 import pandas as pd
 
@@ -25,6 +28,8 @@ class Order:
     filled_price: float = None
     filled_at: datetime = None
     order_id: str = ""
+    signal_price: float = None     # price at signal time (for slippage tracking)
+    reject_reason: str = ""        # reason if rejected by safety or broker
 
 
 class BaseBroker(ABC):
@@ -125,11 +130,25 @@ class PaperBroker(BaseBroker):
         return self.cash
 
 
-def generate_rebalance_orders(current_positions: pd.Series,
-                              target_weights: pd.Series,
-                              portfolio_value: float,
-                              prices: dict[str, float]) -> list[Order]:
-    """Generate the orders needed to move from current to target portfolio."""
+def generate_rebalance_orders(
+    current_positions: pd.Series,
+    target_weights: pd.Series,
+    portfolio_value: float,
+    prices: dict[str, float],
+    order_type: str = "market",
+    limit_offset_bps: float = 0,
+) -> list[Order]:
+    """Generate the orders needed to move from current to target portfolio.
+
+    Parameters
+    ----------
+    order_type : str
+        "market" or "limit". If "limit", limit_offset_bps is applied to the
+        current price (added for buys, subtracted for sells) to set the limit.
+    limit_offset_bps : float
+        Basis points offset from current price for limit orders. E.g. 10 means
+        willing to pay up to 0.1% above current price on buys.
+    """
     orders = []
     all_symbols = set(current_positions.index) | set(target_weights.index)
 
@@ -139,14 +158,41 @@ def generate_rebalance_orders(current_positions: pd.Series,
         price = prices.get(sym)
 
         if price is None or price <= 0:
+            logger.warning("Skipping %s: no valid price", sym)
             continue
 
         target_shares = int(target_value / price)
         delta = target_shares - current_shares
 
-        if delta > 0:
-            orders.append(Order(symbol=sym, side="buy", quantity=delta, order_type="market"))
-        elif delta < 0:
-            orders.append(Order(symbol=sym, side="sell", quantity=abs(delta), order_type="market"))
+        if delta == 0:
+            continue
+
+        side = "buy" if delta > 0 else "sell"
+        qty = abs(delta)
+
+        limit_price = None
+        otype = order_type
+        if order_type == "limit" and limit_offset_bps > 0:
+            offset = price * limit_offset_bps / 10000
+            if side == "buy":
+                limit_price = round(price + offset, 2)
+            else:
+                limit_price = round(price - offset, 2)
+        elif order_type == "limit":
+            # No offset: use current price as limit
+            limit_price = round(price, 2)
+
+        order = Order(
+            symbol=sym,
+            side=side,
+            quantity=qty,
+            order_type=otype,
+            limit_price=limit_price,
+            signal_price=price,
+        )
+        orders.append(order)
+
+    # Sort: sells first (free up cash), then buys
+    orders.sort(key=lambda o: (0 if o.side == "sell" else 1, o.symbol))
 
     return orders

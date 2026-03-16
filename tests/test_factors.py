@@ -158,16 +158,36 @@ class TestNeutralizeBySecotr:
             "F2": np.random.normal(-1.0, 1.0, 50), # finance, low
         }, index=dates)
         sector_map = pd.Series({"T1": "Tech", "T2": "Tech", "F1": "Finance", "F2": "Finance"})
-        result = neutralize_by_sector(df, sector_map)
+        # Use min_sector_size=2 to test within-sector z-scoring with small sectors
+        result = neutralize_by_sector(df, sector_map, min_sector_size=2)
         # Tech sector mean should be ~0 (not 4.5)
         tech_mean = result[["T1", "T2"]].mean(axis=1).mean()
         assert abs(tech_mean) < 0.3
+
+    def test_small_sector_falls_back_to_cross_sectional(self):
+        """Sectors below min_sector_size should use cross-sectional z-score."""
+        dates = pd.bdate_range("2020-01-01", periods=50)
+        np.random.seed(42)
+        df = pd.DataFrame({
+            "T1": np.random.normal(5.0, 1.0, 50),
+            "T2": np.random.normal(4.0, 1.0, 50),
+            "F1": np.random.normal(0.0, 1.0, 50),
+            "F2": np.random.normal(-1.0, 1.0, 50),
+        }, index=dates)
+        sector_map = pd.Series({"T1": "Tech", "T2": "Tech", "F1": "Finance", "F2": "Finance"})
+        # min_sector_size=5 means all 2-stock sectors fall back
+        result = neutralize_by_sector(df, sector_map, min_sector_size=5)
+        # Shape preserved
+        assert result.shape == df.shape
+        # Cross-sectional mean should be ~0 (all 4 stocks z-scored together)
+        row_means = result.mean(axis=1).dropna()
+        assert abs(row_means.mean()) < 0.3
 
     def test_preserves_shape(self):
         dates = pd.bdate_range("2020-01-01", periods=10)
         df = pd.DataFrame(np.random.randn(10, 4), index=dates, columns=list("ABCD"))
         sector_map = pd.Series({"A": "X", "B": "X", "C": "Y", "D": "Y"})
-        result = neutralize_by_sector(df, sector_map)
+        result = neutralize_by_sector(df, sector_map, min_sector_size=2)
         assert result.shape == df.shape
 
     def test_no_sector_data_returns_original(self):

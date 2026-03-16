@@ -2,6 +2,7 @@
 
 import logging
 import time
+import warnings
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -91,12 +92,26 @@ class MarketData:
         self._info_cache[symbol] = info
         return info
 
-    def fetch_fundamentals(self, batch_size: int = 50, batch_delay: float = 1.5) -> pd.DataFrame:
+    def fetch_fundamentals(self, batch_size: int = 50, batch_delay: float = 1.5,
+                           is_backtest: bool = False) -> pd.DataFrame:
         """Return a DataFrame of key fundamental ratios for the universe.
 
         Fetches in batches with delays to avoid yfinance rate limits.
-        分批获取基本面数据，避免触发 yfinance 速率限制。
+
+        WARNING: yfinance .info returns a CURRENT snapshot of fundamentals.
+        This data is NOT point-in-time and will cause look-ahead bias if
+        used in a historical backtest.  See quant.data.quality.PointInTimeDataManager
+        for mitigation strategies.
         """
+        if is_backtest:
+            warnings.warn(
+                "fetch_fundamentals() returns CURRENT snapshot data from yfinance. "
+                "Using this in a backtest introduces look-ahead bias for value "
+                "and quality factors. Consider setting their weights to 0 or "
+                "supplying point-in-time data.",
+                UserWarning,
+                stacklevel=2,
+            )
         rows = []
         fields = [
             "trailingPE", "forwardPE", "priceToBook", "pegRatio",

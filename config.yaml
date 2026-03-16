@@ -139,10 +139,10 @@ signals:
   # Factor weights (must sum to 1.0) — trend/mean_reversion now applied as filters, not scored
   # 因子权重（必须加总为 1.0）— trend 和 mean_reversion 改为过滤器，不参与评分
   factor_weights:
-    momentum: 0.45
-    quality: 0.25
-    volatility: 0.10
-    value: 0.05
+    momentum: 0.65         # raised from 0.45 — primary alpha source, no look-ahead bias
+    quality: 0.00          # disabled — yfinance .info has look-ahead bias (uses current snapshot)
+    volatility: 0.15       # raised from 0.10 — low-vol anomaly, no look-ahead bias
+    value: 0.00            # disabled — same look-ahead bias as quality
     mean_reversion: 0.00   # disabled as scored factor; used as blowoff filter instead
     trend: 0.00            # disabled as scored factor; used as 200d SMA filter instead
 
@@ -170,6 +170,16 @@ leverage:
     normal: 1.3                  # normal → up to 1.3x
     high_vol: 0.7                # stressed → forced de-leverage to 0.7x
   margin_annual_rate: 0.06       # annual margin interest rate (for backtest)
+
+safety:
+  max_single_order_value: 50000     # $50k max per order
+  max_single_order_shares: 10000    # 10k shares max per order
+  max_daily_trade_value: 500000     # $500k max daily turnover
+  max_daily_loss: 25000             # $25k daily loss limit
+  max_adv_fraction: 0.01            # max 1% of average daily volume
+  min_price: 1.0                    # reject penny stocks
+  max_position_pct_of_portfolio: 0.15  # 15% max single position
+  require_paper_mode: true          # block live trading unless explicitly overridden
 
 backtest:
   start_date: "2016-01-01"

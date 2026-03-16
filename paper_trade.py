@@ -17,6 +17,9 @@ Usage:
     # Check current status:
     python paper_trade.py --status
 
+    # Run post-trade reconciliation only:
+    python paper_trade.py --reconcile
+
     # Automate with cron (run at 3:55 PM ET every 21 trading days):
     # 55 15 * * 1-5 cd /path/to/trade && python paper_trade.py >> logs/trade.log 2>&1
 """
@@ -35,6 +38,7 @@ import pandas as pd
 from quant.utils.config import load_config
 from quant.strategy import MultiFactorStrategy
 from quant.execution.broker import generate_rebalance_orders
+from quant.execution.safety import SafetyConfig, ExecutionLogger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +51,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 STATE_FILE = Path("logs/paper_trade_state.json")
+LOCK_FILE = Path("logs/paper_trade.lock")
 
 
 def load_state() -> dict:
@@ -60,14 +65,46 @@ def save_state(state: dict):
     STATE_FILE.write_text(json.dumps(state, indent=2, default=str))
 
 
+def acquire_lock() -> bool:
+    """Simple file-based lock to prevent concurrent rebalances.
+
+    If a previous run crashed, a stale lock file may remain. We consider
+    locks older than 1 hour to be stale and remove them.
+    """
+    if LOCK_FILE.exists():
+        # Check for stale lock (older than 1 hour)
+        age = datetime.now().timestamp() - LOCK_FILE.stat().st_mtime
+        if age > 3600:
+            logger.warning("Removing stale lock file (age: %.0f seconds)", age)
+            LOCK_FILE.unlink()
+        else:
+            return False
+    LOCK_FILE.write_text(json.dumps({
+        "pid": os.getpid(),
+        "started": datetime.now().isoformat(),
+    }))
+    return True
+
+
+def release_lock():
+    if LOCK_FILE.exists():
+        LOCK_FILE.unlink()
+
+
 def should_rebalance(state: dict, freq_days: int = 21) -> bool:
-    """Check if enough trading days have passed since last rebalance."""
+    """Check if enough time has passed since last rebalance.
+
+    Uses a conservative calendar-day approximation: multiply calendar days
+    by 5/7 to estimate trading days. This slightly overestimates trading days
+    (ignores holidays), which means we rebalance slightly early rather than
+    late -- a safer default.
+    """
     last = state.get("last_rebalance")
     if last is None:
         return True
     last_date = datetime.fromisoformat(last)
     days_passed = (datetime.now() - last_date).days
-    # Approximate trading days (weekdays only)
+    # Approximate trading days (weekdays only, ignores holidays)
     trading_days = days_passed * 5 / 7
     return trading_days >= freq_days
 
@@ -94,10 +131,16 @@ def show_status(broker):
     print(f"{'='*60}\n")
 
 
-def run_rebalance(strategy, broker, dry_run=False):
+def run_rebalance(strategy, broker, config, dry_run=False):
     """Compute target portfolio and execute rebalance trades."""
+    exec_log = ExecutionLogger()
     capital = broker.get_portfolio_value()
     logger.info("Computing target portfolio for $%.2f...", capital)
+
+    # Check market hours (skip if dry run)
+    if not dry_run and hasattr(broker, 'is_market_open'):
+        if not broker.is_market_open():
+            logger.warning("Market is closed. Orders will queue for next open.")
 
     # Get optimized portfolio
     portfolio = strategy.get_current_portfolio(capital=capital)
@@ -121,14 +164,14 @@ def run_rebalance(strategy, broker, dry_run=False):
     all_symbols = list(set(target_weights.index) | set(current_positions.index))
     prices = broker.get_current_prices(all_symbols)
 
-    # Generate orders
+    # Generate orders (sells first by default via sort in generate_rebalance_orders)
     orders = generate_rebalance_orders(
         current_positions, target_weights, capital, prices
     )
 
     if not orders:
         print("\n  No trades needed - portfolio already at target.")
-        return
+        return None, target_weights
 
     # Show planned trades
     print(f"\n  TRADES TO EXECUTE ({len(orders)} orders):")
@@ -148,27 +191,44 @@ def run_rebalance(strategy, broker, dry_run=False):
 
     if dry_run:
         print("\n  ** DRY RUN - no orders submitted **\n")
-        return
+        return None, target_weights
 
-    # Execute: sell first, then buy
+    # Execute trades
+    exec_log.log_rebalance_start(capital, len(orders))
     print("\n  Executing trades...")
-    sells = [o for o in orders if o.side == "sell"]
-    buys = [o for o in orders if o.side == "buy"]
 
     filled = []
-    for o in sells + buys:
+    n_filled = 0
+    n_rejected = 0
+    total_value_traded = 0.0
+
+    for o in orders:
         result = broker.submit_order(o)
-        filled.append({
+        record = {
             "time": datetime.now().isoformat(),
             "symbol": result.symbol,
             "side": result.side,
             "qty": result.quantity,
             "status": result.status,
             "price": result.filled_price,
+            "signal_price": result.signal_price,
             "order_id": result.order_id,
-        })
+            "reject_reason": result.reject_reason,
+        }
+        filled.append(record)
 
-    return filled
+        if result.status in ("filled", "partial_fill"):
+            n_filled += 1
+            total_value_traded += result.quantity * (result.filled_price or 0)
+        elif result.status == "rejected":
+            n_rejected += 1
+
+    exec_log.log_rebalance_complete(n_filled, n_rejected, total_value_traded)
+
+    print(f"\n  Results: {n_filled} filled, {n_rejected} rejected, "
+          f"${total_value_traded:,.0f} traded")
+
+    return filled, target_weights
 
 
 def main():
@@ -179,6 +239,8 @@ def main():
                         help="Show current portfolio status")
     parser.add_argument("--force", action="store_true",
                         help="Force rebalance even if not due")
+    parser.add_argument("--reconcile", action="store_true",
+                        help="Run post-trade reconciliation only")
     parser.add_argument("--capital", type=float, default=None,
                         help="Override capital amount")
     args = parser.parse_args()
@@ -190,39 +252,82 @@ def main():
     config = load_config("config.yaml")
     strategy = MultiFactorStrategy(config)
 
+    # Build safety config from project config
+    safety_config = SafetyConfig.from_config(config)
+
     # Connect to Alpaca paper trading
     from quant.execution.alpaca_broker import AlpacaBroker
-    broker = AlpacaBroker(paper=True)
+    broker = AlpacaBroker(paper=True, safety_config=safety_config)
 
     if args.status:
         show_status(broker)
         return
 
-    # Check if rebalance is due
-    state = load_state()
-    freq = config["portfolio"]["rebalance_frequency_days"]
-
-    if not args.force and not should_rebalance(state, freq):
-        days_since = (datetime.now() - datetime.fromisoformat(state["last_rebalance"])).days
-        print(f"  Not time to rebalance yet ({days_since} days since last, "
-              f"target is {freq} trading days). Use --force to override.")
-        show_status(broker)
+    if args.reconcile:
+        # Load last target weights from state
+        state = load_state()
+        last_trades = state.get("trade_history", [])
+        if not last_trades:
+            print("  No previous rebalance found. Run a rebalance first.")
+            return
+        # Re-compute current target for reconciliation
+        capital = broker.get_portfolio_value()
+        portfolio = strategy.get_current_portfolio(capital=capital)
+        target_weights = portfolio["weight"]
+        drift_df = broker.reconcile(target_weights)
+        print(f"\n  Reconciliation results:")
+        print(drift_df.to_string())
         return
 
-    # Run rebalance
-    filled = run_rebalance(strategy, broker, dry_run=args.dry_run)
-
-    if filled and not args.dry_run:
-        state["last_rebalance"] = datetime.now().isoformat()
-        state["trade_history"].append({
-            "date": datetime.now().isoformat(),
-            "trades": filled,
-        })
-        save_state(state)
-
-    # Show final status
+    # Acquire lock to prevent concurrent rebalances
     if not args.dry_run:
-        show_status(broker)
+        if not acquire_lock():
+            logger.error(
+                "Another rebalance is in progress (lock file exists). Exiting."
+            )
+            sys.exit(1)
+
+    try:
+        # Check if rebalance is due
+        state = load_state()
+        freq = config["portfolio"]["rebalance_frequency_days"]
+
+        if not args.force and not should_rebalance(state, freq):
+            days_since = (
+                datetime.now()
+                - datetime.fromisoformat(state["last_rebalance"])
+            ).days
+            print(
+                f"  Not time to rebalance yet ({days_since} days since last, "
+                f"target is {freq} trading days). Use --force to override."
+            )
+            show_status(broker)
+            return
+
+        # Run rebalance
+        filled, target_weights = run_rebalance(
+            strategy, broker, config, dry_run=args.dry_run
+        )
+
+        if filled and not args.dry_run:
+            state["last_rebalance"] = datetime.now().isoformat()
+            state["trade_history"].append({
+                "date": datetime.now().isoformat(),
+                "trades": filled,
+            })
+            save_state(state)
+
+            # Post-trade reconciliation
+            logger.info("Running post-trade reconciliation...")
+            drift_df = broker.reconcile(target_weights)
+
+        # Show final status
+        if not args.dry_run:
+            show_status(broker)
+
+    finally:
+        if not args.dry_run:
+            release_lock()
 
 
 if __name__ == "__main__":

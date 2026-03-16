@@ -35,7 +35,8 @@ def winsorize_zscore(df: pd.DataFrame, clip_val: float = 3.0) -> pd.DataFrame:
 
 
 def neutralize_by_sector(factor_df: pd.DataFrame,
-                         sector_map: pd.Series) -> pd.DataFrame:
+                         sector_map: pd.Series,
+                         min_sector_size: int = 5) -> pd.DataFrame:
     """Industry-neutral z-score: z-score within each sector, then combine.
 
     Parameters
@@ -44,6 +45,10 @@ def neutralize_by_sector(factor_df: pd.DataFrame,
         Raw factor scores.
     sector_map : Series (symbol -> sector string)
         Sector assignment for each symbol.
+    min_sector_size : int
+        Minimum number of stocks in a sector for within-sector z-scoring.
+        Sectors smaller than this fall back to cross-sectional z-scoring
+        to avoid unstable estimates from tiny samples.
 
     Returns
     -------
@@ -55,16 +60,36 @@ def neutralize_by_sector(factor_df: pd.DataFrame,
     if sectors.empty:
         return factor_df
 
+    # Stocks without sector assignment: apply cross-sectional z-score
+    unsectored = [s for s in symbols if s not in sectors.index]
+    small_sector_stocks = []
+
     unique_sectors = sectors.unique()
     for sector in unique_sectors:
         mask = sectors[sectors == sector].index.tolist()
         mask = [s for s in mask if s in symbols]
-        if len(mask) < 2:
+        if len(mask) < min_sector_size:
+            # Sector too small for reliable within-sector z-scoring;
+            # these stocks will be z-scored cross-sectionally below.
+            small_sector_stocks.extend(mask)
+            logger.debug("Sector '%s' has only %d stocks (< %d), "
+                         "falling back to cross-sectional z-score",
+                         sector, len(mask), min_sector_size)
             continue
         sector_data = factor_df[mask]
         mean = sector_data.mean(axis=1)
         std = sector_data.std(axis=1).replace(0, 1)
         result[mask] = sector_data.sub(mean, axis=0).div(std, axis=0)
+
+    # Cross-sectional z-score for unsectored + small-sector stocks
+    fallback = unsectored + small_sector_stocks
+    if fallback:
+        fallback = [s for s in fallback if s in symbols]
+        if len(fallback) >= 2:
+            fb_data = factor_df[fallback]
+            mean = fb_data.mean(axis=1)
+            std = fb_data.std(axis=1).replace(0, 1)
+            result[fallback] = fb_data.sub(mean, axis=0).div(std, axis=0)
 
     return result
 
@@ -200,6 +225,31 @@ def quality_factor(fundamentals: pd.DataFrame) -> pd.Series:
 
 
 # ======================================================================
+# Filter utility
+# ======================================================================
+
+def _apply_filter_safe(composite: pd.DataFrame,
+                       filter_df: pd.DataFrame) -> pd.DataFrame:
+    """Apply a multiplicative filter that correctly handles negative scores.
+
+    For positive composite scores: score * filter (reduces magnitude when
+    filter < 1, which is the standard penalty behavior).
+
+    For negative composite scores: score * (2 - filter) (increases the
+    magnitude of the penalty when filter < 1, preventing the bug where
+    multiplying a negative score by 0.5 would halve the penalty instead
+    of increasing it).
+
+    When filter == 1.0 (no penalty), both branches are identity.
+    """
+    positive_mask = composite >= 0
+    result = composite.copy()
+    result[positive_mask] = composite[positive_mask] * filter_df[positive_mask]
+    result[~positive_mask] = composite[~positive_mask] * (2.0 - filter_df[~positive_mask])
+    return result
+
+
+# ======================================================================
 # Composite signal
 # ======================================================================
 
@@ -285,26 +335,38 @@ class SignalGenerator:
             f = winsorize_zscore(f, clip_val=self.winsorize_clip)
             factors[name] = f
 
-        # Weighted composite (only factors with weight > 0 contribute)
+        # Weighted composite — normalize per-cell by available factor weights
+        # so that stocks with partial data (e.g., recently IPO'd, missing
+        # longer momentum windows) are not penalized toward zero.
         composite = pd.DataFrame(0.0, index=px.index, columns=px.columns)
-        total_weight = 0.0
+        weight_available = pd.DataFrame(0.0, index=px.index, columns=px.columns)
         for name, weight in self.weights.items():
             if weight > 0 and name in factors:
                 f = factors[name].reindex(index=px.index, columns=px.columns)
+                has_data = f.notna().astype(float)
                 composite += weight * f.fillna(0)
-                total_weight += weight
+                weight_available += weight * has_data
 
-        if total_weight > 0:
-            composite /= total_weight
+        # Normalize by actual available weight per cell (not global total)
+        weight_available = weight_available.replace(0, np.nan)
+        composite = composite / weight_available
 
         # --- Post-composite filters ---
+        # Apply multiplicative filters safely: for positive scores, the
+        # filter reduces magnitude (penalizes); for negative scores, the
+        # filter increases magnitude (makes more negative = stronger penalty).
+        # This prevents the bug where multiplying a negative score by 0.5
+        # would incorrectly *improve* the score of a down-trending stock.
+
         # Trend filter: penalize stocks below 200d SMA (score *= 0.5)
         tf = trend_filter(px, long_window=self.sma_long)
-        composite = composite * tf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
+        tf = tf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
+        composite = _apply_filter_safe(composite, tf)
 
         # Blowoff filter: penalize stocks with extreme overbought z-score > threshold
         bf = blowoff_filter(px, window=self.mr_window, zscore_limit=self.mr_threshold)
-        composite = composite * bf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
+        bf = bf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
+        composite = _apply_filter_safe(composite, bf)
 
         logger.info("Generated composite signal: shape=%s", composite.shape)
         return composite
