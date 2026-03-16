@@ -175,6 +175,77 @@ def blowoff_filter(prices: pd.DataFrame, window: int = 20,
     return (~overextended).astype(float).replace(0.0, penalty)
 
 
+def short_term_reversal_factor(returns: pd.DataFrame, window: int = 5) -> pd.DataFrame:
+    """Short-term reversal: stocks that dropped most in the last 5 days
+    tend to bounce back. Buy oversold, sell overbought.
+
+    Complementary to momentum — momentum skips the most recent month,
+    this factor exploits the most recent week.
+
+    Returns cross-sectional z-score (negative recent return → positive signal).
+    """
+    recent_ret = returns.rolling(window).sum()
+    # Invert: biggest losers get highest score (expected to bounce)
+    zs = recent_ret.sub(recent_ret.mean(axis=1), axis=0).div(
+        recent_ret.std(axis=1), axis=0)
+    return -zs
+
+
+def volume_momentum_factor(prices: pd.DataFrame, returns: pd.DataFrame,
+                           window: int = 21) -> pd.DataFrame:
+    """Volume-weighted momentum: price moves on high volume are more meaningful.
+
+    Stocks rising on increasing volume score higher than those rising on
+    declining volume (which may be false breakouts).
+
+    Uses price * volume correlation as a proxy when volume data is in the
+    price DataFrame, otherwise falls back to return autocorrelation.
+    """
+    # Use absolute returns weighted by return sign as proxy
+    # Positive: strong consistent moves. Negative: choppy/reverting.
+    autocorr = returns.rolling(window).apply(
+        lambda x: np.corrcoef(x[:-1], x[1:])[0, 1] if len(x) > 1 else 0,
+        raw=True
+    )
+    # Stocks with positive autocorrelation (trending) score higher
+    zs = autocorr.sub(autocorr.mean(axis=1), axis=0).div(
+        autocorr.std(axis=1), axis=0)
+    return zs
+
+
+def high_proximity_factor(prices: pd.DataFrame, window: int = 252) -> pd.DataFrame:
+    """52-week high proximity: stocks near their 52-week high tend to
+    continue outperforming (George & Hwang, 2004).
+
+    Ratio of current price to 52-week high, cross-sectionally z-scored.
+    Closer to high = higher score.
+    """
+    rolling_high = prices.rolling(window).max()
+    proximity = prices / rolling_high  # 0 to 1, where 1 = at 52-week high
+    zs = proximity.sub(proximity.mean(axis=1), axis=0).div(
+        proximity.std(axis=1), axis=0)
+    return zs
+
+
+def volatility_contraction_factor(returns: pd.DataFrame,
+                                  short_window: int = 10,
+                                  long_window: int = 63) -> pd.DataFrame:
+    """Volatility contraction pattern: stocks whose recent volatility has
+    contracted relative to their longer-term volatility are coiling for
+    a potential breakout.
+
+    Low short-term vol / long-term vol = contraction = positive signal.
+    Combined with momentum direction, this captures breakout setups.
+    """
+    short_vol = returns.rolling(short_window).std()
+    long_vol = returns.rolling(long_window).std()
+    ratio = short_vol / long_vol.replace(0, np.nan)
+    # Invert: lower ratio (more contraction) = higher score
+    zs = ratio.sub(ratio.mean(axis=1), axis=0).div(
+        ratio.std(axis=1), axis=0)
+    return -zs
+
+
 def volatility_factor(returns: pd.DataFrame, window: int = 63) -> pd.DataFrame:
     """Realized volatility factor (low-vol anomaly: prefer lower vol).
 
@@ -303,6 +374,12 @@ class SignalGenerator:
         factors["mean_reversion"] = mean_reversion_factor(px, self.mr_window, self.mr_threshold)
         factors["trend"] = trend_factor(px, self.sma_short, self.sma_long)
         factors["volatility"] = volatility_factor(ret, self.vol_window)
+
+        # New price-based factors (no fundamental data needed)
+        factors["short_term_reversal"] = short_term_reversal_factor(ret, window=5)
+        factors["volume_momentum"] = volume_momentum_factor(px, ret, window=21)
+        factors["high_proximity"] = high_proximity_factor(px, window=252)
+        factors["vol_contraction"] = volatility_contraction_factor(ret, short_window=10, long_window=63)
 
         # Fundamental (cross-sectional, static per rebalance)
         if fundamentals is not None and not fundamentals.empty:
