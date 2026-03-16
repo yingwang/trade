@@ -49,9 +49,15 @@ class MultiFactorStrategy:
         # --- Survivorship bias warning ---
         warn_survivorship_bias(self.data.symbols, start)
 
-        # 1. Fetch data
+        # 1. Fetch data — pull extra history for signal warm-up
         logger.info("Fetching price data...")
-        prices = self.data.fetch_prices(start=start, end=end)
+        min_history_days = max(self.config["signals"]["momentum_windows"]) + 63  # warm-up buffer
+        if start:
+            from datetime import datetime, timedelta
+            warmup_start = (datetime.strptime(start, "%Y-%m-%d") - timedelta(days=int(min_history_days * 1.5))).strftime("%Y-%m-%d")
+        else:
+            warmup_start = start
+        prices = self.data.fetch_prices(start=warmup_start, end=end)
         returns = MarketData.compute_returns(prices)
 
         # --- Data quality validation ---
