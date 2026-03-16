@@ -8,44 +8,46 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 ## Backtest Performance / 回测表现
 
-> **Configuration**: Pure momentum (80% weight), 12 concentrated positions, 22% target volatility, biweekly rebalance. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
+> **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, volume momentum, volatility contraction), 12 concentrated positions, 22% target volatility, biweekly rebalance, dynamic leverage with fast regime detection. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
 >
-> **配置**: 纯动量策略（80%权重），12只集中持仓，22%目标波动率，双周再平衡。无前视偏差——基本面因子因yfinance数据限制已禁用。
+> **配置**: 5个价格因子（动量、52周新高距离、短期反转、成交量动量、波动率收缩），12只集中持仓，22%目标波动率，双周再平衡，快速regime检测动态杠杆。无前视偏差——基本面因子因yfinance数据限制已禁用。
 
 ### 5-Year Backtest (2021-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+159.2%** | +133.1% | **+26.1pp** |
-| **CAGR / 年化收益** | **16.4%** | — | — |
-| **Sharpe Ratio** | **0.74** | — | — |
-| **Sortino Ratio** | 0.95 | — | — |
-| **Max Drawdown / 最大回撤** | -41.0% | — | — |
-| **Information Ratio** | +0.11 | — | — |
+| **Total Return / 总收益** | **+167.7%** | +133.1% | **+34.6pp** |
+| **CAGR / 年化收益** | **17.0%** | — | — |
+| **Sharpe Ratio** | **0.76** | — | — |
+| **Sortino Ratio** | 0.97 | — | — |
+| **Max Drawdown / 最大回撤** | -35.8% | — | — |
+| **Information Ratio** | +0.14 | — | — |
 
 ### 3-Year Backtest (2023-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+121.6%** | +51.2% | **+70.4pp** |
-| **CAGR / 年化收益** | **20.5%** | — | — |
-| **Sharpe Ratio** | **0.99** | — | — |
-| **Sortino Ratio** | **1.24** | — | — |
-| **Max Drawdown / 最大回撤** | -33.0% | — | — |
-| **Information Ratio** | **+0.58** | — | — |
+| **Total Return / 总收益** | **+133.0%** | +51.2% | **+81.8pp** |
+| **CAGR / 年化收益** | **21.9%** | — | — |
+| **Sharpe Ratio** | **1.05** | — | — |
+| **Sortino Ratio** | **1.28** | — | — |
+| **Max Drawdown / 最大回撤** | -31.5% | — | — |
+| **Information Ratio** | **+0.62** | — | — |
 
 ### 1-Year Backtest (2025-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | +18.7% | +49.3% | -30.6pp |
-| **CAGR / 年化收益** | 7.9% | — | — |
-| **Sharpe Ratio** | 0.39 | — | — |
-| **Max Drawdown / 最大回撤** | -33.0% | — | — |
+| **Total Return / 总收益** | +30.6% | +49.3% | -18.7pp |
+| **CAGR / 年化收益** | 12.5% | — | — |
+| **Sharpe Ratio** | 0.61 | — | — |
+| **Max Drawdown / 最大回撤** | -31.5% | — | — |
+
+> 1年期跑输SPY主要因为2025年3-4月的momentum crash（动量崩溃）：之前的赢家在V型反转中跌最深，策略吃了-31%回撤。这是纯做多动量策略的固有弱点。
 
 ### Performance Chart / 净值曲线 (5-Year)
 
-![5-Year Backtest](backtest_5yr_v2.png)
+![5-Year Backtest](backtest_5yr_v3.png)
 
 > **Note / 注意**: 回测结果仍存在幸存者偏差（静态100股票池排除了历史退市股）。真实样本外表现预计会略低。详见 `docs/audit/CONFIDENCE_ASSESSMENT.md`。
 
@@ -57,7 +59,7 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Parameter / 参数 | Value / 值 | Description / 说明 |
 |---------|-------|-------------|
-| **Alpha Signal** | Momentum 80% | 纯动量信号（42d/126d/252d，跳过最近1月） |
+| **Alpha Signals** | 5 factors | 动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 成交量动量10% |
 | **Positions** | 12 | 集中持仓，高信念选股 |
 | **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
 | **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
@@ -72,8 +74,12 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 ```
 Price Data (yfinance)
     │
-    ├── Momentum Factor (42d/126d/252d, skip 1m)
-    │   └── Industry-neutral z-score → Winsorize ±3
+    ├── Momentum (42d/126d/252d, skip 1m) ─── 50%
+    ├── 52-Week High Proximity ──────────── 20%
+    ├── Short-Term Reversal (5d) ────────── 10%
+    ├── Volatility Contraction (10d/63d) ── 10%
+    ├── Volume Momentum (21d autocorr) ──── 10%
+    │   └── All: Industry-neutral z-score → Winsorize ±3
     │
     ├── Trend Filter: price < 200d SMA → score × 0.5
     └── Blowoff Filter: z-score > 4.0 → score × 0.5
@@ -83,7 +89,7 @@ Price Data (yfinance)
         │
         ├── Sector constraints (max 50% per sector)
         ├── Vol-targeting (22% annual, regime-adjusted)
-        └── Dynamic leverage (SPY vol regime detection)
+        └── Dynamic leverage (21d SPY vol regime detection)
             │
             ▼
     Execution (Alpaca API with safety checks)
@@ -218,10 +224,13 @@ trade/
 signals:
   momentum_windows: [42, 126, 252]
   factor_weights:
-    momentum: 0.80    # 纯动量
-    volatility: 0.00  # 已禁用（与动量信号冲突）
-    quality: 0.00     # 已禁用（前视偏差）
-    value: 0.00       # 已禁用（前视偏差）
+    momentum: 0.50         # 核心动量信号
+    high_proximity: 0.20   # 52周新高距离
+    short_term_reversal: 0.10  # 短期反转
+    vol_contraction: 0.10  # 波动率收缩
+    volume_momentum: 0.10  # 成交量动量
+    quality: 0.00          # 已禁用（前视偏差）
+    value: 0.00            # 已禁用（前视偏差）
 
 portfolio:
   max_positions: 12
