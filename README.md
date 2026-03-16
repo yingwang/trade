@@ -1,27 +1,101 @@
 # Quant Trading System / 量化交易系统
 
-A multi-factor quantitative trading system for medium-term US equities. Combines six alpha factors with mean-variance portfolio optimization and automated execution via Alpaca.
+A multi-factor quantitative trading system for medium-term US equities. Uses momentum-driven alpha signals with mean-variance portfolio optimization, dynamic leverage, and automated execution via Alpaca.
 
-多因子量化交易系统，专注于美股中期投资。结合六大 Alpha 因子、均值-方差组合优化，以及通过 Alpaca 自动执行交易。
+多因子量化交易系统，专注于美股中期投资。基于动量驱动的 Alpha 信号，结合均值-方差组合优化、动态杠杆管理，以及通过 Alpaca 自动执行交易。
+
+---
+
+## Backtest Performance / 回测表现
+
+> **Configuration**: Pure momentum (80% weight), 12 concentrated positions, 22% target volatility, biweekly rebalance. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
+>
+> **配置**: 纯动量策略（80%权重），12只集中持仓，22%目标波动率，双周再平衡。无前视偏差——基本面因子因yfinance数据限制已禁用。
+
+### 5-Year Backtest (2021-03 → 2026-03)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+159.2%** | +133.1% | **+26.1pp** |
+| **CAGR / 年化收益** | **16.4%** | — | — |
+| **Sharpe Ratio** | **0.74** | — | — |
+| **Sortino Ratio** | 0.95 | — | — |
+| **Max Drawdown / 最大回撤** | -41.0% | — | — |
+| **Information Ratio** | +0.11 | — | — |
+
+### 3-Year Backtest (2023-03 → 2026-03)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+121.6%** | +51.2% | **+70.4pp** |
+| **CAGR / 年化收益** | **20.5%** | — | — |
+| **Sharpe Ratio** | **0.99** | — | — |
+| **Sortino Ratio** | **1.24** | — | — |
+| **Max Drawdown / 最大回撤** | -33.0% | — | — |
+| **Information Ratio** | **+0.58** | — | — |
+
+### 1-Year Backtest (2025-03 → 2026-03)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | +18.7% | +49.3% | -30.6pp |
+| **CAGR / 年化收益** | 7.9% | — | — |
+| **Sharpe Ratio** | 0.39 | — | — |
+| **Max Drawdown / 最大回撤** | -33.0% | — | — |
+
+### Performance Chart / 净值曲线 (5-Year)
+
+![5-Year Backtest](backtest_5yr_v2.png)
+
+> **Note / 注意**: 回测结果仍存在幸存者偏差（静态100股票池排除了历史退市股）。真实样本外表现预计会略低。详见 `docs/audit/CONFIDENCE_ASSESSMENT.md`。
+
+---
 
 ## Strategy Overview / 策略概述
 
-The system scores stocks using a weighted composite of six factors:
+### Current Configuration (Growth Profile)
 
-系统使用六个因子的加权复合评分对股票进行排名：
+| Parameter / 参数 | Value / 值 | Description / 说明 |
+|---------|-------|-------------|
+| **Alpha Signal** | Momentum 80% | 纯动量信号（42d/126d/252d，跳过最近1月） |
+| **Positions** | 12 | 集中持仓，高信念选股 |
+| **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
+| **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
+| **Rebalance** | Every 14 trading days | 双周再平衡，更新鲜的信号 |
+| **Max Sector** | 50% | 允许科技股集中但有上限 |
+| **Max Drawdown** | 25% | 组合回撤超限时停止交易 |
+| **Stop Loss** | 15% | 单只股票止损线 |
+| **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
 
-| Factor / 因子 | Weight / 权重 | Description / 说明 |
-|--------|--------|-------------|
-| Momentum / 动量 | 30% | 1/3/6/12 个月截面收益率（跳过最近一个月的短期反转） |
-| Trend / 趋势 | 20% | SMA 50/200 比率 — 偏好处于上升趋势的股票 |
-| Value / 价值 | 15% | P/E 和 P/B 倒数 — 偏好估值较低的股票 |
-| Mean Reversion / 均值回归 | 15% | 布林带 z-score — 偏好超卖的股票 |
-| Volatility / 波动率 | 10% | 63 日实际波动率 — 偏好低波动率股票 |
-| Quality / 质量 | 10% | ROE、利润率、盈利增长 |
+### Signal Pipeline / 信号管道
 
-The portfolio holds up to 20 positions, rebalances monthly, and targets 15% annualized volatility.
+```
+Price Data (yfinance)
+    │
+    ├── Momentum Factor (42d/126d/252d, skip 1m)
+    │   └── Industry-neutral z-score → Winsorize ±3
+    │
+    ├── Trend Filter: price < 200d SMA → score × 0.5
+    └── Blowoff Filter: z-score > 4.0 → score × 0.5
+        │
+        ▼
+    Portfolio Optimizer (Ledoit-Wolf covariance + turnover penalty)
+        │
+        ├── Sector constraints (max 50% per sector)
+        ├── Vol-targeting (22% annual, regime-adjusted)
+        └── Dynamic leverage (SPY vol regime detection)
+            │
+            ▼
+    Execution (Alpaca API with safety checks)
+```
 
-组合最多持有 20 只股票，每月再平衡一次，目标年化波动率 15%。
+### Disabled Factors / 已禁用因子
+
+Quality (质量) 和 Value (价值) 因子已禁用（权重=0），因为 `yfinance.Ticker.info` 只提供当前快照数据，在回测中会造成严重的前视偏差。详见 `docs/audit/ALPHA_AUDIT.md`。
+
+接入时点基本面数据源（如 Sharadar ~$30/月）后可重新启用。
+
+---
 
 ## Quick Start / 快速开始
 
@@ -31,19 +105,19 @@ The portfolio holds up to 20 positions, rebalances monthly, and targets 15% annu
 pip install -r requirements.txt
 ```
 
-Dependencies / 依赖: `numpy`, `pandas`, `yfinance`, `scipy`, `matplotlib`, `seaborn`, `ta`
+Dependencies / 依赖: `numpy`, `pandas`, `yfinance`, `scipy`, `scikit-learn`, `matplotlib`
 
 ### Run a Backtest / 运行回测
 
 ```bash
-# 默认回测（2022-01-01 至今，$1M 初始资金）
-python run.py backtest
+# 5年回测（默认配置）
+python run.py backtest --start 2021-03-16 --plot
 
-# 自定义日期并生成图表
-python run.py backtest --start 2023-01-01 --end 2024-12-31 --plot
+# 自定义日期范围
+python run.py backtest --start 2023-01-01 --end 2026-03-16 --plot
 
-# 详细日志
-python run.py -v backtest --plot --plot-output my_backtest.png
+# 输出到指定文件
+python run.py backtest --start 2021-03-16 --plot --plot-output my_backtest.png
 ```
 
 ### View Current Signals / 查看当前信号
@@ -52,188 +126,42 @@ python run.py -v backtest --plot --plot-output my_backtest.png
 python run.py signal
 ```
 
-显示股票池中每只股票的复合 Alpha 评分，从强到弱排列。
-
----
-
-## Manual Usage (Google Colab) / 手动使用（Google Colab）
-
-Notebook `quant_trading_colab.ipynb` 提供可视化交互工作流，无需本地环境。
-
-### Setup in Colab / Colab 设置
-
-1. 在 Google Colab 中打开 notebook
-2. 运行 **Cell 1**（Setup）— 克隆仓库并安装依赖
-3. 运行 **Cell 2**（Imports）— 加载配置并初始化策略
-
-### What Each Cell Does / 各单元格功能
-
-| Cell / 单元格 | Purpose / 功能 |
-|------|---------|
-| 1 - Setup / 设置 | 克隆仓库、安装依赖包 |
-| 2 - Imports / 导入 | 加载配置、创建策略对象 |
-| 3 - Backtest / 回测 | 运行完整历史回测，输出摘要指标（Sharpe、CAGR、最大回撤等） |
-| 4 - Equity Curve / 净值曲线 | 绘制净值曲线、回撤、滚动 Sharpe |
-| 5 - Monthly Returns / 月度收益 | 按年/月的收益率热力图 |
-| 6 - Risk Report / 风险报告 | 扩展统计：偏度、峰度、VaR、CVaR、胜率 |
-| 7 - Current Signals / 当前信号 | 获取今天所有股票的 Alpha 评分 |
-| 8 - Target Portfolio / 目标组合 | **核心单元格** — 显示今天该买什么 |
-
-### Using the Target Portfolio (Cell 8) / 使用目标组合
-
-将 `MY_CAPITAL` 修改为你的账户资金：
-
-```python
-MY_CAPITAL = 50_000  # <-- 你的组合资金（美元）
-```
-
-运行后输出示例：
-
-```
-=================================================================
-  TARGET PORTFOLIO  |  Capital: $50,000
-=================================================================
-  Stock      Weight    Dollars   Shares      Price     Score
-  ------------------------------------------------------------
-  NVDA        9.8%    $4,900      36   $136.25    0.842
-  META        8.5%    $4,250       7   $607.14    0.731
-  ...
-  ------------------------------------------------------------
-  TOTAL      95.2%   $47,600
-  Cash reserve: $2,400
-=================================================================
-```
-
-然后在你的券商账户中手动下单。
-
-### Rebalancing Manually / 手动再平衡
-
-每月运行一次 Cell 8（约每 21 个交易日）。将新目标与当前持仓对比后调整：
-- **卖出** 已跌出前 20 名的持仓
-- **买入** 新进入的持仓
-- **调整** 现有持仓至目标权重
-
 ---
 
 ## Automated Trading with Alpaca / 使用 Alpaca 自动交易
 
-### 1. Create an Alpaca Account / 创建 Alpaca 账户
-
-在 [alpaca.markets](https://alpaca.markets) 注册。建议先使用 **模拟交易（Paper Trading）** 账户测试，无需真金白银。
-
-### 2. Set Environment Variables / 设置环境变量
-
-```bash
-export ALPACA_API_KEY="your-api-key"        # 你的 API Key
-export ALPACA_SECRET_KEY="your-secret-key"  # 你的 Secret Key
-```
-
-默认为模拟交易。如需实盘交易（风险自负），另设：
-
-```bash
-export ALPACA_PAPER="false"
-```
-
-### 3. Install the Alpaca SDK / 安装 Alpaca SDK
+### Setup / 设置
 
 ```bash
 pip install alpaca-trade-api
+export ALPACA_API_KEY="your-api-key"
+export ALPACA_SECRET_KEY="your-secret-key"
 ```
 
-### 4. Paper Trading Commands / 模拟交易命令
+### Commands / 命令
 
 ```bash
-# 预览交易计划（不执行）
-python paper_trade.py --dry-run
-
-# 查看当前持仓状态
-python paper_trade.py --status
-
-# 执行再平衡（仅在距上次 21+ 个交易日后运行）
-python paper_trade.py
-
-# 强制立即再平衡
-python paper_trade.py --force
+python paper_trade.py --dry-run     # 预览交易（不执行）
+python paper_trade.py --status      # 查看当前持仓
+python paper_trade.py               # 执行再平衡（需达到14个交易日间隔）
+python paper_trade.py --force       # 强制立即再平衡
+python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 ```
 
-### 5. Automate with Cron / 使用 Cron 自动化
+### Safety Features / 安全特性
 
-将以下内容添加到 crontab，在工作日美东时间下午 3:55 自动再平衡：
+- **Pre-trade checks**: 单笔订单上限 $50k，日内交易总额上限 $500k，日亏损上限 $25k
+- **TWAP splitting**: 大单自动拆分为时间加权分批执行
+- **Position reconciliation**: 每次再平衡后自动对账
+- **Lock file**: 防止并发执行
+- **Paper mode gate**: 防止意外连接实盘账户
+
+### Automate with Cron / 使用 Cron 自动化
 
 ```bash
-crontab -e
-```
-
-```
+# 工作日美东时间下午 3:55 自动执行（每14个交易日实际再平衡）
 55 15 * * 1-5 cd /path/to/trade && python paper_trade.py >> logs/trade.log 2>&1
 ```
-
-脚本在 `logs/paper_trade_state.json` 中记录状态，仅在达到配置间隔（21 个交易日）后才执行再平衡。使用 `--force` 可强制执行。
-
-### 6. Monitoring / 监控
-
-- **交易日志**: `logs/paper_trade_YYYYMMDD.log` — 每笔订单含时间戳和成交价
-- **状态文件**: `logs/paper_trade_state.json` — 上次再平衡日期及完整交易历史
-- **快速检查**: `python paper_trade.py --status`
-
----
-
-## Configuration / 配置说明
-
-所有参数在 `config.yaml` 中：
-
-```yaml
-universe:
-  symbols: [AAPL, MSFT, GOOGL, ...]   # 交易股票池
-  benchmark: SPY                        # 基准指数
-
-portfolio:
-  max_positions: 20          # 最大持仓数
-  max_position_weight: 0.10  # 单只股票最大权重 10%
-  min_position_weight: 0.02  # 单只股票最小权重 2%
-  target_volatility: 0.15    # 目标年化波动率 15%
-  rebalance_frequency_days: 21  # 再平衡周期（交易日）
-  transaction_cost_bps: 10   # 交易成本 10 个基点
-
-risk:
-  max_drawdown_limit: 0.20   # 最大回撤 20% 时停止交易
-  max_sector_weight: 0.30    # 单一行业最大权重 30%
-  stop_loss_pct: 0.08        # 单只股票止损线 8%
-```
-
-### Customizing the Universe / 自定义股票池
-
-编辑 `config.yaml` 中的 `symbols` 列表。系统支持 Yahoo Finance 上所有可用的美股。默认包含 S&P 500 全部约 503 只成分股，按行业分类排列。首次运行时基本面数据获取可能需要几分钟（系统会自动分批获取并显示进度）。
-
-### Tuning Factor Weights / 调整因子权重
-
-因子权重决定组合风格。编辑 `config.yaml` 中的 `signals.factor_weights`：
-
-```yaml
-signals:
-  factor_weights:
-    momentum: 0.30       # 动量 — 近期价格赢家
-    mean_reversion: 0.10 # 均值回归 — 超卖反弹候选
-    trend: 0.25          # 趋势 — 站上关键均线的股票
-    volatility: 0.05     # 波动率 — 偏好低波动（越高越防御）
-    value: 0.15          # 价值 — P/E 和 P/B 较低
-    quality: 0.15        # 质量 — 高 ROE、利润率、盈利增长
-```
-
-**Presets / 预设方案：**
-
-| Style / 风格 | momentum / 动量 | trend / 趋势 | value / 价值 | volatility / 波动率 | mean_rev / 均值回归 | quality / 质量 |
-|-------|----------|-------|-------|------------|----------|---------|
-| Growth/Tech / 成长科技 | 0.35 | 0.30 | 0.05 | 0.00 | 0.10 | 0.20 |
-| Balanced / 均衡（默认） | 0.30 | 0.25 | 0.15 | 0.05 | 0.10 | 0.15 |
-| Defensive / 防御收益 | 0.15 | 0.10 | 0.25 | 0.25 | 0.10 | 0.15 |
-
-权重总和必须为 1.0。
-
-### Adjusting Risk / 调整风险
-
-- **更保守**: 降低 `target_volatility`（如 0.10）、降低 `max_position_weight`、提高 `min_position_weight`
-- **更激进**: 提高 `target_volatility`（如 0.20）、允许更大的单只持仓
 
 ---
 
@@ -241,30 +169,84 @@ signals:
 
 ```
 trade/
-├── config.yaml                 # 策略配置
-├── run.py                      # 命令行：回测与信号
-├── paper_trade.py              # Alpaca 模拟/实盘交易
-├── quant_trading_colab.ipynb   # 交互式 Colab Notebook
-├── requirements.txt
+├── config.yaml                 # 策略配置（进攻型）
+├── run.py                      # CLI：回测与信号
+├── paper_trade.py              # Alpaca 自动交易
 ├── quant/
 │   ├── strategy.py             # 主策略调度器
 │   ├── data/
-│   │   └── market_data.py      # Yahoo Finance 数据获取
+│   │   ├── market_data.py      # Yahoo Finance 数据获取
+│   │   └── quality.py          # 数据质量检查 + 时点数据管理
 │   ├── signals/
-│   │   └── factors.py          # Alpha 因子计算
+│   │   ├── factors.py          # Alpha 因子计算
+│   │   └── factor_analysis.py  # IC/ICIR、因子衰减分析工具
 │   ├── portfolio/
-│   │   └── optimizer.py        # 均值-方差优化
+│   │   └── optimizer.py        # MVO优化 + Ledoit-Wolf + 风控
 │   ├── backtest/
-│   │   ├── engine.py           # 回测引擎
-│   │   └── report.py           # 分析与报告
+│   │   ├── engine.py           # 事件驱动回测引擎
+│   │   └── report.py           # 报告与分析
 │   ├── execution/
 │   │   ├── broker.py           # 券商接口 + 模拟券商
-│   │   └── alpaca_broker.py    # Alpaca API 集成
+│   │   ├── alpaca_broker.py    # Alpaca API 集成
+│   │   └── safety.py           # 交易安全模块
 │   └── utils/
 │       └── config.py           # 配置加载器
-└── tests/                      # 单元测试
+├── tests/                      # 89个单元测试（全部通过）
+└── docs/audit/                 # 6-Agent 审计报告（12份文档）
 ```
+
+## System Audit / 系统审计
+
+本系统经过 6-Agent 团队的全面审计和优化（详见 `docs/audit/`）：
+
+| Agent / 角色 | Key Deliverable / 主要成果 |
+|-------|-------------------|
+| Data Engineer / 数据工程师 | 修复 ffill bug，添加数据质量检查，标记前视偏差 |
+| Alpha Research / 因子研究员 | 修复3个因子bug，添加因子分析工具 |
+| Execution Engineer / 执行工程师 | 添加完整安全模块（限额、TWAP、对账） |
+| Portfolio & Risk / 组合风控 | Ledoit-Wolf协方差、换手率惩罚、行业约束执行 |
+| Backtest & QA / 回测质控 | 89测试全过，回测可信度评估 3/10 → 待接入时点数据 |
+| Lead Orchestrator / 总指挥 | 跨模块集成、最终交付报告 |
+
+---
+
+## Configuration / 配置说明
+
+所有参数在 `config.yaml` 中。当前为**进攻型配置**：
+
+```yaml
+signals:
+  momentum_windows: [42, 126, 252]
+  factor_weights:
+    momentum: 0.80    # 纯动量
+    volatility: 0.00  # 已禁用（与动量信号冲突）
+    quality: 0.00     # 已禁用（前视偏差）
+    value: 0.00       # 已禁用（前视偏差）
+
+portfolio:
+  max_positions: 12
+  target_volatility: 0.22
+  rebalance_frequency_days: 14
+
+risk:
+  max_drawdown_limit: 0.25
+  max_sector_weight: 0.50
+  stop_loss_pct: 0.15
+```
+
+---
+
+## Known Limitations / 已知局限
+
+1. **Survivorship bias / 幸存者偏差**: 静态100股票池排除历史退市股，回测收益偏高
+2. **No point-in-time fundamentals / 无时点基本面**: yfinance只提供当前快照，quality/value因子已禁用
+3. **Same-day execution / 同日执行**: 信号和交易使用同一收盘价
+4. **Stop-loss not active / 止损未激活**: 配置了但回测中未实际执行
+
+详见 `docs/audit/CONFIDENCE_ASSESSMENT.md` 和 `docs/audit/FINAL_DELIVERY.md`。
+
+---
 
 ## Disclaimer / 免责声明
 
-本软件仅用于教育和研究目的。过去的业绩不代表未来表现。使用风险自负。请务必先使用模拟交易测试，再投入真实资金。
+本软件仅用于教育和研究目的。过去的回测业绩不代表未来表现。使用风险自负。请务必先使用模拟交易（Paper Trading）充分测试，再考虑投入真实资金。
