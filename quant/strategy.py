@@ -147,8 +147,10 @@ class MultiFactorStrategy:
 
         logger.info("Generated %d rebalance points", len(target_weights))
 
-        # 4. Run backtest
-        result = self.backtest_engine.run(prices, target_weights, self.data.benchmark)
+        # 4. Run backtest — trim prices to requested start date so the
+        #    equity curve doesn't show a flat warm-up period
+        backtest_prices = prices.loc[start:] if start else prices
+        result = self.backtest_engine.run(backtest_prices, target_weights, self.data.benchmark)
 
         # 5. Post-backtest risk check: drawdown monitoring
         if not result.equity_curve.empty:

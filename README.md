@@ -16,34 +16,31 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+167.7%** | +133.1% | **+34.6pp** |
-| **CAGR / 年化收益** | **17.0%** | — | — |
-| **Sharpe Ratio** | **0.76** | — | — |
-| **Sortino Ratio** | 0.97 | — | — |
+| **Total Return / 总收益** | **+106.5%** | +79.2% | **+27.3pp** |
+| **CAGR / 年化收益** | **15.7%** | — | — |
+| **Sharpe Ratio** | **0.66** | — | — |
 | **Max Drawdown / 最大回撤** | -35.8% | — | — |
-| **Information Ratio** | +0.14 | — | — |
 
 ### 3-Year Backtest (2023-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+133.0%** | +51.2% | **+81.8pp** |
-| **CAGR / 年化收益** | **21.9%** | — | — |
-| **Sharpe Ratio** | **1.05** | — | — |
-| **Sortino Ratio** | **1.28** | — | — |
+| **Total Return / 总收益** | **+115.1%** | +73.9% | **+41.2pp** |
+| **CAGR / 年化收益** | **29.3%** | — | — |
+| **Sharpe Ratio** | **1.23** | — | — |
+| **Sortino Ratio** | **1.63** | — | — |
 | **Max Drawdown / 最大回撤** | -31.5% | — | — |
-| **Information Ratio** | **+0.62** | — | — |
+| **Information Ratio** | **+0.58** | — | — |
 
 ### 1-Year Backtest (2025-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | +30.6% | +49.3% | -18.7pp |
-| **CAGR / 年化收益** | 12.5% | — | — |
-| **Sharpe Ratio** | 0.61 | — | — |
-| **Max Drawdown / 最大回撤** | -31.5% | — | — |
-
-> 1年期跑输SPY主要因为2025年3-4月的momentum crash（动量崩溃）：之前的赢家在V型反转中跌最深，策略吃了-31%回撤。这是纯做多动量策略的固有弱点。
+| **Total Return / 总收益** | **+23.5%** | +18.2% | **+5.3pp** |
+| **CAGR / 年化收益** | **23.9%** | — | — |
+| **Sharpe Ratio** | **0.97** | — | — |
+| **Sortino Ratio** | **1.17** | — | — |
+| **Max Drawdown / 最大回撤** | -18.4% | — | — |
 
 ### Performance Chart / 净值曲线 (5-Year)
 
