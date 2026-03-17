@@ -114,7 +114,9 @@ td {
   border-bottom: 1px solid var(--border);
 }
 tr:hover { background: rgba(255,255,255,0.03); }
-.symbol { font-weight: 700; color: var(--accent); }
+.symbol { font-weight: 700; }
+.symbol a { color: var(--accent); text-decoration: none; }
+.symbol a:hover { text-decoration: underline; }
 .positive { color: var(--green); }
 .negative { color: var(--red); }
 

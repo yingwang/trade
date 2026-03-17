@@ -111,6 +111,10 @@
       volume_momentum: '量价动量 Vol Mom.',
     };
 
+    function symLink(symbol) {
+      return `<a href="https://finance.yahoo.com/quote/${symbol}" target="_blank" rel="noopener">${symbol}</a>`;
+    }
+
     const REGIME_LABELS = {
       low_vol: { text: 'Low Vol / 低波动', cls: 'badge-green' },
       normal: { text: 'Normal / 正常', cls: 'badge-yellow' },
@@ -224,7 +228,7 @@
       data.positions.forEach(p => {
         const plClass = p.unrealized_pl >= 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
-          <td class="symbol">${p.symbol}</td>
+          <td class="symbol">${symLink(p.symbol)}</td>
           <td>${p.shares}</td>
           <td>$${p.avg_cost.toFixed(2)}</td>
           <td>$${p.current_price.toFixed(2)}</td>
@@ -250,7 +254,7 @@
       data.positions.forEach(p => {
         const scoreColor = p.score > 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
-          <td class="symbol">${p.symbol}</td>
+          <td class="symbol">${symLink(p.symbol)}</td>
           <td>${p.weight_pct.toFixed(1)}%</td>
           <td>$${p.dollars.toLocaleString()}</td>
           <td>${p.shares}</td>
@@ -357,7 +361,7 @@
             <tbody>
               ${reb.trades.map(t => `<tr class="${t.side}">
                 <td>${t.side.toUpperCase()}</td>
-                <td class="symbol">${t.symbol}</td>
+                <td class="symbol">${symLink(t.symbol)}</td>
                 <td>${t.quantity}</td>
                 <td>$${(t.price || 0).toFixed(2)}</td>
                 <td>${(t.slippage_bps || 0).toFixed(1)} bps</td>
