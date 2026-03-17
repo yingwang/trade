@@ -69,8 +69,9 @@
           <table id="live-positions-table">
             <thead>
               <tr>
-                <th>Symbol</th><th>Shares</th><th>Avg Cost</th><th>Price</th>
-                <th>Value</th><th>P&L</th><th>P&L %</th><th>Today</th>
+                <th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th>
+                <th>Market Value</th><th>Avg Entry</th><th>Cost Basis</th>
+                <th>Today P/L %</th><th>Today P/L $</th><th>Total P/L %</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -226,18 +227,19 @@
 
       const tbody = document.querySelector('#live-positions-table tbody');
       data.positions.forEach(p => {
-        const plClass = p.unrealized_pl >= 0 ? 'positive' : 'negative';
-        const todayClass = (p.change_today || 0) >= 0 ? 'positive' : 'negative';
-        const today = p.change_today || 0;
+        const todayClass = (p.today_pl || 0) >= 0 ? 'positive' : 'negative';
+        const totalClass = (p.total_pl || 0) >= 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
           <td class="symbol">${symLink(p.symbol)}</td>
-          <td>${p.shares}</td>
-          <td>$${p.avg_cost.toFixed(2)}</td>
+          <td>${p.side || 'long'}</td>
+          <td>${p.qty}</td>
           <td>$${p.current_price.toFixed(2)}</td>
           <td>$${Math.round(p.market_value).toLocaleString()}</td>
-          <td class="${plClass}">${p.unrealized_pl >= 0 ? '+' : ''}$${p.unrealized_pl.toFixed(0)}</td>
-          <td class="${plClass}">${p.unrealized_pl_pct >= 0 ? '+' : ''}${p.unrealized_pl_pct.toFixed(1)}%</td>
-          <td class="${todayClass}">${today >= 0 ? '+' : ''}${today.toFixed(2)}%</td>
+          <td>$${p.avg_entry_price.toFixed(2)}</td>
+          <td>$${Math.round(p.cost_basis).toLocaleString()}</td>
+          <td class="${todayClass}">${p.today_pl_pct >= 0 ? '+' : ''}${p.today_pl_pct.toFixed(2)}%</td>
+          <td class="${todayClass}">${p.today_pl >= 0 ? '+' : ''}$${p.today_pl.toFixed(0)}</td>
+          <td class="${totalClass}">${p.total_pl_pct >= 0 ? '+' : ''}${p.total_pl_pct.toFixed(1)}%</td>
         </tr>`;
       });
     }

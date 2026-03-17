@@ -175,13 +175,16 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         for p in api.list_positions():
             positions.append({
                 "symbol": p.symbol,
-                "shares": float(p.qty),
-                "avg_cost": float(p.avg_entry_price),
+                "qty": float(p.qty),
+                "side": p.side,
                 "current_price": float(p.current_price),
                 "market_value": float(p.market_value),
-                "unrealized_pl": float(p.unrealized_pl),
-                "unrealized_pl_pct": float(p.unrealized_plpc) * 100,
-                "change_today": round((float(p.current_price) / float(p.lastday_price) - 1) * 100, 2) if hasattr(p, 'lastday_price') and p.lastday_price else 0,
+                "avg_entry_price": float(p.avg_entry_price),
+                "cost_basis": float(p.cost_basis),
+                "today_pl_pct": float(p.unrealized_intraday_plpc) * 100 if hasattr(p, 'unrealized_intraday_plpc') and p.unrealized_intraday_plpc else 0,
+                "today_pl": float(p.unrealized_intraday_pl) if hasattr(p, 'unrealized_intraday_pl') and p.unrealized_intraday_pl else 0,
+                "total_pl_pct": float(p.unrealized_plpc) * 100,
+                "total_pl": float(p.unrealized_pl),
             })
 
         # Recent orders (last 100 filled orders)
