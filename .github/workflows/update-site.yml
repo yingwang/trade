@@ -1,0 +1,32 @@
+  name: Update Dashboard
+
+  on:
+    schedule:
+      - cron: '0 21 * * 1-5'
+    workflow_dispatch:
+
+  permissions:
+    contents: write
+    pages: write
+
+  jobs:
+    generate:
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-python@v5
+          with:
+            python-version: '3.11'
+            cache: 'pip'
+        - run: pip install -r requirements.txt
+        - run: python generate_site.py
+          env:
+            PYTHONPATH: .
+        - uses: peaceiris/actions-gh-pages@v3
+          with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            publish_dir: ./site
+            publish_branch: gh-pages
+            force_orphan: true
+
