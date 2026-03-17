@@ -445,5 +445,8 @@ class SignalGenerator:
         bf = bf.reindex(index=composite.index, columns=composite.columns).fillna(1.0)
         composite = _apply_filter_safe(composite, bf)
 
+        # Expose per-factor scores for dashboard / analysis
+        self.last_factors_ = dict(factors)
+
         logger.info("Generated composite signal: shape=%s", composite.shape)
         return composite

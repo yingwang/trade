@@ -1,0 +1,292 @@
+{
+  "rebalances": [
+    {
+      "date": "2026-03-16",
+      "portfolio_value": 100796.39,
+      "trades": [
+        {
+          "symbol": "ABBV",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 221.23,
+          "slippage_bps": 2.03
+        },
+        {
+          "symbol": "ADI",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 310.62,
+          "slippage_bps": 6.43
+        },
+        {
+          "symbol": "BMY",
+          "side": "sell",
+          "quantity": 133.0,
+          "price": 59.6,
+          "slippage_bps": 0.84
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 305.35,
+          "slippage_bps": -2.29
+        },
+        {
+          "symbol": "KO",
+          "side": "sell",
+          "quantity": 20.0,
+          "price": 77.76,
+          "slippage_bps": -0.64
+        },
+        {
+          "symbol": "LMT",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 644.138333,
+          "slippage_bps": 2.2
+        },
+        {
+          "symbol": "MCD",
+          "side": "sell",
+          "quantity": 24.0,
+          "price": 327.16,
+          "slippage_bps": 0.0
+        },
+        {
+          "symbol": "MRK",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 115.03,
+          "slippage_bps": 2.61
+        },
+        {
+          "symbol": "NVDA",
+          "side": "sell",
+          "quantity": 8.0,
+          "price": 183.42,
+          "slippage_bps": -3.82
+        },
+        {
+          "symbol": "PLD",
+          "side": "sell",
+          "quantity": 11.0,
+          "price": 134.08,
+          "slippage_bps": -5.22
+        },
+        {
+          "symbol": "TJX",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 155.77,
+          "slippage_bps": -3.85
+        },
+        {
+          "symbol": "USB",
+          "side": "sell",
+          "quantity": 14.0,
+          "price": 51.1,
+          "slippage_bps": 4.89
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 13,
+          "price": 107.04,
+          "slippage_bps": 4.67
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 699.61,
+          "slippage_bps": 2.43
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 124,
+          "price": 58.047742,
+          "slippage_bps": 5.64
+        },
+        {
+          "symbol": "GILD",
+          "side": "buy",
+          "quantity": 9,
+          "price": 145.01,
+          "slippage_bps": 6.56
+        },
+        {
+          "symbol": "INTC",
+          "side": "buy",
+          "quantity": 31,
+          "price": 45.900323,
+          "slippage_bps": 15.34
+        },
+        {
+          "symbol": "JNJ",
+          "side": "buy",
+          "quantity": 23.0,
+          "price": 242.06,
+          "slippage_bps": -8.46
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 217.79,
+          "slippage_bps": 0.0
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 439.88,
+          "slippage_bps": 5.23
+        },
+        {
+          "symbol": "PEP",
+          "side": "buy",
+          "quantity": 9,
+          "price": 157.63,
+          "slippage_bps": 1.9
+        },
+        {
+          "symbol": "PNC",
+          "side": "buy",
+          "quantity": 28.0,
+          "price": 200.6,
+          "slippage_bps": 3.49
+        },
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 11,
+          "price": 125.7,
+          "slippage_bps": 3.98
+        },
+        {
+          "symbol": "XOM",
+          "side": "buy",
+          "quantity": 9,
+          "price": 156.91,
+          "slippage_bps": 13.72
+        }
+      ]
+    },
+    {
+      "date": "2026-03-16",
+      "portfolio_value": 100972.81,
+      "trades": []
+    },
+    {
+      "date": "2026-03-16",
+      "portfolio_value": 100942.03,
+      "trades": []
+    },
+    {
+      "date": "2026-03-17",
+      "portfolio_value": 101259.89,
+      "trades": [
+        {
+          "symbol": "C",
+          "side": "sell",
+          "quantity": 92.0,
+          "price": 108.26,
+          "slippage_bps": -4.16
+        },
+        {
+          "symbol": "CAT",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 696.203333,
+          "slippage_bps": 3.69
+        },
+        {
+          "symbol": "FCX",
+          "side": "sell",
+          "quantity": 45.0,
+          "price": 58.38,
+          "slippage_bps": 2.57
+        },
+        {
+          "symbol": "GILD",
+          "side": "sell",
+          "quantity": 57.0,
+          "price": 144.68,
+          "slippage_bps": 5.53
+        },
+        {
+          "symbol": "INTC",
+          "side": "sell",
+          "quantity": 221.0,
+          "price": 45.157285,
+          "slippage_bps": 3.92
+        },
+        {
+          "symbol": "LRCX",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 223.03,
+          "slippage_bps": 10.3
+        },
+        {
+          "symbol": "MRK",
+          "side": "sell",
+          "quantity": 61.0,
+          "price": 116.332459,
+          "slippage_bps": 7.52
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 454.498333,
+          "slippage_bps": 3.67
+        },
+        {
+          "symbol": "PNC",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 203.14,
+          "slippage_bps": 0.0
+        },
+        {
+          "symbol": "SBUX",
+          "side": "sell",
+          "quantity": 30.0,
+          "price": 98.04,
+          "slippage_bps": 7.13
+        },
+        {
+          "symbol": "GS",
+          "side": "buy",
+          "quantity": 3,
+          "price": 809.21,
+          "slippage_bps": 18.82
+        },
+        {
+          "symbol": "JNJ",
+          "side": "buy",
+          "quantity": 40.0,
+          "price": 241.59,
+          "slippage_bps": -3.72
+        },
+        {
+          "symbol": "USB",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 51.64,
+          "slippage_bps": 6.78
+        },
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 76.0,
+          "price": 126.13,
+          "slippage_bps": 6.74
+        }
+      ]
+    }
+  ]
+}

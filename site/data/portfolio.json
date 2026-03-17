@@ -1,0 +1,104 @@
+{
+  "updated_at": "2026-03-17 20:16",
+  "regime": "low_vol",
+  "total_invested_pct": 100.3,
+  "cash_pct": 0,
+  "positions": [
+    {
+      "symbol": "MU",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 272,
+      "price": 441.8,
+      "score": 1.431
+    },
+    {
+      "symbol": "GILD",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 828,
+      "price": 145.21,
+      "score": 0.9599
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 172,
+      "price": 699.78,
+      "score": 0.886
+    },
+    {
+      "symbol": "JNJ",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 494,
+      "price": 243.19,
+      "score": 0.8928
+    },
+    {
+      "symbol": "WMT",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 955,
+      "price": 125.99,
+      "score": 0.8675
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 2077,
+      "price": 57.93,
+      "score": 0.9573
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 12.04,
+      "dollars": 120372.0,
+      "shares": 548,
+      "price": 219.4,
+      "score": 0.8997
+    },
+    {
+      "symbol": "USB",
+      "weight_pct": 4.01,
+      "dollars": 40124.0,
+      "shares": 784,
+      "price": 51.16,
+      "score": 0.8592
+    },
+    {
+      "symbol": "LMT",
+      "weight_pct": 3.01,
+      "dollars": 30093.0,
+      "shares": 46,
+      "price": 645.2,
+      "score": 0.7941
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 3.01,
+      "dollars": 30093.0,
+      "shares": 260,
+      "price": 115.43,
+      "score": 0.7856
+    },
+    {
+      "symbol": "GS",
+      "weight_pct": 3.01,
+      "dollars": 30093.0,
+      "shares": 37,
+      "price": 794.77,
+      "score": 0.7401
+    },
+    {
+      "symbol": "C",
+      "weight_pct": 3.01,
+      "dollars": 30093.0,
+      "shares": 280,
+      "price": 107.35,
+      "score": 0.7277
+    }
+  ]
+}

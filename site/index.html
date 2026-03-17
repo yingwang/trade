@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Factor Quant Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Multi-Factor US Equity Strategy</h1>
+    <p class="subtitle">多因子美股量化策略仪表盘</p>
+    <p id="last-update" class="meta"></p>
+  </header>
+
+  <main>
+    <!-- Section 1: Portfolio -->
+    <section id="portfolio">
+      <h2>Current Holdings / 当前持仓推荐</h2>
+      <div class="info-bar">
+        <span id="regime-badge" class="badge"></span>
+        <span id="invested-pct" class="stat"></span>
+        <span id="cash-pct" class="stat"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="portfolio-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Weight</th>
+              <th>Target $</th>
+              <th>Shares</th>
+              <th>Price</th>
+              <th>Alpha Score</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 2: Performance -->
+    <section id="performance">
+      <h2>Performance / 历史净值曲线</h2>
+      <div id="metrics-cards" class="cards"></div>
+      <div id="equity-chart" class="chart"></div>
+      <div id="drawdown-chart" class="chart chart-small"></div>
+    </section>
+
+    <!-- Section 3: Factors -->
+    <section id="factors">
+      <h2>Factor Scores / 因子分数明细</h2>
+      <div id="factor-heatmap" class="chart"></div>
+    </section>
+
+    <!-- Section 4: Trades -->
+    <section id="trades">
+      <h2>Trade History / 交易记录</h2>
+      <div id="trade-list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Data updated daily after US market close. Not financial advice.<br>
+    数据每日美股收盘后更新，仅供研究参考。</p>
+  </footer>
+
+  <script>
+    const FACTOR_LABELS = {
+      momentum: '动量 Momentum',
+      high_proximity: '52周新高 High Prox.',
+      short_term_reversal: '短期反转 Reversal',
+      vol_contraction: '波动收缩 Vol Contr.',
+      volume_momentum: '量价动量 Vol Mom.',
+    };
+
+    const REGIME_LABELS = {
+      low_vol: { text: 'Low Vol / 低波动', cls: 'badge-green' },
+      normal: { text: 'Normal / 正常', cls: 'badge-yellow' },
+      high_vol: { text: 'High Vol / 高波动', cls: 'badge-red' },
+    };
+
+    Promise.all([
+      fetch('data/portfolio.json').then(r => r.json()),
+      fetch('data/backtest.json').then(r => r.json()),
+      fetch('data/factors.json').then(r => r.json()),
+      fetch('data/trades.json').then(r => r.json()),
+    ]).then(([portfolio, backtest, factors, trades]) => {
+      renderPortfolio(portfolio);
+      renderPerformance(backtest);
+      renderFactors(factors);
+      renderTrades(trades);
+    }).catch(err => {
+      document.querySelector('main').innerHTML =
+        `<p class="error">Failed to load data. Run <code>python generate_site.py</code> first.<br>${err}</p>`;
+    });
+
+    function renderPortfolio(data) {
+      document.getElementById('last-update').textContent = `Last update: ${data.updated_at}`;
+
+      const r = REGIME_LABELS[data.regime] || REGIME_LABELS.normal;
+      const badge = document.getElementById('regime-badge');
+      badge.textContent = r.text;
+      badge.className = `badge ${r.cls}`;
+
+      document.getElementById('invested-pct').textContent = `Invested: ${data.total_invested_pct}%`;
+      document.getElementById('cash-pct').textContent = `Cash: ${data.cash_pct}%`;
+
+      const tbody = document.querySelector('#portfolio-table tbody');
+      data.positions.forEach(p => {
+        const scoreColor = p.score > 0 ? 'positive' : 'negative';
+        tbody.innerHTML += `<tr>
+          <td class="symbol">${p.symbol}</td>
+          <td>${p.weight_pct.toFixed(1)}%</td>
+          <td>$${p.dollars.toLocaleString()}</td>
+          <td>${p.shares}</td>
+          <td>$${p.price.toFixed(2)}</td>
+          <td class="${scoreColor}">${p.score > 0 ? '+' : ''}${p.score.toFixed(4)}</td>
+        </tr>`;
+      });
+    }
+
+    function renderPerformance(data) {
+      const m = data.metrics;
+      const cards = document.getElementById('metrics-cards');
+      const items = [
+        { label: 'Total Return', value: (m['Total Return'] * 100).toFixed(1) + '%' },
+        { label: 'CAGR', value: (m['CAGR'] * 100).toFixed(1) + '%' },
+        { label: 'Sharpe', value: m['Sharpe Ratio'].toFixed(2) },
+        { label: 'Sortino', value: m['Sortino Ratio'].toFixed(2) },
+        { label: 'Max Drawdown', value: (m['Max Drawdown'] * 100).toFixed(1) + '%' },
+        { label: 'vs SPY', value: ((m['Total Return'] - m['Benchmark Return']) * 100).toFixed(1) + 'pp' },
+      ];
+      items.forEach(it => {
+        const isNeg = it.value.startsWith('-');
+        cards.innerHTML += `<div class="card">
+          <div class="card-value ${isNeg ? 'negative' : 'positive'}">${it.value}</div>
+          <div class="card-label">${it.label}</div>
+        </div>`;
+      });
+
+      // Equity curve
+      Plotly.newPlot('equity-chart', [
+        { x: data.dates, y: data.equity, name: 'Strategy', line: { color: '#4fc3f7', width: 2 } },
+        { x: data.dates, y: data.benchmark, name: 'SPY', line: { color: '#ff9800', width: 2, dash: 'dot' } },
+      ], {
+        title: 'Equity Curve / 净值曲线',
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { rangeslider: { visible: true }, gridcolor: '#333' },
+        yaxis: { title: 'Portfolio Value ($)', gridcolor: '#333', tickformat: '$,.0f' },
+        legend: { x: 0.01, y: 0.99 },
+        margin: { l: 80, r: 20, t: 40, b: 40 },
+      }, { responsive: true });
+
+      // Drawdown
+      Plotly.newPlot('drawdown-chart', [
+        { x: data.dates, y: data.drawdown, fill: 'tozeroy', fillcolor: 'rgba(244,67,54,0.3)',
+          line: { color: '#f44336', width: 1 }, name: 'Drawdown' },
+      ], {
+        title: 'Drawdown / 回撤',
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { gridcolor: '#333' },
+        yaxis: { title: 'Drawdown', gridcolor: '#333', tickformat: '.0%' },
+        margin: { l: 80, r: 20, t: 40, b: 30 },
+        showlegend: false,
+      }, { responsive: true });
+    }
+
+    function renderFactors(data) {
+      if (!data.factors.length) {
+        document.getElementById('factor-heatmap').innerHTML = '<p>No factor data available.</p>';
+        return;
+      }
+
+      const stocks = Object.keys(data.stocks);
+      const factors = data.factors;
+      const z = stocks.map(s => factors.map(f => data.stocks[s]?.[f] ?? 0));
+
+      Plotly.newPlot('factor-heatmap', [{
+        type: 'heatmap',
+        z: z,
+        x: factors.map(f => FACTOR_LABELS[f] || f),
+        y: stocks,
+        colorscale: [
+          [0, '#c62828'], [0.25, '#ef5350'], [0.5, '#333'],
+          [0.75, '#66bb6a'], [1, '#2e7d32']
+        ],
+        zmid: 0,
+        colorbar: { title: 'Z-Score', tickfont: { color: '#e0e0e0' } },
+        hovertemplate: '%{y} | %{x}<br>Score: %{z:.3f}<extra></extra>',
+      }], {
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        margin: { l: 60, r: 20, t: 10, b: 100 },
+        xaxis: { tickangle: -30 },
+      }, { responsive: true });
+    }
+
+    function renderTrades(data) {
+      const container = document.getElementById('trade-list');
+      if (!data.rebalances || !data.rebalances.length) {
+        container.innerHTML = '<p class="empty">No trade history yet.</p>';
+        return;
+      }
+
+      // Show most recent first
+      const sorted = [...data.rebalances].reverse();
+      sorted.forEach(reb => {
+        const section = document.createElement('details');
+        section.className = 'trade-group';
+
+        const buys = reb.trades.filter(t => t.side === 'buy');
+        const sells = reb.trades.filter(t => t.side === 'sell');
+        const summary = `${reb.date} — ${sells.length} sells, ${buys.length} buys`;
+
+        section.innerHTML = `<summary>${summary}</summary>
+          <table class="trade-table">
+            <thead><tr><th>Side</th><th>Symbol</th><th>Qty</th><th>Price</th><th>Slippage</th></tr></thead>
+            <tbody>
+              ${reb.trades.map(t => `<tr class="${t.side}">
+                <td>${t.side.toUpperCase()}</td>
+                <td class="symbol">${t.symbol}</td>
+                <td>${t.quantity}</td>
+                <td>$${(t.price || 0).toFixed(2)}</td>
+                <td>${(t.slippage_bps || 0).toFixed(1)} bps</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+        container.appendChild(section);
+      });
+
+      // Open the most recent one
+      container.querySelector('details')?.setAttribute('open', '');
+    }
+  </script>
+</body>
+</html>
