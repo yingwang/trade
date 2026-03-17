@@ -70,7 +70,7 @@
             <thead>
               <tr>
                 <th>Symbol</th><th>Shares</th><th>Avg Cost</th><th>Price</th>
-                <th>Value</th><th>P&L</th><th>P&L %</th>
+                <th>Value</th><th>P&L</th><th>P&L %</th><th>Today</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -160,7 +160,7 @@
       if (hist.length < 2) return;
 
       const startEquity = hist[0].equity;
-      const endEquity = hist[hist.length - 1].equity;
+      const endEquity = (data.account && data.account.equity) ? data.account.equity : hist[hist.length - 1].equity;
       const totalReturn = (endEquity / startEquity - 1) * 100;
       const totalPL = endEquity - startEquity;
       const days = hist.length;
@@ -227,6 +227,8 @@
       const tbody = document.querySelector('#live-positions-table tbody');
       data.positions.forEach(p => {
         const plClass = p.unrealized_pl >= 0 ? 'positive' : 'negative';
+        const todayClass = (p.change_today || 0) >= 0 ? 'positive' : 'negative';
+        const today = p.change_today || 0;
         tbody.innerHTML += `<tr>
           <td class="symbol">${symLink(p.symbol)}</td>
           <td>${p.shares}</td>
@@ -235,6 +237,7 @@
           <td>$${Math.round(p.market_value).toLocaleString()}</td>
           <td class="${plClass}">${p.unrealized_pl >= 0 ? '+' : ''}$${p.unrealized_pl.toFixed(0)}</td>
           <td class="${plClass}">${p.unrealized_pl_pct >= 0 ? '+' : ''}${p.unrealized_pl_pct.toFixed(1)}%</td>
+          <td class="${todayClass}">${today >= 0 ? '+' : ''}${today.toFixed(2)}%</td>
         </tr>`;
       });
     }
