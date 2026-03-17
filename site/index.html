@@ -69,9 +69,9 @@
           <table id="live-positions-table">
             <thead>
               <tr>
-                <th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th>
+                <th>Asset</th><th>Side</th><th>Qty</th><th>Price</th>
                 <th>Market Value</th><th>Avg Entry</th><th>Cost Basis</th>
-                <th>Today P/L %</th><th>Today P/L $</th><th>Total P/L %</th>
+                <th>Today P/L %</th><th>Today P/L $</th><th>Total P/L %</th><th>Total P/L $</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -243,7 +243,8 @@
           <td>$${Math.round(p.cost_basis || 0).toLocaleString()}</td>
           <td class="${todayClass}">${todayPct >= 0 ? '+' : ''}${todayPct.toFixed(2)}%</td>
           <td class="${todayClass}">${todayPl >= 0 ? '+' : ''}$${todayPl.toFixed(0)}</td>
-          <td class="${totalClass}">${totalPct >= 0 ? '+' : ''}${totalPct.toFixed(1)}%</td>
+          <td class="${totalClass}">${totalPct >= 0 ? '+' : ''}${totalPct.toFixed(2)}%</td>
+          <td class="${totalClass}">${totalPl >= 0 ? '+' : ''}$${totalPl.toFixed(2)}</td>
         </tr>`;
       });
     }
