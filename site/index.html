@@ -71,7 +71,7 @@
               <tr>
                 <th>Asset</th><th>Price</th><th>Qty</th><th>Side</th>
                 <th>Market Value</th><th>Avg Entry</th><th>Cost Basis</th>
-                <th>Today P/L %</th><th>Today P/L $</th><th>Total P/L %</th><th>Total P/L $</th>
+                <th>Today's P/L (%)</th><th>Today's P/L ($)</th><th>Total P/L (%)</th><th>Total P/L ($)</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -237,14 +237,14 @@
           <td class="symbol">${symLink(p.symbol)}</td>
           <td>$${(p.current_price || 0).toFixed(2)}</td>
           <td>${p.qty || 0}</td>
-          <td>${p.side || 'long'}</td>
-          <td>$${Math.round(p.market_value || 0).toLocaleString()}</td>
-          <td>$${(p.avg_entry_price || 0).toFixed(2)}</td>
-          <td>$${Math.round(p.cost_basis || 0).toLocaleString()}</td>
+          <td>${(p.side || 'long').charAt(0).toUpperCase() + (p.side || 'long').slice(1)}</td>
+          <td>$${(p.market_value || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+          <td>$${(p.avg_entry_price || 0).toFixed(4)}</td>
+          <td>$${(p.cost_basis || 0).toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4})}</td>
           <td class="${todayClass}">${todayPct >= 0 ? '+' : ''}${todayPct.toFixed(2)}%</td>
-          <td class="${todayClass}">${todayPl >= 0 ? '+' : ''}$${todayPl.toFixed(0)}</td>
+          <td class="${todayClass}">${todayPl >= 0 ? '' : '-'}$${Math.abs(todayPl).toFixed(2)}</td>
           <td class="${totalClass}">${totalPct >= 0 ? '+' : ''}${totalPct.toFixed(2)}%</td>
-          <td class="${totalClass}">${totalPl >= 0 ? '+' : ''}$${totalPl.toFixed(2)}</td>
+          <td class="${totalClass}">${totalPl >= 0 ? '+' : '-'}$${Math.abs(totalPl).toFixed(2)}</td>
         </tr>`;
       });
     }
