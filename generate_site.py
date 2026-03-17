@@ -117,10 +117,101 @@ def generate_backtest_data(strategy):
 
 
 def generate_trade_history():
-    """Section 4: Parse trade logs."""
-    events_file = Path("logs/trade_events.jsonl")
+    """Section 4: Fetch trade history from Alpaca API.
+
+    Falls back to local log files if Alpaca API keys are not available.
+    """
+    import os
+
+    api_key = os.environ.get("ALPACA_API_KEY", "")
+    secret_key = os.environ.get("ALPACA_SECRET_KEY", "")
+
+    if api_key and secret_key:
+        return _fetch_trades_from_alpaca(api_key, secret_key)
+
+    logger.warning("No Alpaca API keys found, falling back to local logs")
+    return _parse_local_trade_logs()
+
+
+def _fetch_trades_from_alpaca(api_key, secret_key):
+    """Pull trade history and current positions from Alpaca API."""
+    try:
+        import alpaca_trade_api as tradeapi
+    except ImportError:
+        logger.warning("alpaca-trade-api not installed, falling back to local logs")
+        return _parse_local_trade_logs()
+
+    try:
+        api = tradeapi.REST(api_key, secret_key,
+                            "https://paper-api.alpaca.markets", api_version="v2")
+
+        # Current account info
+        account = api.get_account()
+        account_info = {
+            "equity": float(account.equity),
+            "cash": float(account.cash),
+            "buying_power": float(account.buying_power),
+        }
+
+        # Current positions
+        positions = []
+        for p in api.list_positions():
+            positions.append({
+                "symbol": p.symbol,
+                "shares": float(p.qty),
+                "avg_cost": float(p.avg_entry_price),
+                "current_price": float(p.current_price),
+                "market_value": float(p.market_value),
+                "unrealized_pl": float(p.unrealized_pl),
+                "unrealized_pl_pct": float(p.unrealized_plpc) * 100,
+            })
+
+        # Recent orders (last 100 filled orders)
+        orders = api.list_orders(status="closed", limit=200, direction="desc")
+        filled_orders = [o for o in orders if o.status == "filled"]
+
+        # Group orders by date into "rebalances"
+        from collections import defaultdict
+        by_date = defaultdict(list)
+        for o in filled_orders:
+            filled = str(o.filled_at) if o.filled_at else str(o.submitted_at)
+            date = filled[:10]
+            by_date[date].append({
+                "symbol": o.symbol,
+                "side": o.side,
+                "quantity": float(o.filled_qty),
+                "price": float(o.filled_avg_price) if o.filled_avg_price else 0,
+                "slippage_bps": 0,
+            })
+
+        rebalances = []
+        for date in sorted(by_date.keys(), reverse=True):
+            rebalances.append({
+                "date": date,
+                "portfolio_value": account_info["equity"],
+                "trades": by_date[date],
+            })
+
+        logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
+                     len(filled_orders), len(rebalances))
+
+        return {
+            "account": account_info,
+            "positions": positions,
+            "rebalances": rebalances,
+        }
+
+    except Exception as e:
+        logger.error("Failed to fetch from Alpaca: %s, falling back to local logs", e)
+        return _parse_local_trade_logs()
+
+
+def _parse_local_trade_logs():
+    """Fallback: parse local log files for trade history."""
     rebalances = []
 
+    # Try trade_events.jsonl first
+    events_file = Path("logs/trade_events.jsonl")
     if events_file.exists():
         current = None
         for line in events_file.read_text().strip().split("\n"):
@@ -130,7 +221,6 @@ def generate_trade_history():
                 event = json.loads(line)
             except json.JSONDecodeError:
                 continue
-
             if event.get("event") == "rebalance_start":
                 current = {
                     "date": event.get("timestamp", "")[:10],
@@ -147,7 +237,7 @@ def generate_trade_history():
                     "slippage_bps": round(event.get("slippage_bps", 0), 2),
                 })
 
-    # Also parse paper_trade_state.json as fallback
+    # Fallback to paper_trade_state.json
     state_file = Path("logs/paper_trade_state.json")
     if not rebalances and state_file.exists():
         state = json.loads(state_file.read_text())

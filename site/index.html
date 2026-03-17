@@ -201,8 +201,37 @@
 
     function renderTrades(data) {
       const container = document.getElementById('trade-list');
+
+      // Show live Alpaca positions if available
+      if (data.positions && data.positions.length) {
+        const acct = data.account || {};
+        let html = `<div class="live-positions" style="margin-bottom:20px">
+          <h3 style="margin-bottom:12px">Live Positions / 实盘持仓
+            <span class="stat" style="margin-left:12px">Equity: $${(acct.equity||0).toLocaleString()}</span>
+            <span class="stat" style="margin-left:8px">Cash: $${(acct.cash||0).toLocaleString()}</span>
+          </h3>
+          <div class="table-wrap"><table><thead><tr>
+            <th>Symbol</th><th>Shares</th><th>Avg Cost</th><th>Price</th>
+            <th>Value</th><th>P&L</th><th>P&L %</th>
+          </tr></thead><tbody>`;
+        data.positions.forEach(p => {
+          const plClass = p.unrealized_pl >= 0 ? 'positive' : 'negative';
+          html += `<tr>
+            <td class="symbol">${p.symbol}</td>
+            <td>${p.shares}</td>
+            <td>$${p.avg_cost.toFixed(2)}</td>
+            <td>$${p.current_price.toFixed(2)}</td>
+            <td>$${Math.round(p.market_value).toLocaleString()}</td>
+            <td class="${plClass}">${p.unrealized_pl >= 0 ? '+' : ''}$${p.unrealized_pl.toFixed(0)}</td>
+            <td class="${plClass}">${p.unrealized_pl_pct >= 0 ? '+' : ''}${p.unrealized_pl_pct.toFixed(1)}%</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div></div>';
+        container.innerHTML = html;
+      }
+
       if (!data.rebalances || !data.rebalances.length) {
-        container.innerHTML = '<p class="empty">No trade history yet.</p>';
+        container.innerHTML += '<p class="empty">No trade history yet.</p>';
         return;
       }
 
