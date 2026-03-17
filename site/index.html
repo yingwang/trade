@@ -69,7 +69,7 @@
           <table id="live-positions-table">
             <thead>
               <tr>
-                <th>Asset</th><th>Side</th><th>Qty</th><th>Price</th>
+                <th>Asset</th><th>Price</th><th>Qty</th><th>Side</th>
                 <th>Market Value</th><th>Avg Entry</th><th>Cost Basis</th>
                 <th>Today P/L %</th><th>Today P/L $</th><th>Total P/L %</th><th>Total P/L $</th>
               </tr>
@@ -235,9 +235,9 @@
         const totalClass = totalPl >= 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
           <td class="symbol">${symLink(p.symbol)}</td>
-          <td>${p.side || 'long'}</td>
-          <td>${p.qty || 0}</td>
           <td>$${(p.current_price || 0).toFixed(2)}</td>
+          <td>${p.qty || 0}</td>
+          <td>${p.side || 'long'}</td>
           <td>$${Math.round(p.market_value || 0).toLocaleString()}</td>
           <td>$${(p.avg_entry_price || 0).toFixed(2)}</td>
           <td>$${Math.round(p.cost_basis || 0).toLocaleString()}</td>
