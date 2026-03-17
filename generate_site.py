@@ -181,7 +181,7 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
                 "market_value": float(p.market_value),
                 "unrealized_pl": float(p.unrealized_pl),
                 "unrealized_pl_pct": float(p.unrealized_plpc) * 100,
-                "change_today": float(p.change_today) * 100 if hasattr(p, 'change_today') and p.change_today else 0,
+                "change_today": round((float(p.current_price) / float(p.lastday_price) - 1) * 100, 2) if hasattr(p, 'lastday_price') and p.lastday_price else 0,
             })
 
         # Recent orders (last 100 filled orders)
