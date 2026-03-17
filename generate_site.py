@@ -153,6 +153,23 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
             "buying_power": float(account.buying_power),
         }
 
+        # Portfolio equity history (daily) for actual P&L tracking
+        portfolio_history = []
+        try:
+            ph = api.get_portfolio_history(period="1M", timeframe="1D")
+            if ph and hasattr(ph, 'equity') and ph.equity:
+                import datetime as dt
+                for ts, eq, pl in zip(ph.timestamp, ph.equity, ph.profit_loss):
+                    d = dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                    portfolio_history.append({
+                        "date": d,
+                        "equity": float(eq) if eq else None,
+                        "profit_loss": float(pl) if pl else None,
+                    })
+                logger.info("Fetched %d days of portfolio history from Alpaca", len(portfolio_history))
+        except Exception as e:
+            logger.warning("Could not fetch portfolio history: %s", e)
+
         # Current positions
         positions = []
         for p in api.list_positions():
@@ -198,6 +215,7 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         return {
             "account": account_info,
             "positions": positions,
+            "portfolio_history": portfolio_history,
             "rebalances": rebalances,
         }
 

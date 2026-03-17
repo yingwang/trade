@@ -40,9 +40,17 @@
       </div>
     </section>
 
-    <!-- Section 2: Performance -->
+    <!-- Section 2a: Actual Performance (Alpaca) -->
+    <section id="actual-performance" style="display:none">
+      <h2>Actual Performance / 实盘业绩</h2>
+      <div id="actual-metrics" class="cards"></div>
+      <div id="actual-chart" class="chart"></div>
+    </section>
+
+    <!-- Section 2b: Backtest Performance -->
     <section id="performance">
-      <h2>Performance / 历史净值曲线</h2>
+      <h2>Backtest Performance / 回测净值曲线 (10yr)</h2>
+      <p class="meta" style="margin-bottom:12px">Simulated results from 2016. Rebalance every 14 trading days, 10bps transaction cost + 5bps slippage. Subject to survivorship bias.</p>
       <div id="metrics-cards" class="cards"></div>
       <div id="equity-chart" class="chart"></div>
       <div id="drawdown-chart" class="chart chart-small"></div>
@@ -88,6 +96,7 @@
       fetch('data/trades.json').then(r => r.json()),
     ]).then(([portfolio, backtest, factors, trades]) => {
       renderPortfolio(portfolio);
+      renderActualPerformance(trades);
       renderPerformance(backtest);
       renderFactors(factors);
       renderTrades(trades);
@@ -95,6 +104,76 @@
       document.querySelector('main').innerHTML =
         `<p class="error">Failed to load data. Run <code>python generate_site.py</code> first.<br>${err}</p>`;
     });
+
+    function renderActualPerformance(data) {
+      if (!data.portfolio_history || !data.portfolio_history.length) return;
+
+      const section = document.getElementById('actual-performance');
+      section.style.display = 'block';
+
+      const hist = data.portfolio_history.filter(d => d.equity != null);
+      if (hist.length < 2) return;
+
+      const startEquity = hist[0].equity;
+      const endEquity = hist[hist.length - 1].equity;
+      const totalReturn = (endEquity / startEquity - 1) * 100;
+      const totalPL = endEquity - startEquity;
+      const days = hist.length;
+
+      // Simple daily returns for Sharpe calc
+      const dailyReturns = [];
+      for (let i = 1; i < hist.length; i++) {
+        if (hist[i].equity && hist[i-1].equity) {
+          dailyReturns.push(hist[i].equity / hist[i-1].equity - 1);
+        }
+      }
+      const avgRet = dailyReturns.reduce((a,b) => a+b, 0) / dailyReturns.length;
+      const stdRet = Math.sqrt(dailyReturns.reduce((a,b) => a + (b-avgRet)**2, 0) / dailyReturns.length);
+      const sharpe = stdRet > 0 ? (avgRet / stdRet * Math.sqrt(252)).toFixed(2) : 'N/A';
+
+      // Max drawdown
+      let peak = 0, maxDD = 0;
+      hist.forEach(d => {
+        if (d.equity > peak) peak = d.equity;
+        const dd = (d.equity - peak) / peak;
+        if (dd < maxDD) maxDD = dd;
+      });
+
+      const cards = document.getElementById('actual-metrics');
+      const items = [
+        { label: 'Total P&L', value: `${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(0)}` },
+        { label: 'Return', value: `${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%` },
+        { label: 'Sharpe', value: sharpe },
+        { label: 'Max Drawdown', value: `${(maxDD * 100).toFixed(1)}%` },
+        { label: 'Trading Days', value: days },
+        { label: 'Current Equity', value: `$${endEquity.toLocaleString()}` },
+      ];
+      items.forEach(it => {
+        const isNeg = String(it.value).startsWith('-');
+        cards.innerHTML += `<div class="card">
+          <div class="card-value ${isNeg ? 'negative' : 'positive'}">${it.value}</div>
+          <div class="card-label">${it.label}</div>
+        </div>`;
+      });
+
+      // Equity chart
+      Plotly.newPlot('actual-chart', [{
+        x: hist.map(d => d.date),
+        y: hist.map(d => d.equity),
+        name: 'Actual Equity',
+        line: { color: '#66bb6a', width: 2 },
+        fill: 'tozeroy',
+        fillcolor: 'rgba(102,187,106,0.1)',
+      }], {
+        title: 'Actual Equity Curve / 实盘净值 (Alpaca Paper Trading)',
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { gridcolor: '#333' },
+        yaxis: { title: 'Equity ($)', gridcolor: '#333', tickformat: '$,.0f' },
+        margin: { l: 80, r: 20, t: 40, b: 40 },
+        showlegend: false,
+      }, { responsive: true });
+    }
 
     function renderPortfolio(data) {
       document.getElementById('last-update').textContent = `Last update: ${data.updated_at}`;

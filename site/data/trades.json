@@ -1,6 +1,6 @@
 {
   "account": {
-    "equity": 101150.49,
+    "equity": 101376.54,
     "cash": 1920.65,
     "buying_power": 261481.77
   },
@@ -9,115 +9,217 @@
       "symbol": "C",
       "shares": 28.0,
       "avg_cost": 109.147333,
-      "current_price": 107.88,
-      "market_value": 3020.64,
-      "unrealized_pl": -35.485324,
-      "unrealized_pl_pct": -1.161
+      "current_price": 107.75,
+      "market_value": 3017.0,
+      "unrealized_pl": -39.125324,
+      "unrealized_pl_pct": -1.28
     },
     {
       "symbol": "CAT",
       "shares": 17.0,
       "avg_cost": 702.095,
-      "current_price": 704.33,
-      "market_value": 11973.61,
-      "unrealized_pl": 37.995,
-      "unrealized_pl_pct": 0.318
+      "current_price": 707.0,
+      "market_value": 12019.0,
+      "unrealized_pl": 83.385,
+      "unrealized_pl_pct": 0.699
     },
     {
       "symbol": "FCX",
       "shares": 208.0,
       "avg_cost": 58.141266,
-      "current_price": 57.93,
-      "market_value": 12049.44,
-      "unrealized_pl": -43.943328,
-      "unrealized_pl_pct": -0.363
+      "current_price": 58.02,
+      "market_value": 12068.16,
+      "unrealized_pl": -25.223328,
+      "unrealized_pl_pct": -0.209
     },
     {
       "symbol": "GILD",
       "shares": 84.0,
       "avg_cost": 146.333687,
-      "current_price": 144.48,
-      "market_value": 12136.32,
-      "unrealized_pl": -155.709708,
-      "unrealized_pl_pct": -1.2670000000000001
+      "current_price": 144.4,
+      "market_value": 12129.6,
+      "unrealized_pl": -162.429708,
+      "unrealized_pl_pct": -1.321
     },
     {
       "symbol": "GS",
       "shares": 3.0,
       "avg_cost": 809.21,
-      "current_price": 806.44,
-      "market_value": 2419.32,
-      "unrealized_pl": -8.31,
-      "unrealized_pl_pct": -0.34199999999999997
+      "current_price": 807.05,
+      "market_value": 2421.15,
+      "unrealized_pl": -6.48,
+      "unrealized_pl_pct": -0.267
     },
     {
       "symbol": "JNJ",
       "shares": 50.0,
       "avg_cost": 241.697655,
-      "current_price": 238.1266,
-      "market_value": 11906.33,
-      "unrealized_pl": -178.55275,
-      "unrealized_pl_pct": -1.477
+      "current_price": 238.18,
+      "market_value": 11909.0,
+      "unrealized_pl": -175.88275,
+      "unrealized_pl_pct": -1.455
     },
     {
       "symbol": "LMT",
       "shares": 4.0,
       "avg_cost": 640.0275,
-      "current_price": 637.2766,
-      "market_value": 2549.1064,
-      "unrealized_pl": -11.0036,
-      "unrealized_pl_pct": -0.43
+      "current_price": 636.33,
+      "market_value": 2545.32,
+      "unrealized_pl": -14.79,
+      "unrealized_pl_pct": -0.5780000000000001
     },
     {
       "symbol": "LRCX",
       "shares": 54.0,
       "avg_cost": 218.533839,
-      "current_price": 224.76,
-      "market_value": 12137.04,
-      "unrealized_pl": 336.212694,
-      "unrealized_pl_pct": 2.849
+      "current_price": 226.9,
+      "market_value": 12252.6,
+      "unrealized_pl": 451.772694,
+      "unrealized_pl_pct": 3.8280000000000003
     },
     {
       "symbol": "MRK",
       "shares": 26.0,
       "avg_cost": 115.82,
-      "current_price": 116.2025,
-      "market_value": 3021.265,
-      "unrealized_pl": 9.945,
-      "unrealized_pl_pct": 0.33
+      "current_price": 115.87,
+      "market_value": 3012.62,
+      "unrealized_pl": 1.3,
+      "unrealized_pl_pct": 0.043
     },
     {
       "symbol": "MU",
       "shares": 26.0,
       "avg_cost": 438.689688,
-      "current_price": 460.73,
-      "market_value": 11978.98,
-      "unrealized_pl": 573.048112,
-      "unrealized_pl_pct": 5.024
+      "current_price": 463.2,
+      "market_value": 12043.2,
+      "unrealized_pl": 637.268112,
+      "unrealized_pl_pct": 5.587000000000001
     },
     {
       "symbol": "USB",
       "shares": 78.0,
       "avg_cost": 51.476688,
-      "current_price": 51.705,
-      "market_value": 4032.99,
-      "unrealized_pl": 17.808336,
-      "unrealized_pl_pct": 0.44400000000000006
+      "current_price": 51.6,
+      "market_value": 4024.8,
+      "unrealized_pl": 9.618336,
+      "unrealized_pl_pct": 0.24
     },
     {
       "symbol": "WMT",
       "shares": 96.0,
       "avg_cost": 126.1225,
-      "current_price": 125.05,
-      "market_value": 12004.8,
-      "unrealized_pl": -102.96,
-      "unrealized_pl_pct": -0.8500000000000001
+      "current_price": 125.14,
+      "market_value": 12013.44,
+      "unrealized_pl": -94.32,
+      "unrealized_pl_pct": -0.779
+    }
+  ],
+  "portfolio_history": [
+    {
+      "date": "2026-02-18",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-19",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-20",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-21",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-24",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-25",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-26",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-27",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-02-28",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-03",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-04",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-05",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-06",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-07",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-10",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-11",
+      "equity": 100000.0,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-12",
+      "equity": 100127.86,
+      "profit_loss": 127.86
+    },
+    {
+      "date": "2026-03-13",
+      "equity": 98042.69,
+      "profit_loss": -2085.17
+    },
+    {
+      "date": "2026-03-14",
+      "equity": 98651.54,
+      "profit_loss": 608.85
+    },
+    {
+      "date": "2026-03-17",
+      "equity": 100932.69,
+      "profit_loss": 2281.15
     }
   ],
   "rebalances": [
     {
       "date": "2026-03-17",
-      "portfolio_value": 101150.49,
+      "portfolio_value": 101376.54,
       "trades": [
         {
           "symbol": "WMT",
@@ -403,7 +505,7 @@
     },
     {
       "date": "2026-03-16",
-      "portfolio_value": 101150.49,
+      "portfolio_value": 101376.54,
       "trades": [
         {
           "symbol": "XOM",
@@ -752,7 +854,7 @@
     },
     {
       "date": "2026-03-12",
-      "portfolio_value": 101150.49,
+      "portfolio_value": 101376.54,
       "trades": [
         {
           "symbol": "PEP",
@@ -968,7 +1070,7 @@
     },
     {
       "date": "2026-03-11",
-      "portfolio_value": 101150.49,
+      "portfolio_value": 101376.54,
       "trades": [
         {
           "symbol": "WMT",
