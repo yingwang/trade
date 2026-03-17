@@ -227,19 +227,23 @@
 
       const tbody = document.querySelector('#live-positions-table tbody');
       data.positions.forEach(p => {
-        const todayClass = (p.today_pl || 0) >= 0 ? 'positive' : 'negative';
-        const totalClass = (p.total_pl || 0) >= 0 ? 'positive' : 'negative';
+        const todayPct = p.today_pl_pct || 0;
+        const todayPl = p.today_pl || 0;
+        const totalPct = p.total_pl_pct || 0;
+        const totalPl = p.total_pl || 0;
+        const todayClass = todayPl >= 0 ? 'positive' : 'negative';
+        const totalClass = totalPl >= 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
           <td class="symbol">${symLink(p.symbol)}</td>
           <td>${p.side || 'long'}</td>
-          <td>${p.qty}</td>
-          <td>$${p.current_price.toFixed(2)}</td>
-          <td>$${Math.round(p.market_value).toLocaleString()}</td>
-          <td>$${p.avg_entry_price.toFixed(2)}</td>
-          <td>$${Math.round(p.cost_basis).toLocaleString()}</td>
-          <td class="${todayClass}">${p.today_pl_pct >= 0 ? '+' : ''}${p.today_pl_pct.toFixed(2)}%</td>
-          <td class="${todayClass}">${p.today_pl >= 0 ? '+' : ''}$${p.today_pl.toFixed(0)}</td>
-          <td class="${totalClass}">${p.total_pl_pct >= 0 ? '+' : ''}${p.total_pl_pct.toFixed(1)}%</td>
+          <td>${p.qty || 0}</td>
+          <td>$${(p.current_price || 0).toFixed(2)}</td>
+          <td>$${Math.round(p.market_value || 0).toLocaleString()}</td>
+          <td>$${(p.avg_entry_price || 0).toFixed(2)}</td>
+          <td>$${Math.round(p.cost_basis || 0).toLocaleString()}</td>
+          <td class="${todayClass}">${todayPct >= 0 ? '+' : ''}${todayPct.toFixed(2)}%</td>
+          <td class="${todayClass}">${todayPl >= 0 ? '+' : ''}$${todayPl.toFixed(0)}</td>
+          <td class="${totalClass}">${totalPct >= 0 ? '+' : ''}${totalPct.toFixed(1)}%</td>
         </tr>`;
       });
     }
