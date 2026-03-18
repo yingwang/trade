@@ -160,12 +160,9 @@
       const hist = data.portfolio_history.filter(d => d.equity != null);
       if (hist.length < 2) return;
 
-      // If we have a current account equity that's newer than the last history point, append it
+      // Update last point with current account equity if available
       if (data.account && data.account.equity) {
-        const lastHist = hist[hist.length - 1];
-        if (Math.abs(data.account.equity - lastHist.equity) > 0.01) {
-          hist.push({ date: data.account.as_of || lastHist.date, equity: data.account.equity });
-        }
+        hist[hist.length - 1].equity = data.account.equity;
       }
 
       const startEquity = hist[0].equity;
