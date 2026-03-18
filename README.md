@@ -8,9 +8,9 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 ## Backtest Performance / 回测表现
 
-> **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, volume momentum, volatility contraction), 12 concentrated positions, 22% target volatility, biweekly rebalance, dynamic leverage with fast regime detection. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
+> **Configuration**: 7 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, volume momentum, volatility contraction, earnings revision proxy, low proximity + low-vol anomaly), 12 concentrated positions, 22% target volatility, 3-week rebalance with 40% turnover cap, dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
 >
-> **配置**: 5个价格因子（动量、52周新高距离、短期反转、成交量动量、波动率收缩），12只集中持仓，22%目标波动率，双周再平衡，快速regime检测动态杠杆。无前视偏差——基本面因子因yfinance数据限制已禁用。
+> **配置**: 7个价格因子（动量30% + 52周新高15% + 短期反转10% + 波动率收缩10% + 盈利修正代理15% + 52周低点5% + 低波动10% + 成交量动量5%），12只集中持仓，22%目标波动率，3周再平衡+40%换手上限，快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。无前视偏差——基本面因子因yfinance数据限制已禁用。
 
 ### 5-Year Backtest (2021-03 → 2026-03)
 
@@ -56,34 +56,40 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Parameter / 参数 | Value / 值 | Description / 说明 |
 |---------|-------|-------------|
-| **Alpha Signals** | 5 factors | 动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 成交量动量10% |
+| **Alpha Signals** | 7 factors | 动量30% + 52周新高15% + 盈利修正15% + 短期反转10% + 波动率收缩10% + 低波动10% + 52周低点5% + 成交量动量5% |
 | **Positions** | 12 | 集中持仓，高信念选股 |
 | **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
 | **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
-| **Rebalance** | Every 14 trading days | 双周再平衡，更新鲜的信号 |
+| **Rebalance** | Every 21 trading days | 3周再平衡，降低换手成本 |
+| **Max Turnover** | 40% per rebalance | 单次换手上限，防止过度交易 |
 | **Max Sector** | 50% | 允许科技股集中但有上限 |
 | **Max Drawdown** | 25% | 组合回撤超限时停止交易 |
 | **Stop Loss** | 15% | 单只股票止损线 |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
+| **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数 × √(参与率) |
 
 ### Signal Pipeline / 信号管道
 
 ```
 Price Data (yfinance)
     │
-    ├── Momentum (42d/126d/252d, skip 1m) ─── 50%
-    ├── 52-Week High Proximity ──────────── 20%
+    ├── Momentum (42d/126d/252d, skip 1m) ─── 30%
+    ├── 52-Week High Proximity ──────────── 15%
+    ├── Earnings Revision Proxy (63d accel) ─ 15%
     ├── Short-Term Reversal (5d) ────────── 10%
     ├── Volatility Contraction (10d/63d) ── 10%
-    ├── Volume Momentum (21d autocorr) ──── 10%
+    ├── Low Volatility Anomaly (63d) ────── 10%
+    ├── 52-Week Low Proximity ───────────── 5%
+    ├── Volume Momentum (21d autocorr) ──── 5%
     │   └── All: Industry-neutral z-score → Winsorize ±3
     │
     ├── Trend Filter: price < 200d SMA → score × 0.5
     └── Blowoff Filter: z-score > 4.0 → score × 0.5
         │
         ▼
-    Portfolio Optimizer (Ledoit-Wolf covariance + turnover penalty)
+    Portfolio Optimizer (Ledoit-Wolf covariance + 5x turnover penalty)
         │
+        ├── Max 40% turnover per rebalance
         ├── Sector constraints (max 50% per sector)
         ├── Vol-targeting (22% annual, regime-adjusted)
         └── Dynamic leverage (21d SPY vol regime detection)
@@ -147,7 +153,7 @@ export ALPACA_SECRET_KEY="your-secret-key"
 python paper_trade.py --dry-run     # 预览交易（不执行）
 python paper_trade.py --status      # 查看当前持仓
 python paper_trade.py               # 执行再平衡（需达到14个交易日间隔）
-python paper_trade.py --force       # 强制立即再平衡
+python paper_trade.py --force       # 强制立即再平衡（使用新策略参数）
 python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 ```
 
@@ -162,7 +168,7 @@ python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 ### Automate with Cron / 使用 Cron 自动化
 
 ```bash
-# 工作日美东时间下午 3:55 自动执行（每14个交易日实际再平衡）
+# 工作日美东时间下午 3:55 自动执行（每21个交易日实际再平衡）
 55 15 * * 1-5 cd /path/to/trade && python paper_trade.py >> logs/trade.log 2>&1
 ```
 
@@ -221,23 +227,30 @@ trade/
 signals:
   momentum_windows: [42, 126, 252]
   factor_weights:
-    momentum: 0.50         # 核心动量信号
-    high_proximity: 0.20   # 52周新高距离
+    momentum: 0.30         # 核心动量信号（降低以分散风险）
+    high_proximity: 0.15   # 52周新高距离
+    earnings_revision: 0.15  # 盈利修正代理（价格加速度）
     short_term_reversal: 0.10  # 短期反转
     vol_contraction: 0.10  # 波动率收缩
-    volume_momentum: 0.10  # 成交量动量
+    volatility: 0.10       # 低波动异常（动量对冲）
+    low_proximity: 0.05    # 52周低点距离（深度价值）
+    volume_momentum: 0.05  # 成交量动量
     quality: 0.00          # 已禁用（前视偏差）
     value: 0.00            # 已禁用（前视偏差）
 
 portfolio:
   max_positions: 12
   target_volatility: 0.22
-  rebalance_frequency_days: 14
+  rebalance_frequency_days: 21    # 3周再平衡
+  max_turnover_per_rebalance: 0.40  # 40%换手上限
 
 risk:
   max_drawdown_limit: 0.25
   max_sector_weight: 0.50
   stop_loss_pct: 0.15
+
+backtest:
+  market_impact_coeff: 10.0  # Almgren-Chriss 市场冲击系数
 ```
 
 ---
