@@ -108,7 +108,13 @@ th {
   color: var(--text-muted);
   font-weight: 600;
   border-bottom: 2px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
 }
+th::after { content: ' \2195'; opacity: 0.3; font-size: 0.8em; }
+th.sort-asc::after { content: ' \2191'; opacity: 1; }
+th.sort-desc::after { content: ' \2193'; opacity: 1; }
 td {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);

@@ -381,6 +381,41 @@
         container.appendChild(section);
       });
     }
+    // ---- Sortable tables ----
+    function makeSortable(table) {
+      const headers = table.querySelectorAll('th');
+      headers.forEach((th, colIdx) => {
+        th.style.cursor = 'pointer';
+        th.title = 'Click to sort';
+        th.addEventListener('click', () => {
+          const tbody = table.querySelector('tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          const asc = th.dataset.sortDir !== 'asc';
+          // Reset all headers
+          headers.forEach(h => { h.dataset.sortDir = ''; h.classList.remove('sort-asc','sort-desc'); });
+          th.dataset.sortDir = asc ? 'asc' : 'desc';
+          th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+          rows.sort((a, b) => {
+            let av = a.cells[colIdx]?.textContent.trim() || '';
+            let bv = b.cells[colIdx]?.textContent.trim() || '';
+            // Parse numeric: strip $, %, +, commas, bps
+            const toNum = s => parseFloat(s.replace(/[$,%+bps\s,]/g, '')) || 0;
+            const an = toNum(av), bn = toNum(bv);
+            if (!isNaN(an) && !isNaN(bn) && av.match(/[\d.$%+-]/)) {
+              return asc ? an - bn : bn - an;
+            }
+            return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+          });
+          rows.forEach(r => tbody.appendChild(r));
+        });
+      });
+    }
+
+    // Apply to all tables after render
+    setTimeout(() => {
+      document.querySelectorAll('table').forEach(makeSortable);
+    }, 2000);
   </script>
 </body>
 </html>
