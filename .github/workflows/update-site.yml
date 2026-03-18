@@ -3,6 +3,13 @@
   on:
     schedule:
       - cron: '0 21 * * 1-5'
+    push:
+      branches: [main]
+      paths:
+        - 'generate_site.py'
+        - 'site/**'
+        - 'quant/**'
+        - 'config.yaml'
     workflow_dispatch:
 
   permissions:
