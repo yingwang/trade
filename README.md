@@ -157,7 +157,7 @@ export ALPACA_SECRET_KEY="your-secret-key"
 ```bash
 python paper_trade.py --dry-run     # 预览交易（不执行）
 python paper_trade.py --status      # 查看当前持仓
-python paper_trade.py               # 执行再平衡（需达到14个交易日间隔）
+python paper_trade.py               # 执行再平衡（需达到21个交易日间隔）
 python paper_trade.py --force       # 强制立即再平衡（使用新策略参数）
 python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 ```
