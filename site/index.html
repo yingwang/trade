@@ -81,7 +81,7 @@
 
       <section id="performance">
         <h2>Backtest / 回测净值曲线</h2>
-        <p class="meta" style="margin-bottom:12px">Simulated from 2016. Rebalance every 14 trading days, 10bps cost + 5bps slippage. Subject to survivorship bias. 模拟回测，非真实收益。</p>
+        <p class="meta" style="margin-bottom:12px">Simulated from 2016. Rebalance every 21 trading days, 10bps cost + 5bps slippage + Almgren-Chriss market impact (coeff=2.5). Subject to survivorship bias. 模拟回测，非真实收益。</p>
         <div id="metrics-cards" class="cards"></div>
         <div id="equity-chart" class="chart"></div>
         <div id="drawdown-chart" class="chart chart-small"></div>
@@ -160,8 +160,16 @@
       const hist = data.portfolio_history.filter(d => d.equity != null);
       if (hist.length < 2) return;
 
+      // If we have a current account equity that's newer than the last history point, append it
+      if (data.account && data.account.equity) {
+        const lastHist = hist[hist.length - 1];
+        if (Math.abs(data.account.equity - lastHist.equity) > 0.01) {
+          hist.push({ date: data.account.as_of || lastHist.date, equity: data.account.equity });
+        }
+      }
+
       const startEquity = hist[0].equity;
-      const endEquity = (data.account && data.account.equity) ? data.account.equity : hist[hist.length - 1].equity;
+      const endEquity = hist[hist.length - 1].equity;
       const totalReturn = (endEquity / startEquity - 1) * 100;
       const totalPL = endEquity - startEquity;
       const days = hist.length;

@@ -8,88 +8,88 @@
   ],
   "stocks": {
     "MU": {
-      "momentum": 3.199,
-      "high_proximity": 1.801,
-      "short_term_reversal": -3.136,
-      "vol_contraction": -0.723,
-      "volume_momentum": -1.427
-    },
-    "GILD": {
-      "momentum": 1.448,
-      "high_proximity": 0.694,
-      "short_term_reversal": -0.423,
-      "vol_contraction": 0.834,
-      "volume_momentum": 0.558
-    },
-    "FCX": {
-      "momentum": 2.033,
-      "high_proximity": -0.918,
-      "short_term_reversal": 1.531,
-      "vol_contraction": -1.424,
-      "volume_momentum": 1.139
-    },
-    "LRCX": {
-      "momentum": 1.996,
-      "high_proximity": 0.883,
-      "short_term_reversal": -1.224,
-      "vol_contraction": -0.837,
-      "volume_momentum": -0.689
-    },
-    "JNJ": {
-      "momentum": 1.421,
-      "high_proximity": 1.01,
-      "short_term_reversal": -0.661,
-      "vol_contraction": 0.091,
-      "volume_momentum": 0.376
+      "momentum": 3.195,
+      "high_proximity": 1.757,
+      "short_term_reversal": -3.167,
+      "vol_contraction": -0.175,
+      "volume_momentum": -1.266
     },
     "CAT": {
-      "momentum": 2.252,
-      "high_proximity": 0.087,
-      "short_term_reversal": -1.235,
-      "vol_contraction": -0.058,
-      "volume_momentum": -1.277
+      "momentum": 2.264,
+      "high_proximity": 0.276,
+      "short_term_reversal": -0.756,
+      "vol_contraction": 0.144,
+      "volume_momentum": -0.895
+    },
+    "GILD": {
+      "momentum": 1.512,
+      "high_proximity": 0.714,
+      "short_term_reversal": 0.12,
+      "vol_contraction": 0.991,
+      "volume_momentum": 0.246
+    },
+    "LRCX": {
+      "momentum": 2.062,
+      "high_proximity": 1.059,
+      "short_term_reversal": -1.372,
+      "vol_contraction": -0.748,
+      "volume_momentum": -0.463
+    },
+    "FCX": {
+      "momentum": 2.054,
+      "high_proximity": -0.9,
+      "short_term_reversal": 1.926,
+      "vol_contraction": -1.363,
+      "volume_momentum": 1.077
     },
     "WMT": {
-      "momentum": 1.865,
-      "high_proximity": 0.367,
-      "short_term_reversal": -1.682,
-      "vol_contraction": 0.469,
-      "volume_momentum": -0.168
-    },
-    "USB": {
-      "momentum": 1.723,
-      "high_proximity": 0.573,
-      "short_term_reversal": -0.258,
-      "vol_contraction": 0.465,
-      "volume_momentum": -1.376
-    },
-    "LMT": {
-      "momentum": 0.925,
-      "high_proximity": 1.057,
-      "short_term_reversal": -0.04,
-      "vol_contraction": 1.286,
-      "volume_momentum": -0.043
-    },
-    "MRK": {
-      "momentum": 1.442,
-      "high_proximity": 0.702,
-      "short_term_reversal": -0.301,
-      "vol_contraction": 0.31,
-      "volume_momentum": -0.765
-    },
-    "GS": {
-      "momentum": 1.311,
-      "high_proximity": -0.013,
-      "short_term_reversal": 1.635,
-      "vol_contraction": -0.805,
-      "volume_momentum": 0.041
+      "momentum": 1.862,
+      "high_proximity": 0.305,
+      "short_term_reversal": -0.565,
+      "vol_contraction": -0.122,
+      "volume_momentum": -0.124
     },
     "C": {
-      "momentum": 1.169,
-      "high_proximity": 1.161,
-      "short_term_reversal": -2.201,
-      "vol_contraction": 0.023,
-      "volume_momentum": 1.289
+      "momentum": 1.017,
+      "high_proximity": 1.143,
+      "short_term_reversal": -0.287,
+      "vol_contraction": 0.15,
+      "volume_momentum": 0.834
+    },
+    "JNJ": {
+      "momentum": 1.282,
+      "high_proximity": 0.921,
+      "short_term_reversal": 0.134,
+      "vol_contraction": -0.315,
+      "volume_momentum": -0.082
+    },
+    "TJX": {
+      "momentum": 0.814,
+      "high_proximity": 1.228,
+      "short_term_reversal": 0.518,
+      "vol_contraction": 0.143,
+      "volume_momentum": 0.776
+    },
+    "USB": {
+      "momentum": 1.572,
+      "high_proximity": 0.624,
+      "short_term_reversal": -0.594,
+      "vol_contraction": 0.352,
+      "volume_momentum": -1.188
+    },
+    "MRK": {
+      "momentum": 1.48,
+      "high_proximity": 0.793,
+      "short_term_reversal": -0.512,
+      "vol_contraction": 0.394,
+      "volume_momentum": -0.986
+    },
+    "GS": {
+      "momentum": 1.378,
+      "high_proximity": 0.151,
+      "short_term_reversal": 1.288,
+      "vol_contraction": -0.85,
+      "volume_momentum": 0.12
     }
   }
 }

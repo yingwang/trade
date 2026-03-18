@@ -191,4 +191,4 @@ backtest:
   end_date: null  # null = today
   initial_capital: 1000000
   slippage_bps: 5
-  market_impact_coeff: 10.0  # bps per sqrt(participation_rate) — Almgren-Chriss simplified
+  market_impact_coeff: 2.5  # bps per sqrt(participation_rate) — Almgren-Chriss simplified (lowered for small accounts)

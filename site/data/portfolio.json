@@ -1,104 +1,104 @@
 {
-  "updated_at": "2026-03-17 21:24",
+  "updated_at": "2026-03-18 16:45",
   "regime": "low_vol",
-  "total_invested_pct": 100.3,
-  "cash_pct": 0,
+  "total_invested_pct": 99.2,
+  "cash_pct": 0.8,
   "positions": [
     {
-      "symbol": "MU",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 272,
-      "price": 441.8,
-      "score": 1.431
+      "symbol": "CAT",
+      "weight_pct": 11.9,
+      "dollars": 119029.0,
+      "shares": 169,
+      "price": 702.0,
+      "score": 1.0363
     },
     {
       "symbol": "GILD",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 828,
-      "price": 145.21,
-      "score": 0.9599
+      "weight_pct": 11.9,
+      "dollars": 119029.0,
+      "shares": 824,
+      "price": 144.4,
+      "score": 1.0346
     },
     {
       "symbol": "FCX",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 2077,
-      "price": 57.93,
-      "score": 0.9573
+      "weight_pct": 11.9,
+      "dollars": 119029.0,
+      "shares": 2049,
+      "price": 58.09,
+      "score": 1.0111
     },
     {
       "symbol": "LRCX",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 548,
-      "price": 219.4,
-      "score": 0.8997
+      "weight_pct": 11.9,
+      "dollars": 119029.0,
+      "shares": 525,
+      "price": 226.47,
+      "score": 0.9843
     },
     {
-      "symbol": "JNJ",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 494,
-      "price": 243.19,
-      "score": 0.8928
+      "symbol": "MU",
+      "weight_pct": 11.9,
+      "dollars": 119029.0,
+      "shares": 257,
+      "price": 461.69,
+      "score": 1.4883
     },
     {
       "symbol": "WMT",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 955,
-      "price": 125.99,
-      "score": 0.8675
-    },
-    {
-      "symbol": "CAT",
-      "weight_pct": 12.04,
-      "dollars": 120372.0,
-      "shares": 172,
-      "price": 699.78,
-      "score": 0.886
-    },
-    {
-      "symbol": "USB",
-      "weight_pct": 4.01,
-      "dollars": 40124.0,
-      "shares": 784,
-      "price": 51.16,
-      "score": 0.8592
-    },
-    {
-      "symbol": "LMT",
-      "weight_pct": 3.01,
-      "dollars": 30093.0,
-      "shares": 46,
-      "price": 645.2,
-      "score": 0.7941
-    },
-    {
-      "symbol": "MRK",
-      "weight_pct": 3.01,
-      "dollars": 30093.0,
-      "shares": 260,
-      "price": 115.43,
-      "score": 0.7856
-    },
-    {
-      "symbol": "GS",
-      "weight_pct": 3.01,
-      "dollars": 30093.0,
-      "shares": 37,
-      "price": 794.77,
-      "score": 0.7401
+      "weight_pct": 9.92,
+      "dollars": 99191.0,
+      "shares": 793,
+      "price": 125.08,
+      "score": 0.9109
     },
     {
       "symbol": "C",
-      "weight_pct": 3.01,
-      "dollars": 30093.0,
-      "shares": 280,
-      "price": 107.35,
-      "score": 0.7277
+      "weight_pct": 8.27,
+      "dollars": 82659.0,
+      "shares": 767,
+      "price": 107.71,
+      "score": 0.8069
+    },
+    {
+      "symbol": "JNJ",
+      "weight_pct": 8.27,
+      "dollars": 82659.0,
+      "shares": 347,
+      "price": 238.11,
+      "score": 0.7991
+    },
+    {
+      "symbol": "TJX",
+      "weight_pct": 4.3,
+      "dollars": 42983.0,
+      "shares": 276,
+      "price": 155.38,
+      "score": 0.7962
+    },
+    {
+      "symbol": "USB",
+      "weight_pct": 2.98,
+      "dollars": 29757.0,
+      "shares": 576,
+      "price": 51.58,
+      "score": 0.7679
+    },
+    {
+      "symbol": "GS",
+      "weight_pct": 2.98,
+      "dollars": 29757.0,
+      "shares": 36,
+      "price": 807.04,
+      "score": 0.7747
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 2.98,
+      "dollars": 29757.0,
+      "shares": 256,
+      "price": 115.87,
+      "score": 0.7879
     }
   ]
 }

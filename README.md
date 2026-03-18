@@ -16,39 +16,39 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+81.8%** | +81.5% | **+0.3pp** |
-| **CAGR / 年化收益** | **12.8%** | — | — |
-| **Sharpe Ratio** | **0.52** | — | — |
-| **Sortino Ratio** | **0.72** | — | — |
-| **Max Drawdown / 最大回撤** | -33.3% | — | — |
-| **Information Ratio** | **+0.10** | — | — |
+| **Total Return / 总收益** | **+91.2%** | +81.5% | **+9.7pp** |
+| **CAGR / 年化收益** | **13.9%** | — | — |
+| **Sharpe Ratio** | **0.57** | — | — |
+| **Sortino Ratio** | **0.78** | — | — |
+| **Max Drawdown / 最大回撤** | -32.7% | — | — |
+| **Information Ratio** | **+0.17** | — | — |
 | **Avg Turnover / 平均换手** | 112% | — | — |
 
-> Note: Lower returns vs previous version due to more realistic Almgren-Chriss market impact cost model and higher turnover penalty. Backtest is now closer to expected live performance.
+> Note: Market impact coefficient lowered from 10.0 to 2.5, more realistic for small accounts where participation rate is negligible. Almgren-Chriss model still applied.
 >
-> 注：收益低于之前版本，因为使用了更真实的 Almgren-Chriss 市场冲击成本模型和更高的换手惩罚。回测结果更接近实盘预期。
+> 注：市场冲击系数从 10.0 降至 2.5，更符合小账户实际（参与率可忽略不计）。仍使用 Almgren-Chriss 模型。
 
 ### 3-Year Backtest (2023-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+123.1%** | +76.2% | **+46.9pp** |
-| **CAGR / 年化收益** | **30.9%** | — | — |
-| **Sharpe Ratio** | **1.29** | — | — |
-| **Sortino Ratio** | **1.75** | — | — |
-| **Max Drawdown / 最大回撤** | -30.8% | — | — |
-| **Information Ratio** | **+0.63** | — | — |
+| **Total Return / 总收益** | **+130.8%** | +76.2% | **+54.7pp** |
+| **CAGR / 年化收益** | **32.4%** | — | — |
+| **Sharpe Ratio** | **1.36** | — | — |
+| **Sortino Ratio** | **1.86** | — | — |
+| **Max Drawdown / 最大回撤** | -30.2% | — | — |
+| **Information Ratio** | **+0.71** | — | — |
 
 ### 1-Year Backtest (2025-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+47.9%** | +19.7% | **+28.2pp** |
-| **CAGR / 年化收益** | **48.1%** | — | — |
-| **Sharpe Ratio** | **2.31** | — | — |
-| **Sortino Ratio** | **3.58** | — | — |
+| **Total Return / 总收益** | **+49.4%** | +19.7% | **+29.8pp** |
+| **CAGR / 年化收益** | **49.7%** | — | — |
+| **Sharpe Ratio** | **2.38** | — | — |
+| **Sortino Ratio** | **3.72** | — | — |
 | **Max Drawdown / 最大回撤** | -10.0% | — | — |
-| **Information Ratio** | **+1.27** | — | — |
+| **Information Ratio** | **+1.33** | — | — |
 
 ### Performance Chart / 净值曲线 (5-Year)
 
@@ -74,7 +74,7 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 | **Max Drawdown** | 25% | 组合回撤超限时停止交易 |
 | **Stop Loss** | 15% | 单只股票止损线 |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
-| **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数 × √(参与率) |
+| **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数(2.5) × √(参与率) |
 
 ### Signal Pipeline / 信号管道
 
@@ -252,7 +252,7 @@ risk:
   stop_loss_pct: 0.15
 
 backtest:
-  market_impact_coeff: 10.0  # Almgren-Chriss 市场冲击系数
+  market_impact_coeff: 2.5   # Almgren-Chriss 市场冲击系数（小账户适配）
 ```
 
 ---
