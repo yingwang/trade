@@ -28,6 +28,28 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 >
 > 注：收益低于之前版本，因为使用了更真实的 Almgren-Chriss 市场冲击成本模型和更高的换手惩罚。回测结果更接近实盘预期。
 
+### 3-Year Backtest (2023-03 → 2026-03)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+123.1%** | +76.2% | **+46.9pp** |
+| **CAGR / 年化收益** | **30.9%** | — | — |
+| **Sharpe Ratio** | **1.29** | — | — |
+| **Sortino Ratio** | **1.75** | — | — |
+| **Max Drawdown / 最大回撤** | -30.8% | — | — |
+| **Information Ratio** | **+0.63** | — | — |
+
+### 1-Year Backtest (2025-03 → 2026-03)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+47.9%** | +19.7% | **+28.2pp** |
+| **CAGR / 年化收益** | **48.1%** | — | — |
+| **Sharpe Ratio** | **2.31** | — | — |
+| **Sortino Ratio** | **3.58** | — | — |
+| **Max Drawdown / 最大回撤** | -10.0% | — | — |
+| **Information Ratio** | **+1.27** | — | — |
+
 ### Performance Chart / 净值曲线 (5-Year)
 
 ![5-Year Backtest](backtest_5yr_v4.png)
