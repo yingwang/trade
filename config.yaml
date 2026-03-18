@@ -185,7 +185,7 @@ safety:
   max_daily_loss: 25000             # $25k daily loss limit
   max_adv_fraction: 0.01            # max 1% of average daily volume
   min_price: 1.0                    # reject penny stocks
-  max_position_pct_of_portfolio: 0.15  # 15% max single position
+  max_position_pct_of_portfolio: 0.20  # 20% max single position (accommodates leverage)
   require_paper_mode: true          # block live trading unless explicitly overridden
 
 backtest:
