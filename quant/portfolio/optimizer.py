@@ -112,9 +112,10 @@ class PortfolioOptimizer:
                                     {"low_vol": 1.0, "normal": 1.0, "high_vol": 0.7})
 
         # Turnover penalty coefficient for transaction cost awareness
-        # Default: txn_cost in decimal * 2 (round-trip cost approximation)
+        # Default: txn_cost in decimal * 5 (aggressive penalty to reduce churn)
         self.turnover_penalty = pcfg.get("turnover_penalty",
-                                         self.txn_cost_bps / 10000 * 2)
+                                         self.txn_cost_bps / 10000 * 5)
+        self.max_turnover = pcfg.get("max_turnover_per_rebalance", 1.0)
 
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
@@ -180,6 +181,13 @@ class PortfolioOptimizer:
         constraints = [
             {"type": "eq", "fun": lambda w: np.sum(w) - 1.0},  # fully invested
         ]
+
+        # Max turnover constraint
+        if self.max_turnover < 1.0:
+            constraints.append({
+                "type": "ineq",
+                "fun": lambda w: self.max_turnover - np.sum(np.abs(w - w_prev)),
+            })
 
         # Sector constraints: max weight per sector
         if sector_map is not None:

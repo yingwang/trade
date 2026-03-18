@@ -246,6 +246,40 @@ def volatility_contraction_factor(returns: pd.DataFrame,
     return -zs
 
 
+def earnings_revision_factor(prices: pd.DataFrame, window: int = 63) -> pd.DataFrame:
+    """Earnings revision proxy: use medium-term price acceleration as a proxy
+    for earnings surprise/revision when point-in-time EPS data is unavailable.
+
+    Stocks whose recent returns accelerate relative to their trailing returns
+    are likely experiencing positive earnings revisions.
+
+    acceleration = (return over recent window) - (return over prior window)
+    Cross-sectionally z-scored.
+    """
+    recent_ret = prices.pct_change(window)
+    prior_ret = prices.shift(window).pct_change(window)
+    acceleration = recent_ret - prior_ret
+    zs = acceleration.sub(acceleration.mean(axis=1), axis=0).div(
+        acceleration.std(axis=1), axis=0)
+    return zs
+
+
+def low_proximity_factor(prices: pd.DataFrame, window: int = 252) -> pd.DataFrame:
+    """52-week low proximity: stocks far from their 52-week low
+    may be in strong uptrends, while stocks near their low may represent
+    deep value reversal opportunities.
+
+    Inverted: closer to 52-week low = higher score (contrarian value signal).
+    """
+    rolling_low = prices.rolling(window).min()
+    proximity = prices / rolling_low  # 1.0 = at 52-week low, higher = far from low
+    # Invert: stocks closer to low get higher score
+    inv_proximity = 1.0 / proximity
+    zs = inv_proximity.sub(inv_proximity.mean(axis=1), axis=0).div(
+        inv_proximity.std(axis=1), axis=0)
+    return zs
+
+
 def volatility_factor(returns: pd.DataFrame, window: int = 63) -> pd.DataFrame:
     """Realized volatility factor (low-vol anomaly: prefer lower vol).
 
@@ -380,6 +414,8 @@ class SignalGenerator:
         factors["volume_momentum"] = volume_momentum_factor(px, ret, window=21)
         factors["high_proximity"] = high_proximity_factor(px, window=252)
         factors["vol_contraction"] = volatility_contraction_factor(ret, short_window=10, long_window=63)
+        factors["earnings_revision"] = earnings_revision_factor(px, window=63)
+        factors["low_proximity"] = low_proximity_factor(px, window=252)
 
         # Fundamental (cross-sectional, static per rebalance)
         if fundamentals is not None and not fundamentals.empty:

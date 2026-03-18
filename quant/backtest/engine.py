@@ -43,6 +43,9 @@ class BacktestEngine:
         self.txn_cost_bps = port_cfg["transaction_cost_bps"]
         self.rebalance_freq = port_cfg["rebalance_frequency_days"]
         self.margin_rate = config.get("leverage", {}).get("margin_annual_rate", 0.0)
+        # Market impact: cost = fixed_bps + impact_coeff * sqrt(participation_rate)
+        # where participation_rate = trade_value / portfolio_value (proxy for ADV fraction)
+        self.impact_coeff = bt_cfg.get("market_impact_coeff", 10.0)  # bps per sqrt(participation)
 
     def run(self, prices: pd.DataFrame, target_weights_by_date: dict[str, pd.Series],
             benchmark_col: str = "SPY") -> BacktestResult:
@@ -92,9 +95,13 @@ class BacktestEngine:
                 target_shares = (portfolio_value * target / px).fillna(0).apply(np.floor)
                 trades = target_shares - holdings
 
-                # Apply transaction costs and slippage
+                # Apply transaction costs with market impact model
+                # cost = fixed_bps * trade_value + impact_coeff * sqrt(trade_value / portfolio) * trade_value
                 trade_value = (trades.abs() * px).sum()
-                cost = trade_value * (self.txn_cost_bps + self.slippage_bps) / 10000
+                fixed_cost = trade_value * (self.txn_cost_bps + self.slippage_bps) / 10000
+                participation = trade_value / portfolio_value if portfolio_value > 0 else 0
+                impact_cost = trade_value * self.impact_coeff * np.sqrt(participation) / 10000
+                cost = fixed_cost + impact_cost
                 cash -= cost
 
                 # Execute trades
