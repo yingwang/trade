@@ -139,15 +139,13 @@ signals:
   # Factor weights (must sum to 1.0) — trend/mean_reversion now applied as filters, not scored
   # 因子权重（必须加总为 1.0）— trend 和 mean_reversion 改为过滤器，不参与评分
   factor_weights:
-    momentum: 0.30         # core signal — reduced from 0.50 to diversify
-    high_proximity: 0.15   # 52-week high proximity (George & Hwang 2004)
-    short_term_reversal: 0.10  # buy oversold momentum stocks
+    momentum: 0.50         # core signal — medium/long-term price momentum
+    high_proximity: 0.20   # 52-week high proximity — reinforces momentum (George & Hwang 2004)
+    short_term_reversal: 0.10  # buy oversold momentum stocks — complements momentum skip-month
     vol_contraction: 0.10  # volatility squeeze → breakout setup
-    volume_momentum: 0.05  # trending (autocorrelation) stocks > choppy ones
-    earnings_revision: 0.15  # EPS estimate revision momentum — fundamental catalyst
-    low_proximity: 0.05    # distance from 52-week low — deep value reversal
-    volatility: 0.10       # low-vol anomaly — re-enabled as diversifier against momentum
+    volume_momentum: 0.10  # trending (autocorrelation) stocks > choppy ones
     quality: 0.00          # disabled — yfinance .info has look-ahead bias
+    volatility: 0.00       # disabled — fights momentum in bull markets
     value: 0.00            # disabled — same look-ahead bias as quality
     mean_reversion: 0.00   # disabled as scored factor; used as blowoff filter instead
     trend: 0.00            # disabled as scored factor; used as 200d SMA filter instead

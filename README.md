@@ -8,43 +8,29 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 ## Backtest Performance / 回测表现
 
-> **Configuration**: 7 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, volume momentum, volatility contraction, earnings revision proxy, low proximity + low-vol anomaly), 12 concentrated positions, 22% target volatility, 3-week rebalance with 40% turnover cap, dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
+> **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, volume momentum, volatility contraction), 12 concentrated positions, 22% target volatility, 3-week rebalance with 40% turnover cap, dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
 >
-> **配置**: 7个价格因子（动量30% + 52周新高15% + 短期反转10% + 波动率收缩10% + 盈利修正代理15% + 52周低点5% + 低波动10% + 成交量动量5%），12只集中持仓，22%目标波动率，3周再平衡+40%换手上限，快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。无前视偏差——基本面因子因yfinance数据限制已禁用。
+> **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 成交量动量10%），12只集中持仓，22%目标波动率，3周再平衡+40%换手上限，快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。无前视偏差——基本面因子因yfinance数据限制已禁用。
 
 ### 5-Year Backtest (2021-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+106.5%** | +79.2% | **+27.3pp** |
-| **CAGR / 年化收益** | **15.7%** | — | — |
-| **Sharpe Ratio** | **0.66** | — | — |
-| **Max Drawdown / 最大回撤** | -35.8% | — | — |
+| **Total Return / 总收益** | **+81.8%** | +81.5% | **+0.3pp** |
+| **CAGR / 年化收益** | **12.8%** | — | — |
+| **Sharpe Ratio** | **0.52** | — | — |
+| **Sortino Ratio** | **0.72** | — | — |
+| **Max Drawdown / 最大回撤** | -33.3% | — | — |
+| **Information Ratio** | **+0.10** | — | — |
+| **Avg Turnover / 平均换手** | 112% | — | — |
 
-### 3-Year Backtest (2023-03 → 2026-03)
-
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+115.1%** | +73.9% | **+41.2pp** |
-| **CAGR / 年化收益** | **29.3%** | — | — |
-| **Sharpe Ratio** | **1.23** | — | — |
-| **Sortino Ratio** | **1.63** | — | — |
-| **Max Drawdown / 最大回撤** | -31.5% | — | — |
-| **Information Ratio** | **+0.58** | — | — |
-
-### 1-Year Backtest (2025-03 → 2026-03)
-
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+23.5%** | +18.2% | **+5.3pp** |
-| **CAGR / 年化收益** | **23.9%** | — | — |
-| **Sharpe Ratio** | **0.97** | — | — |
-| **Sortino Ratio** | **1.17** | — | — |
-| **Max Drawdown / 最大回撤** | -18.4% | — | — |
+> Note: Lower returns vs previous version due to more realistic Almgren-Chriss market impact cost model and higher turnover penalty. Backtest is now closer to expected live performance.
+>
+> 注：收益低于之前版本，因为使用了更真实的 Almgren-Chriss 市场冲击成本模型和更高的换手惩罚。回测结果更接近实盘预期。
 
 ### Performance Chart / 净值曲线 (5-Year)
 
-![5-Year Backtest](backtest_5yr_v3.png)
+![5-Year Backtest](backtest_5yr_v4.png)
 
 > **Note / 注意**: 回测结果仍存在幸存者偏差（静态100股票池排除了历史退市股）。真实样本外表现预计会略低。详见 `docs/audit/CONFIDENCE_ASSESSMENT.md`。
 
@@ -56,7 +42,7 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Parameter / 参数 | Value / 值 | Description / 说明 |
 |---------|-------|-------------|
-| **Alpha Signals** | 7 factors | 动量30% + 52周新高15% + 盈利修正15% + 短期反转10% + 波动率收缩10% + 低波动10% + 52周低点5% + 成交量动量5% |
+| **Alpha Signals** | 5 factors | 动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 成交量动量10% |
 | **Positions** | 12 | 集中持仓，高信念选股 |
 | **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
 | **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
@@ -73,14 +59,11 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 ```
 Price Data (yfinance)
     │
-    ├── Momentum (42d/126d/252d, skip 1m) ─── 30%
-    ├── 52-Week High Proximity ──────────── 15%
-    ├── Earnings Revision Proxy (63d accel) ─ 15%
+    ├── Momentum (42d/126d/252d, skip 1m) ─── 50%
+    ├── 52-Week High Proximity ──────────── 20%
     ├── Short-Term Reversal (5d) ────────── 10%
     ├── Volatility Contraction (10d/63d) ── 10%
-    ├── Low Volatility Anomaly (63d) ────── 10%
-    ├── 52-Week Low Proximity ───────────── 5%
-    ├── Volume Momentum (21d autocorr) ──── 5%
+    ├── Volume Momentum (21d autocorr) ──── 10%
     │   └── All: Industry-neutral z-score → Winsorize ±3
     │
     ├── Trend Filter: price < 200d SMA → score × 0.5
@@ -227,14 +210,11 @@ trade/
 signals:
   momentum_windows: [42, 126, 252]
   factor_weights:
-    momentum: 0.30         # 核心动量信号（降低以分散风险）
-    high_proximity: 0.15   # 52周新高距离
-    earnings_revision: 0.15  # 盈利修正代理（价格加速度）
+    momentum: 0.50         # 核心动量信号
+    high_proximity: 0.20   # 52周新高距离
     short_term_reversal: 0.10  # 短期反转
     vol_contraction: 0.10  # 波动率收缩
-    volatility: 0.10       # 低波动异常（动量对冲）
-    low_proximity: 0.05    # 52周低点距离（深度价值）
-    volume_momentum: 0.05  # 成交量动量
+    volume_momentum: 0.10  # 成交量动量
     quality: 0.00          # 已禁用（前视偏差）
     value: 0.00            # 已禁用（前视偏差）
 
