@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Factor Quant Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Multi-Factor US Equity Strategy</h1>
+    <p class="subtitle">多因子美股量化策略仪表盘</p>
+    <p id="last-update" class="meta"></p>
+  </header>
+
+  <!-- Tab Navigation -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="tab-portfolio">Portfolio / 持仓</button>
+    <button class="tab" data-tab="tab-performance">Performance / 业绩</button>
+    <button class="tab" data-tab="tab-trades">Trades / 交易</button>
+  </nav>
+
+  <main>
+    <!-- TAB 1: Portfolio (Holdings + Factors) -->
+    <div id="tab-portfolio" class="tab-content active">
+      <section id="portfolio">
+        <h2>Current Holdings / 当前持仓推荐</h2>
+        <div class="info-bar">
+          <span id="regime-badge" class="badge"></span>
+          <span id="invested-pct" class="stat"></span>
+          <span id="cash-pct" class="stat"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="portfolio-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Weight</th>
+                <th>Target $</th>
+                <th>Shares</th>
+                <th>Price</th>
+                <th>Alpha Score</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="factors">
+        <h2>Factor Scores / 因子分数明细</h2>
+        <div id="factor-heatmap" class="chart"></div>
+      </section>
+    </div>
+
+    <!-- TAB 2: Performance (Actual + Backtest) -->
+    <div id="tab-performance" class="tab-content">
+      <section id="actual-performance" style="display:none">
+        <h2>Actual Performance / 实盘业绩 (Alpaca Paper Trading)</h2>
+        <div id="actual-metrics" class="cards"></div>
+        <div id="actual-chart" class="chart"></div>
+      </section>
+
+      <section id="live-positions-section" style="display:none">
+        <h2>Live Positions / 实盘持仓</h2>
+        <div id="live-account-info" class="info-bar"></div>
+        <div class="table-wrap">
+          <table id="live-positions-table">
+            <thead>
+              <tr>
+                <th>Asset</th><th>Price</th><th>Qty</th><th>Side</th>
+                <th>Market Value</th><th>Avg Entry</th><th>Cost Basis</th>
+                <th>Today's P/L (%)</th><th>Today's P/L ($)</th><th>Total P/L (%)</th><th>Total P/L ($)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="performance">
+        <h2>Backtest / 回测净值曲线</h2>
+        <p class="meta" style="margin-bottom:12px">Simulated from 2016. Rebalance every 21 trading days, 10bps cost + 5bps slippage + Almgren-Chriss market impact (coeff=2.5). Subject to survivorship bias. 模拟回测，非真实收益。</p>
+        <div id="metrics-cards" class="cards"></div>
+        <div id="equity-chart" class="chart"></div>
+        <div id="drawdown-chart" class="chart chart-small"></div>
+      </section>
+    </div>
+
+    <!-- TAB 3: Trades -->
+    <div id="tab-trades" class="tab-content">
+      <section id="trades">
+        <h2>Trade History / 交易记录</h2>
+        <p class="meta" style="margin-bottom:12px">Most recent first / 最新交易在上方</p>
+        <div id="trade-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>Data updated daily after US market close. Not financial advice.<br>
+    数据每日美股收盘后更新，仅供研究参考。</p>
+  </footer>
+
+  <script>
+    const FACTOR_LABELS = {
+      momentum: '动量 Momentum',
+      high_proximity: '52周新高 High Prox.',
+      short_term_reversal: '短期反转 Reversal',
+      vol_contraction: '波动收缩 Vol Contr.',
+      volume_momentum: '量价动量 Vol Mom.',
+    };
+
+    function symLink(symbol) {
+      return `<a href="https://finance.yahoo.com/quote/${symbol}" target="_blank" rel="noopener">${symbol}</a>`;
+    }
+
+    const REGIME_LABELS = {
+      low_vol: { text: 'Low Vol / 低波动', cls: 'badge-green' },
+      normal: { text: 'Normal / 正常', cls: 'badge-yellow' },
+      high_vol: { text: 'High Vol / 高波动', cls: 'badge-red' },
+    };
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+        // Trigger Plotly resize for charts that were hidden
+        window.dispatchEvent(new Event('resize'));
+      });
+    });
+
+    Promise.all([
+      fetch('data/portfolio.json').then(r => r.json()),
+      fetch('data/backtest.json').then(r => r.json()),
+      fetch('data/factors.json').then(r => r.json()),
+      fetch('data/trades.json').then(r => r.json()),
+    ]).then(([portfolio, backtest, factors, trades]) => {
+      renderPortfolio(portfolio);
+      renderFactors(factors);
+      renderActualPerformance(trades);
+      renderLivePositions(trades);
+      renderPerformance(backtest);
+      renderTrades(trades);
+    }).catch(err => {
+      document.querySelector('main').innerHTML =
+        `<p class="error">Failed to load data. Run <code>python generate_site.py</code> first.<br>${err}</p>`;
+    });
+
+    function renderActualPerformance(data) {
+      if (!data.portfolio_history || !data.portfolio_history.length) return;
+
+      const section = document.getElementById('actual-performance');
+      section.style.display = 'block';
+
+      const hist = data.portfolio_history.filter(d => d.equity != null);
+      if (hist.length < 2) return;
+
+      // Update last point with current account equity if available
+      if (data.account && data.account.equity) {
+        hist[hist.length - 1].equity = data.account.equity;
+      }
+
+      const startEquity = hist[0].equity;
+      const endEquity = hist[hist.length - 1].equity;
+      const totalReturn = (endEquity / startEquity - 1) * 100;
+      const totalPL = endEquity - startEquity;
+      const days = hist.length;
+
+      const dailyReturns = [];
+      for (let i = 1; i < hist.length; i++) {
+        if (hist[i].equity && hist[i-1].equity) {
+          dailyReturns.push(hist[i].equity / hist[i-1].equity - 1);
+        }
+      }
+      const avgRet = dailyReturns.reduce((a,b) => a+b, 0) / dailyReturns.length;
+      const stdRet = Math.sqrt(dailyReturns.reduce((a,b) => a + (b-avgRet)**2, 0) / dailyReturns.length);
+      const sharpe = stdRet > 0 ? (avgRet / stdRet * Math.sqrt(252)).toFixed(2) : 'N/A';
+
+      let peak = 0, maxDD = 0;
+      hist.forEach(d => {
+        if (d.equity > peak) peak = d.equity;
+        const dd = (d.equity - peak) / peak;
+        if (dd < maxDD) maxDD = dd;
+      });
+
+      const cards = document.getElementById('actual-metrics');
+      [
+        { label: 'Total P&L', value: `${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(0)}` },
+        { label: 'Return', value: `${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%` },
+        { label: 'Sharpe', value: sharpe },
+        { label: 'Max Drawdown', value: `${(maxDD * 100).toFixed(1)}%` },
+        { label: 'Trading Days', value: days },
+        { label: 'Current Equity', value: `$${endEquity.toLocaleString()}` },
+      ].forEach(it => {
+        const isNeg = String(it.value).startsWith('-');
+        cards.innerHTML += `<div class="card">
+          <div class="card-value ${isNeg ? 'negative' : 'positive'}">${it.value}</div>
+          <div class="card-label">${it.label}</div>
+        </div>`;
+      });
+
+      Plotly.newPlot('actual-chart', [{
+        x: hist.map(d => d.date), y: hist.map(d => d.equity),
+        name: 'Actual Equity', line: { color: '#66bb6a', width: 2 },
+      }], {
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { gridcolor: '#333' },
+        yaxis: { title: 'Equity ($)', gridcolor: '#333', tickformat: '$,.0f' },
+        margin: { l: 80, r: 20, t: 10, b: 40 },
+        showlegend: false,
+      }, { responsive: true });
+    }
+
+    function renderLivePositions(data) {
+      if (!data.positions || !data.positions.length) return;
+
+      const section = document.getElementById('live-positions-section');
+      section.style.display = 'block';
+
+      const acct = data.account || {};
+      document.getElementById('live-account-info').innerHTML = `
+        <span class="stat">Equity: $${(acct.equity||0).toLocaleString()}</span>
+        <span class="stat">Cash: $${(acct.cash||0).toLocaleString()}</span>
+        <span class="stat">Buying Power: $${(acct.buying_power||0).toLocaleString()}</span>
+      `;
+
+      const tbody = document.querySelector('#live-positions-table tbody');
+      data.positions.forEach(p => {
+        const todayPct = p.today_pl_pct || 0;
+        const todayPl = p.today_pl || 0;
+        const totalPct = p.total_pl_pct || 0;
+        const totalPl = p.total_pl || 0;
+        const todayClass = todayPl >= 0 ? 'positive' : 'negative';
+        const totalClass = totalPl >= 0 ? 'positive' : 'negative';
+        tbody.innerHTML += `<tr>
+          <td class="symbol">${symLink(p.symbol)}</td>
+          <td>$${(p.current_price || 0).toFixed(2)}</td>
+          <td>${p.qty || 0}</td>
+          <td>${(p.side || 'long').charAt(0).toUpperCase() + (p.side || 'long').slice(1)}</td>
+          <td>$${(p.market_value || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+          <td>$${(p.avg_entry_price || 0).toFixed(4)}</td>
+          <td>$${(p.cost_basis || 0).toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4})}</td>
+          <td class="${todayClass}">${todayPct >= 0 ? '+' : ''}${todayPct.toFixed(2)}%</td>
+          <td class="${todayClass}">${todayPl >= 0 ? '' : '-'}$${Math.abs(todayPl).toFixed(2)}</td>
+          <td class="${totalClass}">${totalPct >= 0 ? '+' : ''}${totalPct.toFixed(2)}%</td>
+          <td class="${totalClass}">${totalPl >= 0 ? '+' : '-'}$${Math.abs(totalPl).toFixed(2)}</td>
+        </tr>`;
+      });
+    }
+
+    function renderPortfolio(data) {
+      document.getElementById('last-update').textContent = `Last update: ${data.updated_at}`;
+
+      const r = REGIME_LABELS[data.regime] || REGIME_LABELS.normal;
+      const badge = document.getElementById('regime-badge');
+      badge.textContent = r.text;
+      badge.className = `badge ${r.cls}`;
+
+      document.getElementById('invested-pct').textContent = `Invested: ${data.total_invested_pct}%`;
+      document.getElementById('cash-pct').textContent = `Cash: ${data.cash_pct}%`;
+
+      const tbody = document.querySelector('#portfolio-table tbody');
+      data.positions.forEach(p => {
+        const scoreColor = p.score > 0 ? 'positive' : 'negative';
+        tbody.innerHTML += `<tr>
+          <td class="symbol">${symLink(p.symbol)}</td>
+          <td>${p.weight_pct.toFixed(1)}%</td>
+          <td>$${p.dollars.toLocaleString()}</td>
+          <td>${p.shares}</td>
+          <td>$${p.price.toFixed(2)}</td>
+          <td class="${scoreColor}">${p.score > 0 ? '+' : ''}${p.score.toFixed(4)}</td>
+        </tr>`;
+      });
+    }
+
+    function renderPerformance(data) {
+      const m = data.metrics;
+      const cards = document.getElementById('metrics-cards');
+      [
+        { label: 'Total Return', value: (m['Total Return'] * 100).toFixed(1) + '%' },
+        { label: 'CAGR', value: (m['CAGR'] * 100).toFixed(1) + '%' },
+        { label: 'Sharpe', value: m['Sharpe Ratio'].toFixed(2) },
+        { label: 'Sortino', value: m['Sortino Ratio'].toFixed(2) },
+        { label: 'Max Drawdown', value: (m['Max Drawdown'] * 100).toFixed(1) + '%' },
+        { label: 'vs SPY', value: ((m['Total Return'] - m['Benchmark Return']) * 100).toFixed(1) + 'pp' },
+      ].forEach(it => {
+        const isNeg = it.value.startsWith('-');
+        cards.innerHTML += `<div class="card">
+          <div class="card-value ${isNeg ? 'negative' : 'positive'}">${it.value}</div>
+          <div class="card-label">${it.label}</div>
+        </div>`;
+      });
+
+      Plotly.newPlot('equity-chart', [
+        { x: data.dates, y: data.equity, name: 'Strategy', line: { color: '#4fc3f7', width: 2 } },
+        { x: data.dates, y: data.benchmark, name: 'SPY', line: { color: '#ff9800', width: 2, dash: 'dot' } },
+      ], {
+        title: 'Backtest Equity Curve / 回测净值曲线',
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { rangeslider: { visible: true }, gridcolor: '#333' },
+        yaxis: { title: 'Portfolio Value ($)', gridcolor: '#333', tickformat: '$,.0f' },
+        legend: { x: 0.01, y: 0.99 },
+        margin: { l: 80, r: 20, t: 40, b: 40 },
+      }, { responsive: true });
+
+      Plotly.newPlot('drawdown-chart', [
+        { x: data.dates, y: data.drawdown, fill: 'tozeroy', fillcolor: 'rgba(244,67,54,0.3)',
+          line: { color: '#f44336', width: 1 }, name: 'Drawdown' },
+      ], {
+        title: 'Drawdown / 回撤',
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { gridcolor: '#333' },
+        yaxis: { title: 'Drawdown', gridcolor: '#333', tickformat: '.0%' },
+        margin: { l: 80, r: 20, t: 40, b: 30 },
+        showlegend: false,
+      }, { responsive: true });
+    }
+
+    function renderFactors(data) {
+      if (!data.factors.length) {
+        document.getElementById('factor-heatmap').innerHTML = '<p>No factor data available.</p>';
+        return;
+      }
+
+      const stocks = Object.keys(data.stocks);
+      const factors = data.factors;
+      const z = stocks.map(s => factors.map(f => data.stocks[s]?.[f] ?? 0));
+
+      Plotly.newPlot('factor-heatmap', [{
+        type: 'heatmap', z: z,
+        x: factors.map(f => FACTOR_LABELS[f] || f), y: stocks,
+        colorscale: [[0,'#c62828'],[0.25,'#ef5350'],[0.5,'#333'],[0.75,'#66bb6a'],[1,'#2e7d32']],
+        zmid: 0,
+        colorbar: { title: 'Z-Score', tickfont: { color: '#e0e0e0' } },
+        hovertemplate: '%{y} | %{x}<br>Score: %{z:.3f}<extra></extra>',
+      }], {
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        margin: { l: 60, r: 20, t: 10, b: 100 },
+        xaxis: { tickangle: -30 },
+      }, { responsive: true });
+    }
+
+    function renderTrades(data) {
+      const container = document.getElementById('trade-list');
+
+      if (!data.rebalances || !data.rebalances.length) {
+        container.innerHTML = '<p class="empty">No trade history yet.</p>';
+        return;
+      }
+
+      // Data from Alpaca is already sorted newest-first; local logs are oldest-first
+      // Ensure newest first by sorting on date descending
+      const sorted = [...data.rebalances].sort((a, b) => b.date.localeCompare(a.date));
+
+      sorted.forEach((reb, i) => {
+        const section = document.createElement('details');
+        section.className = 'trade-group';
+        if (i === 0) section.setAttribute('open', '');
+
+        const buys = reb.trades.filter(t => t.side === 'buy');
+        const sells = reb.trades.filter(t => t.side === 'sell');
+        const summary = `${reb.date} — ${sells.length} sells, ${buys.length} buys`;
+
+        section.innerHTML = `<summary>${summary}</summary>
+          <table class="trade-table">
+            <thead><tr><th>Side</th><th>Symbol</th><th>Qty</th><th>Price</th><th>Slippage</th></tr></thead>
+            <tbody>
+              ${reb.trades.map(t => `<tr class="${t.side}">
+                <td>${t.side.toUpperCase()}</td>
+                <td class="symbol">${symLink(t.symbol)}</td>
+                <td>${t.quantity}</td>
+                <td>$${(t.price || 0).toFixed(2)}</td>
+                <td>${(t.slippage_bps || 0).toFixed(1)} bps</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+        container.appendChild(section);
+      });
+    }
+    // ---- Sortable tables ----
+    function makeSortable(table) {
+      const headers = table.querySelectorAll('th');
+      headers.forEach((th, colIdx) => {
+        th.style.cursor = 'pointer';
+        th.title = 'Click to sort';
+        th.addEventListener('click', () => {
+          const tbody = table.querySelector('tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          const asc = th.dataset.sortDir !== 'asc';
+          // Reset all headers
+          headers.forEach(h => { h.dataset.sortDir = ''; h.classList.remove('sort-asc','sort-desc'); });
+          th.dataset.sortDir = asc ? 'asc' : 'desc';
+          th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+          rows.sort((a, b) => {
+            let av = a.cells[colIdx]?.textContent.trim() || '';
+            let bv = b.cells[colIdx]?.textContent.trim() || '';
+            // Parse numeric: strip $, %, +, commas, bps
+            const toNum = s => parseFloat(s.replace(/[$,%+bps\s,]/g, '')) || 0;
+            const an = toNum(av), bn = toNum(bv);
+            if (!isNaN(an) && !isNaN(bn) && av.match(/[\d.$%+-]/)) {
+              return asc ? an - bn : bn - an;
+            }
+            return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+          });
+          rows.forEach(r => tbody.appendChild(r));
+        });
+      });
+    }
+
+    // Apply to all tables after render
+    setTimeout(() => {
+      document.querySelectorAll('table').forEach(makeSortable);
+    }, 2000);
+  </script>
+</body>
+</html>
