@@ -17,4 +17,5 @@ venv/
 
 # Logs and trading state (contains personal trading data)
 logs/
+!logs/paper_trade_state.json
 *.log
