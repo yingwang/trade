@@ -1,0 +1,90 @@
+name: Paper Trade Rebalance
+
+on:
+  schedule:
+    # 3:55 PM ET = 19:55 UTC (EST) or 20:55 UTC (EDT)
+    # Use 19:55 UTC to cover EST; during EDT it fires ~1hr early which is fine
+    - cron: '55 19 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: true
+        default: 'live'
+        type: choice
+        options:
+          - live
+          - dry-run
+          - status
+
+permissions:
+  contents: write
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      # Restore state from previous runs
+      - name: Restore trade state
+        uses: actions/cache/restore@v4
+        with:
+          path: logs/paper_trade_state.json
+          key: trade-state-${{ github.run_number }}
+          restore-keys: trade-state-
+
+      - name: Ensure logs directory
+        run: mkdir -p logs
+
+      # Determine run flags
+      - name: Set run flags
+        id: flags
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODE="${{ github.event.inputs.mode }}"
+          else
+            MODE="live"
+          fi
+          case "$MODE" in
+            dry-run) echo "args=--dry-run" >> "$GITHUB_OUTPUT" ;;
+            status)  echo "args=--status"  >> "$GITHUB_OUTPUT" ;;
+            *)       echo "args="          >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Run paper_trade.py
+        run: python paper_trade.py ${{ steps.flags.outputs.args }}
+        env:
+          PYTHONPATH: .
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+
+      # Persist state for next run
+      - name: Save trade state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: logs/paper_trade_state.json
+          key: trade-state-${{ github.run_number }}
+
+      # Commit updated trade logs and state back to repo
+      - name: Commit trade logs
+        if: github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'status'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f logs/paper_trade_state.json logs/trade_events.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+          else
+            git commit -m "chore: update trade state after rebalance [skip ci]"
+            git push
+          fi
