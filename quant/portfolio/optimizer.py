@@ -161,6 +161,14 @@ class PortfolioOptimizer:
         ridge = 1e-6 * np.trace(cov) / n if np.trace(cov) > 0 else 1e-8
         cov_reg = cov + ridge * np.eye(n)
 
+        # Validate covariance is positive-definite after regularization
+        eigenvalues = np.linalg.eigvalsh(cov_reg)
+        if np.any(eigenvalues <= 0) or np.any(np.isnan(eigenvalues)):
+            logger.warning("Covariance matrix is not positive-definite "
+                           "(min eigenvalue=%.2e), using score-proportional weights",
+                           np.min(eigenvalues))
+            return self._score_proportional(selected, scores, sector_map)
+
         # Previous weights for turnover penalty
         if prev_weights is not None:
             w_prev = prev_weights.reindex(selected).fillna(0).values
@@ -286,8 +294,16 @@ class PortfolioOptimizer:
         cov = cov_matrix.reindex(index=selected, columns=selected).fillna(0).values
         w = weights.values
 
+        # Validate covariance before matrix multiplication
+        if np.any(np.isnan(cov)):
+            logger.warning("Covariance matrix contains NaN, skipping vol scaling")
+            return weights
+
         leverage_cap = min(self.regime_caps.get(regime, 1.0), self.max_leverage)
         port_vol = np.sqrt(w @ cov @ w) * np.sqrt(252)
+        if np.isnan(port_vol) or port_vol <= 0:
+            logger.warning("Portfolio vol is %.4f, skipping vol scaling", port_vol)
+            return weights
         if port_vol > 0:
             scale = self.target_vol / port_vol
             scale = min(scale, leverage_cap)

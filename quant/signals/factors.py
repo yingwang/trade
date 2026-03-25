@@ -113,7 +113,7 @@ def momentum_factor(prices: pd.DataFrame, windows: list[int] = None) -> pd.DataF
     for w in windows:
         ret = prices.shift(skip).pct_change(w)
         # cross-sectional z-score each day
-        zs = ret.sub(ret.mean(axis=1), axis=0).div(ret.std(axis=1), axis=0)
+        zs = ret.sub(ret.mean(axis=1), axis=0).div(ret.std(axis=1).replace(0, 1), axis=0)
         scores.append(zs)
 
     composite = pd.concat(scores).groupby(level=0).mean()
@@ -129,7 +129,7 @@ def mean_reversion_factor(prices: pd.DataFrame, window: int = 20,
     """
     rolling_mean = prices.rolling(window).mean()
     rolling_std = prices.rolling(window).std()
-    zscore = (prices - rolling_mean) / rolling_std
+    zscore = (prices - rolling_mean) / rolling_std.replace(0, 1)
     # Invert: oversold (negative z) -> positive signal
     return -zscore
 
@@ -145,7 +145,7 @@ def trend_factor(prices: pd.DataFrame, short_window: int = 50,
     ratio = sma_short / sma_long
 
     # cross-sectional z-score
-    zs = ratio.sub(ratio.mean(axis=1), axis=0).div(ratio.std(axis=1), axis=0)
+    zs = ratio.sub(ratio.mean(axis=1), axis=0).div(ratio.std(axis=1).replace(0, 1), axis=0)
     return zs
 
 
@@ -170,7 +170,7 @@ def blowoff_filter(prices: pd.DataFrame, window: int = 20,
     """
     rolling_mean = prices.rolling(window).mean()
     rolling_std = prices.rolling(window).std()
-    zscore = (prices - rolling_mean) / rolling_std
+    zscore = (prices - rolling_mean) / rolling_std.replace(0, 1)
     overextended = zscore > zscore_limit
     return (~overextended).astype(float).replace(0.0, penalty)
 
@@ -187,7 +187,7 @@ def short_term_reversal_factor(returns: pd.DataFrame, window: int = 5) -> pd.Dat
     recent_ret = returns.rolling(window).sum()
     # Invert: biggest losers get highest score (expected to bounce)
     zs = recent_ret.sub(recent_ret.mean(axis=1), axis=0).div(
-        recent_ret.std(axis=1), axis=0)
+        recent_ret.std(axis=1).replace(0, 1), axis=0)
     return -zs
 
 
@@ -209,7 +209,7 @@ def volume_momentum_factor(prices: pd.DataFrame, returns: pd.DataFrame,
     )
     # Stocks with positive autocorrelation (trending) score higher
     zs = autocorr.sub(autocorr.mean(axis=1), axis=0).div(
-        autocorr.std(axis=1), axis=0)
+        autocorr.std(axis=1).replace(0, 1), axis=0)
     return zs
 
 
@@ -223,7 +223,7 @@ def high_proximity_factor(prices: pd.DataFrame, window: int = 252) -> pd.DataFra
     rolling_high = prices.rolling(window).max()
     proximity = prices / rolling_high  # 0 to 1, where 1 = at 52-week high
     zs = proximity.sub(proximity.mean(axis=1), axis=0).div(
-        proximity.std(axis=1), axis=0)
+        proximity.std(axis=1).replace(0, 1), axis=0)
     return zs
 
 
@@ -242,7 +242,7 @@ def volatility_contraction_factor(returns: pd.DataFrame,
     ratio = short_vol / long_vol.replace(0, np.nan)
     # Invert: lower ratio (more contraction) = higher score
     zs = ratio.sub(ratio.mean(axis=1), axis=0).div(
-        ratio.std(axis=1), axis=0)
+        ratio.std(axis=1).replace(0, 1), axis=0)
     return -zs
 
 
@@ -260,7 +260,7 @@ def earnings_revision_factor(prices: pd.DataFrame, window: int = 63) -> pd.DataF
     prior_ret = prices.shift(window).pct_change(window)
     acceleration = recent_ret - prior_ret
     zs = acceleration.sub(acceleration.mean(axis=1), axis=0).div(
-        acceleration.std(axis=1), axis=0)
+        acceleration.std(axis=1).replace(0, 1), axis=0)
     return zs
 
 
@@ -276,7 +276,7 @@ def low_proximity_factor(prices: pd.DataFrame, window: int = 252) -> pd.DataFram
     # Invert: stocks closer to low get higher score
     inv_proximity = 1.0 / proximity
     zs = inv_proximity.sub(inv_proximity.mean(axis=1), axis=0).div(
-        inv_proximity.std(axis=1), axis=0)
+        inv_proximity.std(axis=1).replace(0, 1), axis=0)
     return zs
 
 
@@ -286,7 +286,7 @@ def volatility_factor(returns: pd.DataFrame, window: int = 63) -> pd.DataFrame:
     Returns negative z-scored vol so that lower vol stocks get higher scores.
     """
     vol = returns.rolling(window).std() * np.sqrt(252)
-    zs = vol.sub(vol.mean(axis=1), axis=0).div(vol.std(axis=1), axis=0)
+    zs = vol.sub(vol.mean(axis=1), axis=0).div(vol.std(axis=1).replace(0, 1), axis=0)
     return -zs  # invert: low vol -> high score
 
 
