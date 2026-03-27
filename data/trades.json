@@ -1,0 +1,1489 @@
+{
+  "account": {
+    "equity": 95702.76,
+    "cash": 3071.0,
+    "buying_power": 274096.56
+  },
+  "positions": [
+    {
+      "symbol": "C",
+      "qty": 76.0,
+      "side": "long",
+      "current_price": 107.25,
+      "market_value": 8151.0,
+      "avg_entry_price": 108.376579,
+      "cost_basis": 8236.620004,
+      "today_pl_pct": -4.590000000000001,
+      "today_pl": -392.16,
+      "total_pl_pct": -1.04,
+      "total_pl": -85.620004
+    },
+    {
+      "symbol": "CAT",
+      "qty": 16.0,
+      "side": "long",
+      "current_price": 695.4,
+      "market_value": 11126.4,
+      "avg_entry_price": 709.18,
+      "cost_basis": 11346.88,
+      "today_pl_pct": -1.1079999999999999,
+      "today_pl": -124.64,
+      "total_pl_pct": -1.9429999999999998,
+      "total_pl": -220.48
+    },
+    {
+      "symbol": "FCX",
+      "qty": 211.0,
+      "side": "long",
+      "current_price": 55.99,
+      "market_value": 11813.89,
+      "avg_entry_price": 56.39,
+      "cost_basis": 11898.29,
+      "today_pl_pct": 0.28700000000000003,
+      "today_pl": 33.76,
+      "total_pl_pct": -0.709,
+      "total_pl": -84.4
+    },
+    {
+      "symbol": "GILD",
+      "qty": 84.0,
+      "side": "long",
+      "current_price": 133.78,
+      "market_value": 11237.52,
+      "avg_entry_price": 144.532496,
+      "cost_basis": 12140.729664,
+      "today_pl_pct": -2.265,
+      "today_pl": -260.4,
+      "total_pl_pct": -7.4399999999999995,
+      "total_pl": -903.209664
+    },
+    {
+      "symbol": "GS",
+      "qty": 3.0,
+      "side": "long",
+      "current_price": 802.8,
+      "market_value": 2408.4,
+      "avg_entry_price": 810.6,
+      "cost_basis": 2431.8,
+      "today_pl_pct": -2.412,
+      "today_pl": -59.52,
+      "total_pl_pct": -0.962,
+      "total_pl": -23.4
+    },
+    {
+      "symbol": "JNJ",
+      "qty": 34.0,
+      "side": "long",
+      "current_price": 240.45,
+      "market_value": 8175.3,
+      "avg_entry_price": 239.021765,
+      "cost_basis": 8126.74001,
+      "today_pl_pct": 0.506,
+      "today_pl": 41.14,
+      "total_pl_pct": 0.598,
+      "total_pl": 48.55999
+    },
+    {
+      "symbol": "LRCX",
+      "qty": 52.0,
+      "side": "long",
+      "current_price": 210.77,
+      "market_value": 10960.04,
+      "avg_entry_price": 225.61,
+      "cost_basis": 11731.72,
+      "today_pl_pct": -0.402,
+      "today_pl": -44.2,
+      "total_pl_pct": -6.578,
+      "total_pl": -771.68
+    },
+    {
+      "symbol": "MRK",
+      "qty": 26.0,
+      "side": "long",
+      "current_price": 119.52,
+      "market_value": 3107.52,
+      "avg_entry_price": 115.541395,
+      "cost_basis": 3004.07627,
+      "today_pl_pct": 0.496,
+      "today_pl": 15.34,
+      "total_pl_pct": 3.443,
+      "total_pl": 103.44373
+    },
+    {
+      "symbol": "MU",
+      "qty": 25.0,
+      "side": "long",
+      "current_price": 354.9913,
+      "market_value": 8874.7825,
+      "avg_entry_price": 459.763925,
+      "cost_basis": 11494.098125,
+      "today_pl_pct": -0.132,
+      "today_pl": -11.7175,
+      "total_pl_pct": -22.788,
+      "total_pl": -2619.315625
+    },
+    {
+      "symbol": "TJX",
+      "qty": 27.0,
+      "side": "long",
+      "current_price": 154.99,
+      "market_value": 4184.73,
+      "avg_entry_price": 155.0,
+      "cost_basis": 4185.0,
+      "today_pl_pct": -1.637,
+      "today_pl": -69.66,
+      "total_pl_pct": -0.006,
+      "total_pl": -0.27
+    },
+    {
+      "symbol": "USB",
+      "qty": 57.0,
+      "side": "long",
+      "current_price": 50.65,
+      "market_value": 2887.05,
+      "avg_entry_price": 51.77,
+      "cost_basis": 2950.89,
+      "today_pl_pct": -1.822,
+      "today_pl": -53.58,
+      "total_pl_pct": -2.163,
+      "total_pl": -63.84
+    },
+    {
+      "symbol": "WMT",
+      "qty": 79.0,
+      "side": "long",
+      "current_price": 122.8497,
+      "market_value": 9705.1263,
+      "avg_entry_price": 124.32,
+      "cost_basis": 9821.28,
+      "today_pl_pct": 0.5479999999999999,
+      "today_pl": 52.9063,
+      "total_pl_pct": -1.183,
+      "total_pl": -116.1537
+    }
+  ],
+  "portfolio_history": [
+    {
+      "date": "2026-02-28",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-03",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-04",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-05",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-06",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-07",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-10",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-11",
+      "equity": 100000.0,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-12",
+      "equity": 100127.86,
+      "profit_loss": 127.86
+    },
+    {
+      "date": "2026-03-13",
+      "equity": 98042.69,
+      "profit_loss": -2085.17
+    },
+    {
+      "date": "2026-03-14",
+      "equity": 98651.54,
+      "profit_loss": 608.85
+    },
+    {
+      "date": "2026-03-17",
+      "equity": 100932.69,
+      "profit_loss": 2281.15
+    },
+    {
+      "date": "2026-03-18",
+      "equity": 101231.53,
+      "profit_loss": 298.84
+    },
+    {
+      "date": "2026-03-19",
+      "equity": 99374.43,
+      "profit_loss": -1857.1
+    },
+    {
+      "date": "2026-03-20",
+      "equity": 99021.96,
+      "profit_loss": -352.47
+    },
+    {
+      "date": "2026-03-21",
+      "equity": 97172.59,
+      "profit_loss": -1849.37
+    },
+    {
+      "date": "2026-03-24",
+      "equity": 98357.4,
+      "profit_loss": 1184.81
+    },
+    {
+      "date": "2026-03-25",
+      "equity": 99429.92,
+      "profit_loss": 1072.52
+    },
+    {
+      "date": "2026-03-26",
+      "equity": 99406.81,
+      "profit_loss": -23.11
+    },
+    {
+      "date": "2026-03-27",
+      "equity": 96575.49,
+      "profit_loss": -2831.32
+    }
+  ],
+  "rebalances": [
+    {
+      "date": "2026-03-18",
+      "portfolio_value": 95702.76,
+      "trades": [
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 79.0,
+          "price": 124.32,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 52.0,
+          "price": 225.61,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GS",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 810.6,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 211.0,
+          "price": 56.39,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 16.0,
+          "price": 709.18,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 76.0,
+          "price": 108.376579,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "USB",
+          "side": "sell",
+          "quantity": 246.0,
+          "price": 51.9,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TXN",
+          "side": "sell",
+          "quantity": 24.0,
+          "price": 195.1825,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 154.85,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PNC",
+          "side": "sell",
+          "quantity": 63.0,
+          "price": 205.13,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 15.0,
+          "price": 460.81,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "sell",
+          "quantity": 86.0,
+          "price": 114.28,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MCD",
+          "side": "sell",
+          "quantity": 14.0,
+          "price": 322.407143,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LMT",
+          "side": "sell",
+          "quantity": 4.0,
+          "price": 639.05,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "sell",
+          "quantity": 44.0,
+          "price": 236.91,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GILD",
+          "side": "sell",
+          "quantity": 46.0,
+          "price": 140.62,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AMGN",
+          "side": "sell",
+          "quantity": 18.0,
+          "price": 355.73,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "USB",
+          "side": "buy",
+          "quantity": 225.0,
+          "price": 51.77,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TXN",
+          "side": "buy",
+          "quantity": 24.0,
+          "price": 195.19625,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "buy",
+          "quantity": 30.0,
+          "price": 155.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PNC",
+          "side": "buy",
+          "quantity": 63.0,
+          "price": 203.99,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 14.0,
+          "price": 466.057143,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "buy",
+          "quantity": 86.0,
+          "price": 115.541395,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MCD",
+          "side": "buy",
+          "quantity": 14.0,
+          "price": 323.75,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "buy",
+          "quantity": 28.0,
+          "price": 238.471429,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GILD",
+          "side": "buy",
+          "quantity": 46.0,
+          "price": 142.97,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AMGN",
+          "side": "buy",
+          "quantity": 18.0,
+          "price": 359.924445,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "WMT",
+          "side": "sell",
+          "quantity": 96.0,
+          "price": 124.36,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "sell",
+          "quantity": 54.0,
+          "price": 226.987592,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GS",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 802.873333,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "sell",
+          "quantity": 208.0,
+          "price": 55.89202,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "sell",
+          "quantity": 17.0,
+          "price": 706.007059,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "sell",
+          "quantity": 28.0,
+          "price": 107.155714,
+          "slippage_bps": 0
+        }
+      ]
+    },
+    {
+      "date": "2026-03-17",
+      "portfolio_value": 95702.76,
+      "trades": [
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 76.0,
+          "price": 126.13,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "USB",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 51.64,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "buy",
+          "quantity": 40.0,
+          "price": 241.59,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GS",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 809.21,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "SBUX",
+          "side": "sell",
+          "quantity": 30.0,
+          "price": 98.04,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PNC",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 203.14,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 454.498333,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "sell",
+          "quantity": 61.0,
+          "price": 116.332459,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 223.03,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "INTC",
+          "side": "sell",
+          "quantity": 221.0,
+          "price": 45.157285,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GILD",
+          "side": "sell",
+          "quantity": 57.0,
+          "price": 144.68,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "sell",
+          "quantity": 45.0,
+          "price": 58.38,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 696.203333,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "sell",
+          "quantity": 92.0,
+          "price": 108.26,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PNC",
+          "side": "sell",
+          "quantity": 23.0,
+          "price": 204.042174,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ADI",
+          "side": "sell",
+          "quantity": 4.0,
+          "price": 312.8975,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "sell",
+          "quantity": 4.0,
+          "price": 306.43,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 79.0,
+          "price": 58.194936,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "sell",
+          "quantity": 19.0,
+          "price": 243.63,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GILD",
+          "side": "buy",
+          "quantity": 72.0,
+          "price": 146.45,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "XOM",
+          "side": "sell",
+          "quantity": 9.0,
+          "price": 157.801111,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "SBUX",
+          "side": "buy",
+          "quantity": 30.0,
+          "price": 98.487,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LMT",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 640.0275,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 708.745,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "sell",
+          "quantity": 9.0,
+          "price": 156.01,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 20.0,
+          "price": 220.99,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "INTC",
+          "side": "buy",
+          "quantity": 190.0,
+          "price": 45.175052,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GILD",
+          "side": "buy",
+          "quantity": 60.0,
+          "price": 146.392667,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 109.32,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 221.31,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 453.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PEP",
+          "side": "sell",
+          "quantity": 9.0,
+          "price": 157.954444,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AMAT",
+          "side": "sell",
+          "quantity": 4.0,
+          "price": 344.9325,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 9.0,
+          "price": 126.575556,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 50.0,
+          "price": 58.2884,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 97.0,
+          "price": 109.41196,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "USB",
+          "side": "sell",
+          "quantity": 75.0,
+          "price": 52.168,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 708.093333,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 451.007,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "buy",
+          "quantity": 25.0,
+          "price": 116.24,
+          "slippage_bps": 0
+        }
+      ]
+    },
+    {
+      "date": "2026-03-16",
+      "portfolio_value": 95702.76,
+      "trades": [
+        {
+          "symbol": "XOM",
+          "side": "buy",
+          "quantity": 9.0,
+          "price": 156.91,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 11.0,
+          "price": 125.7,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PNC",
+          "side": "buy",
+          "quantity": 28.0,
+          "price": 200.6,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PEP",
+          "side": "buy",
+          "quantity": 9.0,
+          "price": 157.63,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 439.88,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 217.79,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "buy",
+          "quantity": 23.0,
+          "price": 242.06,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "INTC",
+          "side": "buy",
+          "quantity": 31.0,
+          "price": 45.900323,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GILD",
+          "side": "buy",
+          "quantity": 9.0,
+          "price": 145.01,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 124.0,
+          "price": 58.047742,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 699.61,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 107.04,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "USB",
+          "side": "sell",
+          "quantity": 14.0,
+          "price": 51.1,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 155.77,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PLD",
+          "side": "sell",
+          "quantity": 11.0,
+          "price": 134.08,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "NVDA",
+          "side": "sell",
+          "quantity": 8.0,
+          "price": 183.42,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 115.03,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MCD",
+          "side": "sell",
+          "quantity": 24.0,
+          "price": 327.16,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LMT",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 644.138333,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KO",
+          "side": "sell",
+          "quantity": 20.0,
+          "price": 77.76,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 305.35,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "BMY",
+          "side": "sell",
+          "quantity": 133.0,
+          "price": 59.6,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ADI",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 310.62,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ABBV",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 221.23,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "USB",
+          "side": "buy",
+          "quantity": 154.0,
+          "price": 51.444026,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "sell",
+          "quantity": 17.0,
+          "price": 218.95,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 157.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 452.06,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 303.64,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ADI",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 310.67,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "BMY",
+          "side": "buy",
+          "quantity": 67.0,
+          "price": 59.365224,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "NVDA",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 183.48875,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "sell",
+          "quantity": 65.0,
+          "price": 57.19277,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KLAC",
+          "side": "sell",
+          "quantity": 2.0,
+          "price": 1441.25,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "INTC",
+          "side": "sell",
+          "quantity": 250.0,
+          "price": 48.45,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MCD",
+          "side": "buy",
+          "quantity": 24.0,
+          "price": 327.650834,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PNC",
+          "side": "buy",
+          "quantity": 7.0,
+          "price": 204.24,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AMAT",
+          "side": "sell",
+          "quantity": 30.0,
+          "price": 346.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "sell",
+          "quantity": 5.0,
+          "price": 705.83,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 453.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MPWR",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 1076.59,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ABBV",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 221.204,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "sell",
+          "quantity": 5.0,
+          "price": 704.802,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "sell",
+          "quantity": 17.0,
+          "price": 218.19,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PLD",
+          "side": "buy",
+          "quantity": 11.0,
+          "price": 133.871818,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KO",
+          "side": "buy",
+          "quantity": 20.0,
+          "price": 78.003,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "buy",
+          "quantity": 34.0,
+          "price": 115.107647,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 243.14,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LMT",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 646.783333,
+          "slippage_bps": 0
+        }
+      ]
+    },
+    {
+      "date": "2026-03-12",
+      "portfolio_value": 95702.76,
+      "trades": [
+        {
+          "symbol": "PEP",
+          "side": "sell",
+          "quantity": 62.0,
+          "price": 159.209516,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PG",
+          "side": "sell",
+          "quantity": 13.0,
+          "price": 152.243846,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 28.0,
+          "price": 411.37,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KLAC",
+          "side": "buy",
+          "quantity": 2.0,
+          "price": 1457.445,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "NVDA",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 183.95,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "DHR",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 192.561,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 16.0,
+          "price": 693.32,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MCD",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 323.026667,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ADI",
+          "side": "buy",
+          "quantity": 12.0,
+          "price": 313.08,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "sell",
+          "quantity": 20.0,
+          "price": 306.82,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AAPL",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 257.915714,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LLY",
+          "side": "sell",
+          "quantity": 10.0,
+          "price": 988.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "INTC",
+          "side": "buy",
+          "quantity": 250.0,
+          "price": 46.78,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 65.0,
+          "price": 60.77,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "BMY",
+          "side": "buy",
+          "quantity": 66.0,
+          "price": 59.07,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "HD",
+          "side": "sell",
+          "quantity": 5.0,
+          "price": 345.754,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "XOM",
+          "side": "sell",
+          "quantity": 66.0,
+          "price": 151.85,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CSCO",
+          "side": "sell",
+          "quantity": 25.0,
+          "price": 77.5724,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 54.0,
+          "price": 214.756667,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ABBV",
+          "side": "buy",
+          "quantity": 9.0,
+          "price": 224.402222,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "sell",
+          "quantity": 51.0,
+          "price": 114.57647,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JPM",
+          "side": "sell",
+          "quantity": 20.0,
+          "price": 282.55,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LMT",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 652.8,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KO",
+          "side": "sell",
+          "quantity": 129.0,
+          "price": 77.163101,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "V",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 308.52,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "WMT",
+          "side": "sell",
+          "quantity": 16.0,
+          "price": 122.51,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TMO",
+          "side": "sell",
+          "quantity": 4.0,
+          "price": 488.0675,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MPWR",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 1057.84,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "sell",
+          "quantity": 25.0,
+          "price": 241.6708,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AMAT",
+          "side": "buy",
+          "quantity": 34.0,
+          "price": 345.24,
+          "slippage_bps": 0
+        }
+      ]
+    },
+    {
+      "date": "2026-03-11",
+      "portfolio_value": 95702.76,
+      "trades": [
+        {
+          "symbol": "WMT",
+          "side": "buy",
+          "quantity": 16.0,
+          "price": 123.335,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JNJ",
+          "side": "buy",
+          "quantity": 41.0,
+          "price": 242.39,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ABBV",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 228.53,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "LLY",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 997.29,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRK",
+          "side": "buy",
+          "quantity": 85.0,
+          "price": 116.31,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "V",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 309.31,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AAPL",
+          "side": "buy",
+          "quantity": 7.0,
+          "price": 260.13,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CSCO",
+          "side": "buy",
+          "quantity": 25.0,
+          "price": 78.18,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "NVDA",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 185.409,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "DHR",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 195.12,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "PEP",
+          "side": "buy",
+          "quantity": 62.0,
+          "price": 160.19,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "XOM",
+          "side": "buy",
+          "quantity": 66.0,
+          "price": 151.464394,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "JPM",
+          "side": "buy",
+          "quantity": 20.0,
+          "price": 286.7,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "buy",
+          "quantity": 32.0,
+          "price": 307.94,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KO",
+          "side": "buy",
+          "quantity": 129.0,
+          "price": 77.41,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TMO",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 494.44,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "HD",
+          "side": "buy",
+          "quantity": 5.0,
+          "price": 351.18,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MCD",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 324.97,
+          "slippage_bps": 0
+        }
+      ]
+    }
+  ]
+}

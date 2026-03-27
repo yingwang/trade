@@ -1,0 +1,104 @@
+{
+  "updated_at": "2026-03-27 21:42",
+  "regime": "normal",
+  "total_invested_pct": 80.0,
+  "cash_pct": 20.0,
+  "positions": [
+    {
+      "symbol": "MU",
+      "weight_pct": 9.6,
+      "dollars": 96049.0,
+      "shares": 270,
+      "price": 355.46,
+      "score": 1.9262
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 9.6,
+      "dollars": 96049.0,
+      "shares": 453,
+      "price": 211.62,
+      "score": 1.165
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 9.6,
+      "dollars": 96049.0,
+      "shares": 136,
+      "price": 703.19,
+      "score": 1.1077
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 9.6,
+      "dollars": 96049.0,
+      "shares": 283,
+      "price": 338.55,
+      "score": 1.0362
+    },
+    {
+      "symbol": "GS",
+      "weight_pct": 9.6,
+      "dollars": 96049.0,
+      "shares": 116,
+      "price": 822.64,
+      "score": 0.9357
+    },
+    {
+      "symbol": "C",
+      "weight_pct": 8.0,
+      "dollars": 80040.0,
+      "shares": 712,
+      "price": 112.41,
+      "score": 0.9079
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 6.67,
+      "dollars": 66701.0,
+      "shares": 1194,
+      "price": 55.83,
+      "score": 0.8888
+    },
+    {
+      "symbol": "JNJ",
+      "weight_pct": 6.67,
+      "dollars": 66700.0,
+      "shares": 278,
+      "price": 239.24,
+      "score": 0.8912
+    },
+    {
+      "symbol": "GILD",
+      "weight_pct": 3.47,
+      "dollars": 34684.0,
+      "shares": 253,
+      "price": 136.88,
+      "score": 0.8269
+    },
+    {
+      "symbol": "TJX",
+      "weight_pct": 2.4,
+      "dollars": 24012.0,
+      "shares": 152,
+      "price": 157.57,
+      "score": 0.8193
+    },
+    {
+      "symbol": "USB",
+      "weight_pct": 2.4,
+      "dollars": 24012.0,
+      "shares": 465,
+      "price": 51.59,
+      "score": 0.716
+    },
+    {
+      "symbol": "LMT",
+      "weight_pct": 2.4,
+      "dollars": 24012.0,
+      "shares": 38,
+      "price": 627.33,
+      "score": 0.7119
+    }
+  ]
+}
