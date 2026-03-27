@@ -16,46 +16,14 @@
 
   <!-- Tab Navigation -->
   <nav class="tabs">
-    <button class="tab active" data-tab="tab-portfolio">Portfolio / 持仓</button>
-    <button class="tab" data-tab="tab-performance">Performance / 业绩</button>
+    <button class="tab active" data-tab="tab-performance">Performance / 业绩</button>
+    <button class="tab" data-tab="tab-portfolio">Portfolio / 持仓</button>
     <button class="tab" data-tab="tab-trades">Trades / 交易</button>
   </nav>
 
   <main>
-    <!-- TAB 1: Portfolio (Holdings + Factors) -->
-    <div id="tab-portfolio" class="tab-content active">
-      <section id="portfolio">
-        <h2>Current Holdings / 当前持仓推荐</h2>
-        <div class="info-bar">
-          <span id="regime-badge" class="badge"></span>
-          <span id="invested-pct" class="stat"></span>
-          <span id="cash-pct" class="stat"></span>
-        </div>
-        <div class="table-wrap">
-          <table id="portfolio-table">
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Weight</th>
-                <th>Target $</th>
-                <th>Shares</th>
-                <th>Price</th>
-                <th>Alpha Score</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="factors">
-        <h2>Factor Scores / 因子分数明细</h2>
-        <div id="factor-heatmap" class="chart"></div>
-      </section>
-    </div>
-
-    <!-- TAB 2: Performance (Actual + Backtest) -->
-    <div id="tab-performance" class="tab-content">
+    <!-- TAB 1: Performance (Actual + Backtest) -->
+    <div id="tab-performance" class="tab-content active">
       <section id="actual-performance" style="display:none">
         <h2>Actual Performance / 实盘业绩 (Alpaca Paper Trading)</h2>
         <div id="actual-metrics" class="cards"></div>
@@ -85,6 +53,38 @@
         <div id="metrics-cards" class="cards"></div>
         <div id="equity-chart" class="chart"></div>
         <div id="drawdown-chart" class="chart chart-small"></div>
+      </section>
+    </div>
+
+    <!-- TAB 2: Portfolio (Holdings + Factors) -->
+    <div id="tab-portfolio" class="tab-content">
+      <section id="portfolio">
+        <h2>Current Holdings / 当前持仓推荐</h2>
+        <div class="info-bar">
+          <span id="regime-badge" class="badge"></span>
+          <span id="invested-pct" class="stat"></span>
+          <span id="cash-pct" class="stat"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="portfolio-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Weight</th>
+                <th>Target $</th>
+                <th>Shares</th>
+                <th>Price</th>
+                <th>Alpha Score</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="factors">
+        <h2>Factor Scores / 因子分数明细</h2>
+        <div id="factor-heatmap" class="chart"></div>
       </section>
     </div>
 
