@@ -4,6 +4,8 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 多因子量化交易系统，专注于美股中期投资。基于动量驱动的 Alpha 信号，结合均值-方差组合优化、动态杠杆管理，以及通过 Alpaca 自动执行交易。
 
+**[Live Performance Dashboard / 实时表现看板 →](https://yingwang.github.io/trade/)**
+
 ---
 
 ## Backtest Performance / 回测表现
