@@ -84,5 +84,5 @@ Tests use synthetic fixtures (3 years of 10 stocks + benchmark) defined in `test
 
 - **Survivorship bias**: Static 100-stock universe excludes delisted companies
 - **Same-day execution**: Backtest signals and trades use same closing price
-- **Stop-loss**: Configured but not enforced in backtest engine
+- **Stop-loss**: Enforced daily in both backtest and paper trading (15% threshold)
 - **No point-in-time fundamentals**: Why quality/value factors are disabled

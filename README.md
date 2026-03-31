@@ -18,43 +18,43 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+91.2%** | +81.5% | **+9.7pp** |
-| **CAGR / 年化收益** | **13.9%** | — | — |
-| **Sharpe Ratio** | **0.57** | — | — |
-| **Sortino Ratio** | **0.78** | — | — |
-| **Max Drawdown / 最大回撤** | -32.7% | — | — |
-| **Information Ratio** | **+0.17** | — | — |
-| **Avg Turnover / 平均换手** | 112% | — | — |
+| **Total Return / 总收益** | **+62.4%** | +71.5% | **-9.1pp** |
+| **CAGR / 年化收益** | **10.1%** | — | — |
+| **Sharpe Ratio** | **0.53** | — | — |
+| **Sortino Ratio** | **0.60** | — | — |
+| **Max Drawdown / 最大回撤** | -36.9% | — | — |
+| **Information Ratio** | **+0.01** | — | — |
+| **Avg Turnover / 平均换手** | 69% | — | — |
 
-> Note: Market impact coefficient lowered from 10.0 to 2.5, more realistic for small accounts where participation rate is negligible. Almgren-Chriss model still applied.
+> Note: Market impact coefficient lowered from 10.0 to 2.5, more realistic for small accounts where participation rate is negligible. Almgren-Chriss model still applied. Stop-loss (15%) now enforced daily.
 >
-> 注：市场冲击系数从 10.0 降至 2.5，更符合小账户实际（参与率可忽略不计）。仍使用 Almgren-Chriss 模型。
+> 注：市场冲击系数从 10.0 降至 2.5，更符合小账户实际（参与率可忽略不计）。仍使用 Almgren-Chriss 模型。止损（15%）现已每日执行。
 
 ### 3-Year Backtest (2023-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+130.8%** | +76.2% | **+54.7pp** |
-| **CAGR / 年化收益** | **32.4%** | — | — |
-| **Sharpe Ratio** | **1.36** | — | — |
-| **Sortino Ratio** | **1.86** | — | — |
-| **Max Drawdown / 最大回撤** | -30.2% | — | — |
-| **Information Ratio** | **+0.71** | — | — |
+| **Total Return / 总收益** | **+128.3%** | +66.4% | **+61.9pp** |
+| **CAGR / 年化收益** | **31.4%** | — | — |
+| **Sharpe Ratio** | **1.30** | — | — |
+| **Sortino Ratio** | **1.92** | — | — |
+| **Max Drawdown / 最大回撤** | -25.2% | — | — |
+| **Information Ratio** | **+0.81** | — | — |
 
 ### 1-Year Backtest (2025-03 → 2026-03)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+49.4%** | +19.7% | **+29.8pp** |
-| **CAGR / 年化收益** | **49.7%** | — | — |
-| **Sharpe Ratio** | **2.38** | — | — |
-| **Sortino Ratio** | **3.72** | — | — |
-| **Max Drawdown / 最大回撤** | -10.0% | — | — |
-| **Information Ratio** | **+1.33** | — | — |
+| **Total Return / 总收益** | **+37.7%** | +13.1% | **+24.6pp** |
+| **CAGR / 年化收益** | **36.3%** | — | — |
+| **Sharpe Ratio** | **1.57** | — | — |
+| **Sortino Ratio** | **2.62** | — | — |
+| **Max Drawdown / 最大回撤** | -13.7% | — | — |
+| **Information Ratio** | **+1.15** | — | — |
 
 ### Performance Chart / 净值曲线 (5-Year)
 
-![5-Year Backtest](backtest_5yr_v4.png)
+![5-Year Backtest](backtest_5yr_v5.png)
 
 > **Note / 注意**: 回测结果仍存在幸存者偏差（静态100股票池排除了历史退市股）。真实样本外表现预计会略低。详见 `docs/audit/CONFIDENCE_ASSESSMENT.md`。
 
