@@ -136,8 +136,16 @@ class AlpacaBroker(BaseBroker):
             return order
 
         # Pre-trade safety check
+        current_positions = {}
+        current_shares = self.get_positions()
+        if not current_shares.empty:
+            position_prices = self.get_current_prices(current_shares.index.tolist())
+            current_positions = {
+                symbol: shares * position_prices.get(symbol, 0.0)
+                for symbol, shares in current_shares.items()
+            }
         passed, reason = self.safety.validate(
-            order, price, portfolio_value, avg_daily_volume
+            order, price, portfolio_value, current_positions, avg_daily_volume
         )
         if not passed:
             order.status = "rejected"
@@ -245,6 +253,7 @@ class AlpacaBroker(BaseBroker):
         """Execute order as TWAP slices."""
         slices = self.twap.split_order(order, avg_daily_volume)
 
+        target_quantity = order.quantity
         total_filled_qty = 0.0
         total_filled_value = 0.0
         last_order_id = ""
@@ -269,7 +278,7 @@ class AlpacaBroker(BaseBroker):
             order.filled_price = total_filled_value / total_filled_qty
             order.quantity = total_filled_qty
             order.status = (
-                "filled" if total_filled_qty >= order.quantity else "partial_fill"
+                "filled" if total_filled_qty >= target_quantity else "partial_fill"
             )
             order.order_id = last_order_id
         else:

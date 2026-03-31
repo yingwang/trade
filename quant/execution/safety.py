@@ -81,7 +81,7 @@ class PreTradeCheck:
 
     Usage:
         checker = PreTradeCheck(SafetyConfig())
-        ok, reason = checker.validate(order, price, portfolio_value, adv)
+        ok, reason = checker.validate(order, price, portfolio_value, {}, adv)
         if not ok:
             reject order with reason
     """
@@ -95,12 +95,14 @@ class PreTradeCheck:
         order,              # broker.Order
         price: float,
         portfolio_value: float,
+        current_positions: Optional[dict[str, float]] = None,
         avg_daily_volume: Optional[float] = None,
     ) -> tuple[bool, str]:
         """Run all pre-trade checks. Returns (passed, reason)."""
         self.daily.reset_if_new_day()
 
         order_value = abs(order.quantity * price)
+        current_position_value = (current_positions or {}).get(order.symbol, 0.0)
 
         # 1. Min price check
         if price < self.config.min_price:
@@ -141,10 +143,10 @@ class PreTradeCheck:
 
         # 5. Position concentration check
         if portfolio_value > 0:
-            position_pct = order_value / portfolio_value
+            position_pct = (current_position_value + order_value) / portfolio_value
             if position_pct > self.config.max_position_pct_of_portfolio:
                 reason = (
-                    f"Order for {order.symbol} is {position_pct:.1%} of portfolio, "
+                    f"Position in {order.symbol} would be {position_pct:.1%} of portfolio, "
                     f"exceeding max {self.config.max_position_pct_of_portfolio:.1%}"
                 )
                 logger.warning("SAFETY BLOCK: %s", reason)

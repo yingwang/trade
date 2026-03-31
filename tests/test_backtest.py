@@ -23,8 +23,9 @@ class TestBacktestEngine:
         targets = {str(first_date.date()): weights}
 
         result = engine.run(synthetic_prices, targets, benchmark_col="BENCH")
-        # Should have traded
-        assert len(result.trades) == 1
+        # Should have traded (may also include stop-loss trades)
+        rebalance_trades = [t for t in result.trades if t.get("type") != "stop_loss"]
+        assert len(rebalance_trades) == 1
         # Portfolio value should differ from initial capital
         assert result.equity_curve.iloc[-1] != config["backtest"]["initial_capital"]
 

@@ -22,36 +22,25 @@ echo "Step 2: Set environment variables"
 echo "----------------------------------------"
 echo ""
 read -p "Enter your Alpaca API Key: " API_KEY
-read -p "Enter your Alpaca Secret Key: " SECRET_KEY
+read -s -p "Enter your Alpaca Secret Key: " SECRET_KEY
 echo ""
 
-# Detect shell configuration file
-if [ -f "$HOME/.zshrc" ]; then
-    SHELL_RC="$HOME/.zshrc"
-elif [ -f "$HOME/.bash_profile" ]; then
-    SHELL_RC="$HOME/.bash_profile"
-else
-    SHELL_RC="$HOME/.bashrc"
-fi
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$PROJECT_DIR/.env"
 
-echo "Adding environment variables to $SHELL_RC..."
-echo "" >> "$SHELL_RC"
-echo "# Alpaca Paper Trading API credentials" >> "$SHELL_RC"
-echo "export ALPACA_API_KEY=\"$API_KEY\"" >> "$SHELL_RC"
-echo "export ALPACA_SECRET_KEY=\"$SECRET_KEY\"" >> "$SHELL_RC"
-
-# Also export for current session
-export ALPACA_API_KEY="$API_KEY"
-export ALPACA_SECRET_KEY="$SECRET_KEY"
+cat > "$ENV_FILE" <<EOF
+ALPACA_API_KEY="$API_KEY"
+ALPACA_SECRET_KEY="$SECRET_KEY"
+EOF
 
 echo ""
-echo "✓ Environment variables saved to $SHELL_RC"
+echo "✓ Environment variables saved to $ENV_FILE"
 echo ""
-echo "Step 3: Reload your shell configuration"
+echo "Step 3: Load the project environment"
 echo "----------------------------------------"
-echo "Run: source $SHELL_RC"
+echo "Run: source $ENV_FILE"
 echo ""
-echo "Or simply open a new terminal window."
+echo "Or configure direnv to load $ENV_FILE automatically."
 echo ""
 echo "Step 4: Test your setup"
 echo "----------------------------------------"

@@ -40,18 +40,22 @@ from quant.strategy import MultiFactorStrategy
 from quant.execution.broker import generate_rebalance_orders
 from quant.execution.safety import SafetyConfig, ExecutionLogger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(f"logs/paper_trade_{datetime.now():%Y%m%d}.log"),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 STATE_FILE = Path("logs/paper_trade_state.json")
 LOCK_FILE = Path("logs/paper_trade.lock")
+
+
+def setup_logging():
+    os.makedirs("logs", exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(f"logs/paper_trade_{datetime.now():%Y%m%d}.log"),
+        ],
+    )
 
 
 def load_state() -> dict:
@@ -79,10 +83,16 @@ def acquire_lock() -> bool:
             LOCK_FILE.unlink()
         else:
             return False
-    LOCK_FILE.write_text(json.dumps({
-        "pid": os.getpid(),
-        "started": datetime.now().isoformat(),
-    }))
+    try:
+        fd = os.open(LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+
+    with os.fdopen(fd, "w") as lock_file:
+        json.dump({
+            "pid": os.getpid(),
+            "started": datetime.now().isoformat(),
+        }, lock_file)
     return True
 
 
@@ -129,6 +139,58 @@ def show_status(broker):
             print(f"    {sym:<8} {shares:>6.0f} shares  @ ${price:>8.2f}  = ${value:>10,.2f}")
 
     print(f"{'='*60}\n")
+
+
+def check_stop_losses(broker, optimizer, state, dry_run=False):
+    """Check stop-losses against entry prices stored in state.
+
+    Returns list of symbols that were stopped out (and sold if not dry_run).
+    """
+    entry_prices = state.get("entry_prices", {})
+    if not entry_prices:
+        return []
+
+    positions = broker.get_positions()
+    if positions.empty:
+        return []
+
+    held_symbols = [s for s in positions.index if s in entry_prices and positions[s] > 0]
+    if not held_symbols:
+        return []
+
+    current_prices = broker.get_current_prices(held_symbols)
+    stopped = []
+    for sym in held_symbols:
+        entry = entry_prices[sym]
+        current = current_prices.get(sym, 0)
+        if current > 0 and entry > 0:
+            pnl_pct = (current / entry) - 1.0
+            if pnl_pct < -optimizer.stop_loss_pct:
+                stopped.append(sym)
+                logger.warning("Stop-loss triggered for %s: %.1f%% loss (entry=$%.2f, now=$%.2f)",
+                               sym, pnl_pct * 100, entry, current)
+
+    if not stopped:
+        return []
+
+    if dry_run:
+        logger.info("DRY RUN: would sell stopped positions: %s", stopped)
+        return stopped
+
+    # Sell stopped positions
+    from quant.execution.broker import Order
+    for sym in stopped:
+        shares = positions[sym]
+        order = Order(symbol=sym, side="sell", quantity=shares, order_type="market")
+        result = broker.submit_order(order)
+        logger.info("Stop-loss sell %s: %s (qty=%d)", sym, result.status, shares)
+
+    # Clear entry prices for stopped symbols
+    for sym in stopped:
+        entry_prices.pop(sym, None)
+    state["entry_prices"] = entry_prices
+
+    return stopped
 
 
 def run_rebalance(strategy, broker, config, dry_run=False):
@@ -247,6 +309,7 @@ def main():
 
     # Ensure logs directory exists
     Path("logs").mkdir(exist_ok=True)
+    setup_logging()
 
     # Load config and strategy
     config = load_config("config.yaml")
@@ -304,12 +367,34 @@ def main():
             show_status(broker)
             return
 
+        # Check stop-losses before rebalancing
+        stopped = check_stop_losses(
+            broker, strategy.optimizer, state, dry_run=args.dry_run
+        )
+        if stopped:
+            logger.info("Stopped out %d position(s): %s", len(stopped), stopped)
+            save_state(state)
+
         # Run rebalance
         filled, target_weights = run_rebalance(
             strategy, broker, config, dry_run=args.dry_run
         )
 
         if filled and not args.dry_run:
+            # Update entry prices for new/changed positions
+            entry_prices = state.get("entry_prices", {})
+            prices = broker.get_current_prices(target_weights.index.tolist())
+            for trade in filled:
+                sym = trade["symbol"]
+                if trade["side"] == "buy" and trade["status"] in ("filled", "partial_fill"):
+                    entry_prices[sym] = trade["price"] or prices.get(sym, 0)
+                elif trade["side"] == "sell" and trade["status"] in ("filled", "partial_fill"):
+                    # If fully sold, remove entry price
+                    new_positions = broker.get_positions()
+                    if sym not in new_positions.index or new_positions[sym] == 0:
+                        entry_prices.pop(sym, None)
+            state["entry_prices"] = entry_prices
+
             state["last_rebalance"] = datetime.now().isoformat()
             state["trade_history"].append({
                 "date": datetime.now().isoformat(),

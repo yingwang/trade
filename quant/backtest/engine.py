@@ -43,6 +43,8 @@ class BacktestEngine:
         self.txn_cost_bps = port_cfg["transaction_cost_bps"]
         self.rebalance_freq = port_cfg["rebalance_frequency_days"]
         self.margin_rate = config.get("leverage", {}).get("margin_annual_rate", 0.0)
+        self.stop_loss_pct = config.get("risk", {}).get("stop_loss_pct", 0.0)
+        self.risk_free_rate = bt_cfg.get("risk_free_rate", config.get("risk_free_rate", 0.0))
         # Market impact: cost = fixed_bps + impact_coeff * sqrt(participation_rate)
         # where participation_rate = trade_value / portfolio_value (proxy for ADV fraction)
         self.impact_coeff = bt_cfg.get("market_impact_coeff", 2.5)  # bps per sqrt(participation)
@@ -71,6 +73,7 @@ class BacktestEngine:
 
         cash = self.initial_capital
         holdings = pd.Series(0.0, index=symbols)  # number of shares
+        entry_prices = pd.Series(np.nan, index=symbols)  # track entry price per position
         equity_history = {}
         benchmark_start = prices[benchmark_col].iloc[0] if benchmark_col in prices.columns else 1.0
 
@@ -107,6 +110,11 @@ class BacktestEngine:
                 # Execute trades
                 trade_cash = (trades * px).sum()
                 cash -= trade_cash
+                # Update entry prices: set for new/increased positions, clear for sold
+                new_positions = (holdings == 0) & (target_shares > 0)
+                entry_prices[new_positions] = px[new_positions]
+                closed_positions = target_shares == 0
+                entry_prices[closed_positions] = np.nan
                 holdings = target_shares
                 current_weights = target
 
@@ -117,6 +125,35 @@ class BacktestEngine:
                 })
 
             portfolio_value = cash + (holdings * px).sum()
+
+            # Daily stop-loss check: sell positions that dropped below threshold
+            if self.stop_loss_pct > 0:
+                held = holdings > 0
+                has_entry = entry_prices.notna()
+                check_mask = held & has_entry
+                if check_mask.any():
+                    pnl_pct = (px[check_mask] / entry_prices[check_mask]) - 1.0
+                    stopped = pnl_pct < -self.stop_loss_pct
+                    if stopped.any():
+                        stopped_syms = stopped[stopped].index.tolist()
+                        logger.info("Stop-loss triggered on %s for %s",
+                                    date.date(), stopped_syms)
+                        # Sell stopped positions at current price
+                        sell_value = (holdings[stopped_syms] * px[stopped_syms]).sum()
+                        sell_cost = sell_value * (self.txn_cost_bps + self.slippage_bps) / 10000
+                        cash += sell_value - sell_cost
+                        holdings[stopped_syms] = 0.0
+                        entry_prices[stopped_syms] = np.nan
+                        current_weights[stopped_syms] = 0.0
+                        portfolio_value = cash + (holdings * px).sum()
+
+                        result.trades.append({
+                            "date": date,
+                            "turnover": sell_value / portfolio_value if portfolio_value > 0 else 0,
+                            "cost": sell_cost,
+                            "type": "stop_loss",
+                            "symbols": stopped_syms,
+                        })
 
             # Charge daily margin interest when cash is negative (leveraged)
             if cash < 0 and self.margin_rate > 0:
@@ -152,7 +189,11 @@ class BacktestEngine:
         n_years = len(ret) / 252 if len(ret) > 0 else 1
         cagr = (1 + total_return) ** (1 / n_years) - 1 if n_years > 0 else 0
         annual_vol = ret.std() * np.sqrt(252) if len(ret) > 1 else 0
-        sharpe = cagr / annual_vol if annual_vol > 0 else 0
+        excess_daily_returns = ret - self.risk_free_rate
+        sharpe = (
+            excess_daily_returns.mean() / ret.std() * np.sqrt(252)
+            if len(ret) > 1 and ret.std() > 0 else 0
+        )
 
         # Max drawdown
         peak = eq.cummax()
