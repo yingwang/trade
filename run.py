@@ -22,52 +22,104 @@ def setup_logging(verbose: bool = False):
     )
 
 
+def _plot_backtest_result(result, args, default_filename: str = "backtest_results.png"):
+    """Shared plotting logic for all backtest commands."""
+    if not args.plot:
+        return
+
+    fig, axes = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
+
+    # Equity curve
+    ax = axes[0]
+    result.equity_curve.plot(ax=ax, label="Strategy", linewidth=1.5)
+    if not result.benchmark_curve.empty:
+        result.benchmark_curve.plot(ax=ax, label="Benchmark (SPY)", linewidth=1.5, alpha=0.7)
+    ax.set_title("Equity Curve")
+    ax.set_ylabel("Portfolio Value ($)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    # Drawdown
+    ax = axes[1]
+    peak = result.equity_curve.cummax()
+    dd = (result.equity_curve - peak) / peak
+    dd.plot(ax=ax, color="red", linewidth=1)
+    ax.fill_between(dd.index, dd.values, 0, alpha=0.3, color="red")
+    ax.set_title("Drawdown")
+    ax.set_ylabel("Drawdown")
+    ax.grid(True, alpha=0.3)
+
+    # Rolling Sharpe
+    ax = axes[2]
+    rolling_ret = result.returns.rolling(63).mean() * 252
+    rolling_vol = result.returns.rolling(63).std() * (252 ** 0.5)
+    rolling_sharpe = rolling_ret / rolling_vol
+    rolling_sharpe.plot(ax=ax, linewidth=1)
+    ax.axhline(0, color="black", linewidth=0.5)
+    ax.set_title("Rolling 3-Month Sharpe Ratio")
+    ax.set_ylabel("Sharpe")
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    outfile = args.plot_output or default_filename
+    plt.savefig(outfile, dpi=150)
+    print(f"\nPlot saved to {outfile}")
+
+
 def cmd_backtest(args):
-    """Run a historical backtest."""
+    """Run a historical backtest with the multi-factor strategy."""
     config = load_config(args.config)
     strategy = MultiFactorStrategy(config)
     result = strategy.run_backtest(start=args.start, end=args.end)
 
     print(result.summary())
+    _plot_backtest_result(result, args, "backtest_results.png")
 
-    if args.plot:
-        fig, axes = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
 
-        # Equity curve
-        ax = axes[0]
-        result.equity_curve.plot(ax=ax, label="Strategy", linewidth=1.5)
-        if not result.benchmark_curve.empty:
-            result.benchmark_curve.plot(ax=ax, label="Benchmark (SPY)", linewidth=1.5, alpha=0.7)
-        ax.set_title("Equity Curve")
-        ax.set_ylabel("Portfolio Value ($)")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
+def cmd_backtest_lgbm(args):
+    """Run a historical backtest with the LightGBM strategy."""
+    from quant.signals.lgbm_strategy import LGBMStrategy
 
-        # Drawdown
-        ax = axes[1]
-        peak = result.equity_curve.cummax()
-        dd = (result.equity_curve - peak) / peak
-        dd.plot(ax=ax, color="red", linewidth=1)
-        ax.fill_between(dd.index, dd.values, 0, alpha=0.3, color="red")
-        ax.set_title("Drawdown")
-        ax.set_ylabel("Drawdown")
-        ax.grid(True, alpha=0.3)
+    config = load_config(args.config)
 
-        # Rolling Sharpe
-        ax = axes[2]
-        rolling_ret = result.returns.rolling(63).mean() * 252
-        rolling_vol = result.returns.rolling(63).std() * (252 ** 0.5)
-        rolling_sharpe = rolling_ret / rolling_vol
-        rolling_sharpe.plot(ax=ax, linewidth=1)
-        ax.axhline(0, color="black", linewidth=0.5)
-        ax.set_title("Rolling 3-Month Sharpe Ratio")
-        ax.set_ylabel("Sharpe")
-        ax.grid(True, alpha=0.3)
+    lgbm_params = {}
+    if args.num_leaves != 31:
+        lgbm_params["num_leaves"] = args.num_leaves
+    if args.learning_rate != 0.05:
+        lgbm_params["learning_rate"] = args.learning_rate
+    if args.n_estimators != 200:
+        lgbm_params["n_estimators"] = args.n_estimators
 
-        plt.tight_layout()
-        outfile = args.plot_output or "backtest_results.png"
-        plt.savefig(outfile, dpi=150)
-        print(f"\nPlot saved to {outfile}")
+    strategy = LGBMStrategy(
+        config,
+        train_window=args.train_window,
+        val_window=args.val_window,
+        pred_horizon=args.pred_horizon,
+        retrain_every=args.retrain_every,
+        turnover_penalty=args.turnover_penalty,
+        lgbm_params=lgbm_params if lgbm_params else None,
+    )
+    result = strategy.run_backtest(start=args.start, end=args.end)
+
+    print(result.summary())
+    _plot_backtest_result(result, args, "backtest_lgbm_results.png")
+
+
+def cmd_backtest_ensemble_lgbm(args):
+    """Run a historical backtest with the factor + LightGBM ensemble."""
+    from quant.strategy_ensemble import StrategyEnsemble
+
+    config = load_config(args.config)
+    ensemble = StrategyEnsemble(
+        config,
+        strategy_a_weight=args.weight_a,
+        strategy_b_weight=1.0 - args.weight_a,
+        consensus_boost=args.consensus_boost,
+    )
+    result = ensemble.run_backtest(start=args.start, end=args.end)
+
+    print(result.summary())
+    _plot_backtest_result(result, args, "backtest_ensemble_lgbm_results.png")
 
 
 def cmd_signal(args):
@@ -104,6 +156,32 @@ def main():
     bt.add_argument("--plot", action="store_true", help="Generate performance plots")
     bt.add_argument("--plot-output", help="Plot output filename")
     bt.set_defaults(func=cmd_backtest)
+
+    # Backtest LightGBM
+    bt_lgbm = sub.add_parser("backtest-lgbm", help="Run LightGBM strategy backtest")
+    bt_lgbm.add_argument("--start", help="Start date (YYYY-MM-DD)")
+    bt_lgbm.add_argument("--end", help="End date (YYYY-MM-DD)")
+    bt_lgbm.add_argument("--plot", action="store_true", help="Generate plots")
+    bt_lgbm.add_argument("--plot-output", help="Plot output filename")
+    bt_lgbm.add_argument("--train-window", type=int, default=504, help="Training window days")
+    bt_lgbm.add_argument("--val-window", type=int, default=63, help="Validation window days")
+    bt_lgbm.add_argument("--pred-horizon", type=int, default=21, help="Prediction horizon days")
+    bt_lgbm.add_argument("--retrain-every", type=int, default=3, help="Retrain every N rebalances")
+    bt_lgbm.add_argument("--turnover-penalty", type=float, default=0.1, help="Turnover penalty weight")
+    bt_lgbm.add_argument("--num-leaves", type=int, default=31)
+    bt_lgbm.add_argument("--learning-rate", type=float, default=0.05)
+    bt_lgbm.add_argument("--n-estimators", type=int, default=200)
+    bt_lgbm.set_defaults(func=cmd_backtest_lgbm)
+
+    # Backtest ensemble (Factor + LightGBM)
+    bt_ens = sub.add_parser("backtest-ensemble-lgbm", help="Run factor+LightGBM ensemble backtest")
+    bt_ens.add_argument("--start", help="Start date (YYYY-MM-DD)")
+    bt_ens.add_argument("--end", help="End date (YYYY-MM-DD)")
+    bt_ens.add_argument("--plot", action="store_true", help="Generate plots")
+    bt_ens.add_argument("--plot-output", help="Plot output filename")
+    bt_ens.add_argument("--weight-a", type=float, default=0.5, help="Factor strategy weight")
+    bt_ens.add_argument("--consensus-boost", type=float, default=1.3, help="Consensus boost multiplier")
+    bt_ens.set_defaults(func=cmd_backtest_ensemble_lgbm)
 
     # Signals
     sig = sub.add_parser("signal", help="Show current alpha signals")
