@@ -7,6 +7,7 @@
       branches: [main]
       paths:
         - 'generate_site.py'
+        - 'generate_site_lgbm.py'
         - 'site/**'
         - 'quant/**'
         - 'config.yaml'
@@ -32,6 +33,11 @@
             PYTHONPATH: .
             ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
             ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        - run: python generate_site_lgbm.py
+          env:
+            PYTHONPATH: .
+            ALPACA_LGBM_API_KEY: ${{ secrets.ALPACA_LGBM_API_KEY }}
+            ALPACA_LGBM_SECRET_KEY: ${{ secrets.ALPACA_LGBM_SECRET_KEY }}
         - uses: peaceiris/actions-gh-pages@v3
           with:
             github_token: ${{ secrets.GITHUB_TOKEN }}
