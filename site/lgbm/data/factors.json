@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "volume_momentum"
+  ],
+  "stocks": {
+    "TJX": {
+      "momentum": 1.124,
+      "high_proximity": 1.798,
+      "short_term_reversal": -1.022,
+      "vol_contraction": 0.028,
+      "volume_momentum": 0.897
+    },
+    "C": {
+      "momentum": 1.334,
+      "high_proximity": 1.607,
+      "short_term_reversal": 0.145,
+      "vol_contraction": -1.334,
+      "volume_momentum": 0.528
+    },
+    "BKNG": {
+      "momentum": -2.096,
+      "high_proximity": -0.989,
+      "short_term_reversal": 0.821,
+      "vol_contraction": 2.017,
+      "volume_momentum": 0.965
+    },
+    "SNOW": {
+      "momentum": -0.77,
+      "high_proximity": -1.402,
+      "short_term_reversal": 1.271,
+      "vol_contraction": 0.219,
+      "volume_momentum": -1.556
+    },
+    "MRVL": {
+      "momentum": -0.329,
+      "high_proximity": 1.744,
+      "short_term_reversal": -2.361,
+      "vol_contraction": -2.166,
+      "volume_momentum": -0.168
+    },
+    "ADBE": {
+      "momentum": -0.967,
+      "high_proximity": -1.164,
+      "short_term_reversal": -0.779,
+      "vol_contraction": 0.738,
+      "volume_momentum": 0.706
+    },
+    "KLAC": {
+      "momentum": 1.103,
+      "high_proximity": 0.937,
+      "short_term_reversal": 1.062,
+      "vol_contraction": 0.431,
+      "volume_momentum": -0.616
+    },
+    "ZS": {
+      "momentum": -1.137,
+      "high_proximity": -2.3,
+      "short_term_reversal": -0.548,
+      "vol_contraction": 0.229,
+      "volume_momentum": 0.513
+    },
+    "MSFT": {
+      "momentum": -0.622,
+      "high_proximity": -0.402,
+      "short_term_reversal": -0.183,
+      "vol_contraction": 0.878,
+      "volume_momentum": 1.153
+    },
+    "CRWD": {
+      "momentum": -0.586,
+      "high_proximity": -0.299,
+      "short_term_reversal": -0.239,
+      "vol_contraction": 0.169,
+      "volume_momentum": 0.877
+    },
+    "IBM": {
+      "momentum": -0.559,
+      "high_proximity": 0.222,
+      "short_term_reversal": -0.525,
+      "vol_contraction": 1.574,
+      "volume_momentum": 0.172
+    },
+    "AMAT": {
+      "momentum": 1.812,
+      "high_proximity": 0.869,
+      "short_term_reversal": 1.722,
+      "vol_contraction": -0.512,
+      "volume_momentum": -0.216
+    }
+  }
+}

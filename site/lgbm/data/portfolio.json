@@ -1,0 +1,105 @@
+{
+  "updated_at": "2026-04-01 19:50",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 108.5,
+  "cash_pct": 0,
+  "positions": [
+    {
+      "symbol": "TJX",
+      "weight_pct": 13.49,
+      "dollars": 134866.0,
+      "shares": 844,
+      "price": 159.7,
+      "score": 0.99
+    },
+    {
+      "symbol": "C",
+      "weight_pct": 13.49,
+      "dollars": 134866.0,
+      "shares": 1189,
+      "price": 113.41,
+      "score": 0.93
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 10.9,
+      "dollars": 109050.0,
+      "shares": 723,
+      "price": 150.82,
+      "score": 1.0
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 10.9,
+      "dollars": 109050.0,
+      "shares": 74,
+      "price": 1472.41,
+      "score": 0.98
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 10.9,
+      "dollars": 109050.0,
+      "shares": 777,
+      "price": 140.29,
+      "score": 0.97
+    },
+    {
+      "symbol": "ADBE",
+      "weight_pct": 9.64,
+      "dollars": 96382.0,
+      "shares": 396,
+      "price": 243.08,
+      "score": 0.96
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 8.26,
+      "dollars": 82613.0,
+      "shares": 211,
+      "price": 390.41,
+      "score": 0.95
+    },
+    {
+      "symbol": "TGT",
+      "weight_pct": 8.01,
+      "dollars": 80124.0,
+      "shares": 661,
+      "price": 121.2,
+      "score": 0.9
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 8.01,
+      "dollars": 80124.0,
+      "shares": 113,
+      "price": 708.46,
+      "score": 0.89
+    },
+    {
+      "symbol": "IBM",
+      "weight_pct": 6.88,
+      "dollars": 68845.0,
+      "shares": 284,
+      "price": 242.39,
+      "score": 0.94
+    },
+    {
+      "symbol": "MSFT",
+      "weight_pct": 4.13,
+      "dollars": 41307.0,
+      "shares": 111,
+      "price": 370.17,
+      "score": 0.92
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 3.86,
+      "dollars": 38593.0,
+      "shares": 389,
+      "price": 99.05,
+      "score": 0.91
+    }
+  ]
+}
