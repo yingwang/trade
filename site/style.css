@@ -188,6 +188,28 @@ footer {
   margin-top: 20px;
 }
 
+/* Strategy cross-navigation */
+.strategy-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  margin-bottom: 0;
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+.strategy-nav a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.strategy-nav a:hover {
+  text-decoration: underline;
+}
+.strategy-nav-current {
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* Mobile */
 @media (max-width: 600px) {
   header h1 { font-size: 1.3em; }

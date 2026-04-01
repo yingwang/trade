@@ -25,14 +25,22 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Graceful fallback if lightgbm is not installed
+# Graceful fallback: try lightgbm first, then sklearn GradientBoosting
 try:
     import lightgbm as lgb
     LGBM_AVAILABLE = True
-except ImportError:
+    SKLEARN_FALLBACK = False
+    logger.info("Using LightGBM backend")
+except (ImportError, OSError):
     lgb = None
     LGBM_AVAILABLE = False
-    logger.info("lightgbm not installed; LightGBM strategy will use fallback scoring")
+    try:
+        from sklearn.ensemble import GradientBoostingRegressor as _GBR
+        SKLEARN_FALLBACK = True
+        logger.info("lightgbm not available; using sklearn GradientBoostingRegressor fallback")
+    except ImportError:
+        SKLEARN_FALLBACK = False
+        logger.info("Neither lightgbm nor sklearn available; LightGBM strategy will use equal-weight fallback")
 
 
 class LGBMRankingModel:
@@ -158,8 +166,8 @@ class LGBMRankingModel:
         -------
         dict with training info: status, best_iteration, train_rmse, val_rmse.
         """
-        if not LGBM_AVAILABLE:
-            return {"status": "lgbm_not_available"}
+        if not LGBM_AVAILABLE and not SKLEARN_FALLBACK:
+            return {"status": "no_backend_available"}
 
         # Flatten panel data to tabular form
         X_tr, y_tr = self._prepare_panel_data(X_train, y_train)
@@ -180,54 +188,69 @@ class LGBMRankingModel:
             )
             X_va, y_va = None, None
 
+        backend = "lightgbm" if LGBM_AVAILABLE else "sklearn"
         logger.info(
-            "Training LightGBM: %d train samples, %s val samples, %d features",
+            "Training %s: %d train samples, %s val samples, %d features",
+            backend,
             len(X_tr),
             len(X_va) if X_va is not None else "no",
             X_tr.shape[1],
         )
 
-        self.model = lgb.LGBMRegressor(
-            objective="regression",
-            metric="rmse",
-            num_leaves=self.params["num_leaves"],
-            learning_rate=self.params["learning_rate"],
-            n_estimators=self.params["n_estimators"],
-            min_child_samples=self.params["min_child_samples"],
-            subsample=self.params["subsample"],
-            colsample_bytree=self.params["colsample_bytree"],
-            reg_alpha=self.params["reg_alpha"],
-            reg_lambda=self.params["reg_lambda"],
-            random_state=self.params["random_state"],
-            verbosity=-1,
-            n_jobs=-1,
-        )
-
-        callbacks = [lgb.log_evaluation(period=0)]  # suppress per-round logging
-        if X_va is not None:
-            callbacks.append(
-                lgb.early_stopping(
-                    stopping_rounds=self.params["early_stopping_rounds"],
-                    verbose=False,
-                )
+        if LGBM_AVAILABLE:
+            self.model = lgb.LGBMRegressor(
+                objective="regression",
+                metric="rmse",
+                num_leaves=self.params["num_leaves"],
+                learning_rate=self.params["learning_rate"],
+                n_estimators=self.params["n_estimators"],
+                min_child_samples=self.params["min_child_samples"],
+                subsample=self.params["subsample"],
+                colsample_bytree=self.params["colsample_bytree"],
+                reg_alpha=self.params["reg_alpha"],
+                reg_lambda=self.params["reg_lambda"],
+                random_state=self.params["random_state"],
+                verbosity=-1,
+                n_jobs=-1,
             )
 
-        fit_kwargs = {
-            "X": X_tr,
-            "y": y_tr,
-            "callbacks": callbacks,
-        }
-        if feature_names is not None:
-            fit_kwargs["feature_name"] = feature_names[:X_tr.shape[1]]
+            callbacks = [lgb.log_evaluation(period=0)]
+            if X_va is not None:
+                callbacks.append(
+                    lgb.early_stopping(
+                        stopping_rounds=self.params["early_stopping_rounds"],
+                        verbose=False,
+                    )
+                )
 
-        if X_va is not None:
-            fit_kwargs["eval_set"] = [(X_va, y_va)]
-            fit_kwargs["eval_names"] = ["validation"]
+            fit_kwargs = {
+                "X": X_tr,
+                "y": y_tr,
+                "callbacks": callbacks,
+            }
+            if feature_names is not None:
+                fit_kwargs["feature_name"] = feature_names[:X_tr.shape[1]]
 
-        self.model.fit(**fit_kwargs)
+            if X_va is not None:
+                fit_kwargs["eval_set"] = [(X_va, y_va)]
+                fit_kwargs["eval_names"] = ["validation"]
+
+            self.model.fit(**fit_kwargs)
+        else:
+            # sklearn GradientBoostingRegressor fallback
+            from sklearn.ensemble import GradientBoostingRegressor
+            n_est = min(self.params["n_estimators"], 100)  # cap for speed
+            self.model = GradientBoostingRegressor(
+                n_estimators=n_est,
+                max_depth=5,
+                learning_rate=self.params["learning_rate"],
+                subsample=self.params["subsample"],
+                random_state=self.params["random_state"],
+            )
+            self.model.fit(X_tr, y_tr)
 
         # Extract training info
-        best_iter = self.model.best_iteration_ if hasattr(self.model, "best_iteration_") else self.params["n_estimators"]
+        best_iter = getattr(self.model, "best_iteration_", None) or getattr(self.model, "n_estimators_", None) or self.params["n_estimators"]
 
         # Compute train and validation RMSE
         train_pred = self.model.predict(X_tr)

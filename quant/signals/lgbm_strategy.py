@@ -27,7 +27,8 @@ from quant.data.quality import (
 )
 from quant.signals.factors import SignalGenerator
 from quant.signals.ml_features import MLFeatureEngine
-from quant.signals.lgbm_model import LGBMRankingModel, LGBM_AVAILABLE
+from quant.signals.lgbm_model import LGBMRankingModel, LGBM_AVAILABLE, SKLEARN_FALLBACK
+ML_BACKEND_AVAILABLE = LGBM_AVAILABLE or SKLEARN_FALLBACK
 from quant.portfolio.optimizer import (
     PortfolioOptimizer,
     RiskMonitor,
@@ -149,7 +150,7 @@ class LGBMStrategy:
         -------
         True if training succeeded, False otherwise.
         """
-        if not LGBM_AVAILABLE:
+        if not ML_BACKEND_AVAILABLE:
             return False
 
         val_start = max(0, date_idx - self.val_window)
@@ -301,7 +302,7 @@ class LGBMStrategy:
         y = cs_targets.reindex(index=dates, columns=symbols).values
         y = np.nan_to_num(y, nan=0.5)
 
-        if not LGBM_AVAILABLE:
+        if not ML_BACKEND_AVAILABLE:
             logger.error(
                 "lightgbm not installed; aborting LightGBM backtest. "
                 "Install with: pip install lightgbm"
@@ -428,7 +429,7 @@ class LGBMStrategy:
             prices, returns, factor_scores
         )
 
-        if not LGBM_AVAILABLE:
+        if not ML_BACKEND_AVAILABLE:
             return self._fallback_scores(symbols)
 
         cs_targets = self.feature_engine.get_cross_sectional_target(
@@ -486,7 +487,7 @@ class LGBMStrategy:
             prices, returns, factor_scores
         )
 
-        if not LGBM_AVAILABLE:
+        if not ML_BACKEND_AVAILABLE:
             scores = self._fallback_scores(symbols)
         else:
             cs_targets = self.feature_engine.get_cross_sectional_target(
