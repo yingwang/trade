@@ -1,0 +1,23 @@
+{"event": "rebalance_start", "portfolio_value": 99419.2, "n_orders": 20, "timestamp": "2026-04-01T20:31:16.322962Z"}
+{"event": "order_submitted", "symbol": "ADBE", "side": "sell", "quantity": 7.0, "order_type": "market", "limit_price": null, "signal_price": 241.33, "timestamp": "2026-04-01T20:31:16.459487Z"}
+{"event": "safety_block", "symbol": "BKNG", "side": "sell", "quantity": 2.0, "reason": "Position in BKNG would be 21.1% of portfolio, exceeding max 20.0%", "timestamp": "2026-04-01T20:31:46.892650Z"}
+{"event": "safety_block", "symbol": "C", "side": "sell", "quantity": 94.0, "reason": "Position in C would be 21.8% of portfolio, exceeding max 20.0%", "timestamp": "2026-04-01T20:31:47.007116Z"}
+{"event": "order_submitted", "symbol": "CRWD", "side": "sell", "quantity": 3.0, "order_type": "market", "limit_price": null, "signal_price": 393.18, "timestamp": "2026-04-01T20:31:47.158947Z"}
+{"event": "order_submitted", "symbol": "IBM", "side": "sell", "quantity": 15.0, "order_type": "market", "limit_price": null, "signal_price": 243.205, "timestamp": "2026-04-01T20:32:17.579941Z"}
+{"event": "order_submitted", "symbol": "KLAC", "side": "sell", "quantity": 6.0, "order_type": "market", "limit_price": null, "signal_price": 1519.97, "timestamp": "2026-04-01T20:32:48.027722Z"}
+{"event": "order_submitted", "symbol": "MRVL", "side": "sell", "quantity": 34.0, "order_type": "market", "limit_price": null, "signal_price": 106.71, "timestamp": "2026-04-01T20:33:18.471955Z"}
+{"event": "order_submitted", "symbol": "MSFT", "side": "sell", "quantity": 21.0, "order_type": "market", "limit_price": null, "signal_price": 369.46, "timestamp": "2026-04-01T20:33:48.885059Z"}
+{"event": "safety_block", "symbol": "SNOW", "side": "sell", "quantity": 68.0, "reason": "Position in SNOW would be 21.0% of portfolio, exceeding max 20.0%", "timestamp": "2026-04-01T20:34:19.290546Z"}
+{"event": "order_submitted", "symbol": "TGT", "side": "sell", "quantity": 59.0, "order_type": "market", "limit_price": null, "signal_price": 120.475, "timestamp": "2026-04-01T20:34:19.408636Z"}
+{"event": "safety_block", "symbol": "ZS", "side": "sell", "quantity": 77.0, "reason": "Position in ZS would be 21.2% of portfolio, exceeding max 20.0%", "timestamp": "2026-04-01T20:34:49.853315Z"}
+{"event": "order_submitted", "symbol": "AMT", "side": "buy", "quantity": 55, "order_type": "market", "limit_price": null, "signal_price": 171.01, "timestamp": "2026-04-01T20:34:49.946860Z"}
+{"event": "order_submitted", "symbol": "AVGO", "side": "buy", "quantity": 21, "order_type": "market", "limit_price": null, "signal_price": 313.52, "timestamp": "2026-04-01T20:35:20.377517Z"}
+{"event": "order_submitted", "symbol": "CRM", "side": "buy", "quantity": 37, "order_type": "market", "limit_price": null, "signal_price": 186.21, "timestamp": "2026-04-01T20:35:50.828404Z"}
+{"event": "order_submitted", "symbol": "DDOG", "side": "buy", "quantity": 115, "order_type": "market", "limit_price": null, "signal_price": 118.73, "timestamp": "2026-04-01T20:36:21.229388Z"}
+{"event": "order_submitted", "symbol": "DHR", "side": "buy", "quantity": 49, "order_type": "market", "limit_price": null, "signal_price": 190.78, "timestamp": "2026-04-01T20:36:51.692119Z"}
+{"event": "order_submitted", "symbol": "GE", "side": "buy", "quantity": 31, "order_type": "market", "limit_price": null, "signal_price": 292.58, "timestamp": "2026-04-01T20:37:22.130274Z"}
+{"event": "order_submitted", "symbol": "NET", "side": "buy", "quantity": 66, "order_type": "market", "limit_price": null, "signal_price": 205.96, "timestamp": "2026-04-01T20:37:52.551530Z"}
+{"event": "order_submitted", "symbol": "SBUX", "side": "buy", "quantity": 105, "order_type": "market", "limit_price": null, "signal_price": 90.41, "timestamp": "2026-04-01T20:38:22.941509Z"}
+{"event": "order_submitted", "symbol": "TJX", "side": "buy", "quantity": 3.0, "order_type": "market", "limit_price": null, "signal_price": 162.09, "timestamp": "2026-04-01T20:38:53.346799Z"}
+{"event": "rebalance_complete", "n_filled": 0, "n_rejected": 4, "total_value_traded": 0.0, "timestamp": "2026-04-01T20:39:23.626850Z"}
+{"event": "reconciliation", "portfolio_value": 99506.11, "n_positions": 20, "total_abs_drift_pct": 150.24, "max_drift_symbol": "NET", "max_drift_pct": 13.76, "timestamp": "2026-04-01T20:39:23.941255Z"}
