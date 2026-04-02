@@ -214,8 +214,9 @@
         name: 'Strategy', line: { color: '#66bb6a', width: 2 },
       }];
       if (data.spy_history && data.spy_history.length) {
+        const scale = startEquity / data.spy_history[0].equity;
         traces.push({
-          x: data.spy_history.map(d => d.date), y: data.spy_history.map(d => d.equity),
+          x: data.spy_history.map(d => d.date), y: data.spy_history.map(d => d.equity * scale),
           name: 'SPY', line: { color: '#ff9800', width: 2, dash: 'dot' },
         });
       }
