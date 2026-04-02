@@ -216,23 +216,38 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
                      len(filled_orders), len(rebalances))
 
-        # Fetch SPY benchmark for the same period as portfolio history
+        # Fetch SPY benchmark aligned to portfolio history dates
         spy_history = []
-        if portfolio_history:
+        valid_hist = [h for h in portfolio_history if h["equity"]]
+        if valid_hist:
             try:
                 import yfinance as yf
-                start_date = portfolio_history[0]["date"]
-                end_date = portfolio_history[-1]["date"]
-                spy = yf.download("SPY", start=start_date, end=end_date, progress=False)
+                from datetime import timedelta
+                start_date = valid_hist[0]["date"]
+                # yfinance end is exclusive, add 2 days buffer
+                end_dt = datetime.strptime(valid_hist[-1]["date"], "%Y-%m-%d") + timedelta(days=2)
+                spy = yf.download("SPY", start=start_date, end=end_dt.strftime("%Y-%m-%d"), progress=False)
                 if not spy.empty:
-                    # Flatten multi-level columns if needed
                     if hasattr(spy.columns, 'levels'):
                         spy.columns = spy.columns.get_level_values(0)
-                    start_equity = portfolio_history[0]["equity"] or 100000
-                    spy_start = float(spy["Close"].iloc[0])
+                    # Build date->close lookup, forward-fill for non-trading days
+                    spy_by_date = {}
+                    last_close = None
                     for idx_date, row in spy.iterrows():
-                        d = idx_date.strftime("%Y-%m-%d")
-                        spy_equity = start_equity * float(row["Close"]) / spy_start
+                        last_close = float(row["Close"])
+                        spy_by_date[idx_date.strftime("%Y-%m-%d")] = last_close
+                    start_equity = valid_hist[0]["equity"]
+                    first_spy = spy_by_date.get(valid_hist[0]["date"])
+                    if first_spy is None:
+                        # Use earliest available SPY price
+                        first_spy = float(spy["Close"].iloc[0])
+                    # Emit one SPY point per portfolio history date
+                    last_spy_close = first_spy
+                    for h in valid_hist:
+                        d = h["date"]
+                        if d in spy_by_date:
+                            last_spy_close = spy_by_date[d]
+                        spy_equity = start_equity * last_spy_close / first_spy
                         spy_history.append({"date": d, "equity": round(spy_equity, 2)})
                     logger.info("Fetched %d days of SPY benchmark data", len(spy_history))
             except Exception as e:
