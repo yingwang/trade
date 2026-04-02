@@ -209,16 +209,23 @@
         </div>`;
       });
 
-      Plotly.newPlot('actual-chart', [{
+      const traces = [{
         x: hist.map(d => d.date), y: hist.map(d => d.equity),
-        name: 'Actual Equity', line: { color: '#66bb6a', width: 2 },
-      }], {
+        name: 'Strategy', line: { color: '#66bb6a', width: 2 },
+      }];
+      if (data.spy_history && data.spy_history.length) {
+        traces.push({
+          x: data.spy_history.map(d => d.date), y: data.spy_history.map(d => d.equity),
+          name: 'SPY', line: { color: '#ff9800', width: 2, dash: 'dot' },
+        });
+      }
+      Plotly.newPlot('actual-chart', traces, {
         paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
         font: { color: '#e0e0e0' },
         xaxis: { gridcolor: '#333' },
         yaxis: { title: 'Equity ($)', gridcolor: '#333', tickformat: '$,.0f' },
         margin: { l: 80, r: 20, t: 10, b: 40 },
-        showlegend: false,
+        legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(0,0,0,0.5)' },
       }, { responsive: true });
     }
 

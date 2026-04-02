@@ -216,10 +216,33 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
                      len(filled_orders), len(rebalances))
 
+        # Fetch SPY benchmark for the same period as portfolio history
+        spy_history = []
+        if portfolio_history:
+            try:
+                import yfinance as yf
+                start_date = portfolio_history[0]["date"]
+                end_date = portfolio_history[-1]["date"]
+                spy = yf.download("SPY", start=start_date, end=end_date, progress=False)
+                if not spy.empty:
+                    # Flatten multi-level columns if needed
+                    if hasattr(spy.columns, 'levels'):
+                        spy.columns = spy.columns.get_level_values(0)
+                    start_equity = portfolio_history[0]["equity"] or 100000
+                    spy_start = float(spy["Close"].iloc[0])
+                    for idx_date, row in spy.iterrows():
+                        d = idx_date.strftime("%Y-%m-%d")
+                        spy_equity = start_equity * float(row["Close"]) / spy_start
+                        spy_history.append({"date": d, "equity": round(spy_equity, 2)})
+                    logger.info("Fetched %d days of SPY benchmark data", len(spy_history))
+            except Exception as e:
+                logger.warning("Could not fetch SPY benchmark: %s", e)
+
         return {
             "account": account_info,
             "positions": positions,
             "portfolio_history": portfolio_history,
+            "spy_history": spy_history,
             "rebalances": rebalances,
         }
 
