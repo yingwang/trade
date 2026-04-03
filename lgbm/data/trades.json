@@ -1,0 +1,550 @@
+{
+  "account": {
+    "equity": 100339.04,
+    "cash": -49207.86,
+    "buying_power": 40805.38
+  },
+  "positions": [
+    {
+      "symbol": "ADBE",
+      "qty": 31.0,
+      "side": "long",
+      "current_price": 242.92,
+      "market_value": 7530.52,
+      "avg_entry_price": 242.41,
+      "cost_basis": 7514.71,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 0.21,
+      "total_pl": 15.81
+    },
+    {
+      "symbol": "AMT",
+      "qty": 55.0,
+      "side": "long",
+      "current_price": 173.73,
+      "market_value": 9555.15,
+      "avg_entry_price": 171.290909,
+      "cost_basis": 9420.999995,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 1.424,
+      "total_pl": 134.150005
+    },
+    {
+      "symbol": "AVGO",
+      "qty": 21.0,
+      "side": "long",
+      "current_price": 314.55,
+      "market_value": 6605.55,
+      "avg_entry_price": 307.087143,
+      "cost_basis": 6448.830003,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 2.4299999999999997,
+      "total_pl": 156.719997
+    },
+    {
+      "symbol": "BKNG",
+      "qty": 3.0,
+      "side": "long",
+      "current_price": 4194.31,
+      "market_value": 12582.93,
+      "avg_entry_price": 4233.47,
+      "cost_basis": 12700.41,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": -0.9249999999999999,
+      "total_pl": -117.48
+    },
+    {
+      "symbol": "C",
+      "qty": 94.0,
+      "side": "long",
+      "current_price": 115.25,
+      "market_value": 10833.5,
+      "avg_entry_price": 115.64,
+      "cost_basis": 10870.16,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": -0.337,
+      "total_pl": -36.66
+    },
+    {
+      "symbol": "CRM",
+      "qty": 37.0,
+      "side": "long",
+      "current_price": 187.18,
+      "market_value": 6925.66,
+      "avg_entry_price": 183.712703,
+      "cost_basis": 6797.370011,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 1.8870000000000002,
+      "total_pl": 128.289989
+    },
+    {
+      "symbol": "CRWD",
+      "qty": 14.0,
+      "side": "long",
+      "current_price": 399.12,
+      "market_value": 5587.68,
+      "avg_entry_price": 394.11,
+      "cost_basis": 5517.54,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 1.2710000000000001,
+      "total_pl": 70.14
+    },
+    {
+      "symbol": "DDOG",
+      "qty": 115.0,
+      "side": "long",
+      "current_price": 120.36,
+      "market_value": 13841.4,
+      "avg_entry_price": 116.525304,
+      "cost_basis": 13400.40996,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 3.2910000000000004,
+      "total_pl": 440.99004
+    },
+    {
+      "symbol": "DHR",
+      "qty": 49.0,
+      "side": "long",
+      "current_price": 191.12,
+      "market_value": 9364.88,
+      "avg_entry_price": 189.34,
+      "cost_basis": 9277.66,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 0.9400000000000001,
+      "total_pl": 87.22
+    },
+    {
+      "symbol": "GE",
+      "qty": 31.0,
+      "side": "long",
+      "current_price": 281.16,
+      "market_value": 8715.96,
+      "avg_entry_price": 286.45,
+      "cost_basis": 8879.95,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": -1.847,
+      "total_pl": -163.99
+    },
+    {
+      "symbol": "NET",
+      "qty": 66.0,
+      "side": "long",
+      "current_price": 211.69,
+      "market_value": 13971.54,
+      "avg_entry_price": 203.78,
+      "cost_basis": 13449.48,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 3.882,
+      "total_pl": 522.06
+    },
+    {
+      "symbol": "SBUX",
+      "qty": 105.0,
+      "side": "long",
+      "current_price": 90.37,
+      "market_value": 9488.85,
+      "avg_entry_price": 88.594286,
+      "cost_basis": 9302.40003,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 2.004,
+      "total_pl": 186.44997
+    },
+    {
+      "symbol": "SNOW",
+      "qty": 68.0,
+      "side": "long",
+      "current_price": 151.85,
+      "market_value": 10325.8,
+      "avg_entry_price": 154.65,
+      "cost_basis": 10516.2,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": -1.8110000000000002,
+      "total_pl": -190.4
+    },
+    {
+      "symbol": "TJX",
+      "qty": 84.0,
+      "side": "long",
+      "current_price": 161.29,
+      "market_value": 13548.36,
+      "avg_entry_price": 162.293095,
+      "cost_basis": 13632.61998,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": -0.618,
+      "total_pl": -84.25998
+    },
+    {
+      "symbol": "ZS",
+      "qty": 77.0,
+      "side": "long",
+      "current_price": 138.56,
+      "market_value": 10669.12,
+      "avg_entry_price": 137.21,
+      "cost_basis": 10565.17,
+      "today_pl_pct": 0.0,
+      "today_pl": 0.0,
+      "total_pl_pct": 0.984,
+      "total_pl": 103.95
+    }
+  ],
+  "portfolio_history": [
+    {
+      "date": "2026-03-03",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-04",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-05",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-06",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-07",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-10",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-11",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-12",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-13",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-14",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-17",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-18",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-19",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-20",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-21",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-24",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-25",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-26",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-27",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-28",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-03-31",
+      "equity": null,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-04-01",
+      "equity": 100000.0,
+      "profit_loss": null
+    },
+    {
+      "date": "2026-04-02",
+      "equity": 99400.0,
+      "profit_loss": -600.0
+    },
+    {
+      "date": "2026-04-03",
+      "equity": 100339.04,
+      "profit_loss": 939.04
+    }
+  ],
+  "spy_history": [
+    {
+      "date": "2026-04-01",
+      "equity": 100000.0
+    },
+    {
+      "date": "2026-04-02",
+      "equity": 100090.05
+    },
+    {
+      "date": "2026-04-03",
+      "equity": 100090.05
+    }
+  ],
+  "rebalances": [
+    {
+      "date": "2026-04-02",
+      "portfolio_value": 100339.04,
+      "trades": [
+        {
+          "symbol": "AMT",
+          "side": "buy",
+          "quantity": 55.0,
+          "price": 171.290909,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "GE",
+          "side": "buy",
+          "quantity": 31.0,
+          "price": 286.45,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "AVGO",
+          "side": "buy",
+          "quantity": 21.0,
+          "price": 307.087143,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "DHR",
+          "side": "buy",
+          "quantity": 49.0,
+          "price": 189.34,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "DDOG",
+          "side": "buy",
+          "quantity": 115.0,
+          "price": 116.525305,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "NET",
+          "side": "buy",
+          "quantity": 66.0,
+          "price": 203.78,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CRWD",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 390.793333,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ADBE",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 241.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "SBUX",
+          "side": "buy",
+          "quantity": 105.0,
+          "price": 88.594285,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CRM",
+          "side": "buy",
+          "quantity": 37.0,
+          "price": 183.712703,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KLAC",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 1451.0,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRVL",
+          "side": "sell",
+          "quantity": 34.0,
+          "price": 102.76,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "IBM",
+          "side": "sell",
+          "quantity": 15.0,
+          "price": 242.674667,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MSFT",
+          "side": "sell",
+          "quantity": 21.0,
+          "price": 366.5,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TGT",
+          "side": "sell",
+          "quantity": 59.0,
+          "price": 119.08678,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 161.566667,
+          "slippage_bps": 0
+        }
+      ]
+    },
+    {
+      "date": "2026-04-01",
+      "portfolio_value": 100339.04,
+      "trades": [
+        {
+          "symbol": "ZS",
+          "side": "buy",
+          "quantity": 77.0,
+          "price": 137.21,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TJX",
+          "side": "buy",
+          "quantity": 81.0,
+          "price": 162.32,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "TGT",
+          "side": "buy",
+          "quantity": 59.0,
+          "price": 121.18,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "SNOW",
+          "side": "buy",
+          "quantity": 68.0,
+          "price": 154.65,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MSFT",
+          "side": "buy",
+          "quantity": 21.0,
+          "price": 371.42,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "MRVL",
+          "side": "buy",
+          "quantity": 34.0,
+          "price": 106.923824,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "KLAC",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 1533.28,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "IBM",
+          "side": "buy",
+          "quantity": 15.0,
+          "price": 244.81,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "CRWD",
+          "side": "buy",
+          "quantity": 17.0,
+          "price": 394.11,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 94.0,
+          "price": 115.64,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "BKNG",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 4233.47,
+          "slippage_bps": 0
+        },
+        {
+          "symbol": "ADBE",
+          "side": "buy",
+          "quantity": 38.0,
+          "price": 242.41,
+          "slippage_bps": 0
+        }
+      ]
+    }
+  ]
+}

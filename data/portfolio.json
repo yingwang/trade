@@ -1,0 +1,104 @@
+{
+  "updated_at": "2026-04-03 21:40",
+  "regime": "normal",
+  "total_invested_pct": 80.1,
+  "cash_pct": 19.9,
+  "positions": [
+    {
+      "symbol": "MU",
+      "weight_pct": 9.99,
+      "dollars": 99938.0,
+      "shares": 272,
+      "price": 366.24,
+      "score": 1.6465
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 9.99,
+      "dollars": 99938.0,
+      "shares": 457,
+      "price": 218.44,
+      "score": 1.0675
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 9.99,
+      "dollars": 99938.0,
+      "shares": 286,
+      "price": 348.47,
+      "score": 1.0287
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 9.99,
+      "dollars": 99938.0,
+      "shares": 139,
+      "price": 717.22,
+      "score": 1.0251
+    },
+    {
+      "symbol": "TJX",
+      "weight_pct": 9.99,
+      "dollars": 99938.0,
+      "shares": 619,
+      "price": 161.29,
+      "score": 1.015
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 7.24,
+      "dollars": 72382.0,
+      "shares": 1179,
+      "price": 61.38,
+      "score": 0.9476
+    },
+    {
+      "symbol": "AMGN",
+      "weight_pct": 4.98,
+      "dollars": 49820.0,
+      "shares": 143,
+      "price": 347.94,
+      "score": 0.9008
+    },
+    {
+      "symbol": "JNJ",
+      "weight_pct": 4.93,
+      "dollars": 49312.0,
+      "shares": 202,
+      "price": 243.04,
+      "score": 0.8998
+    },
+    {
+      "symbol": "GS",
+      "weight_pct": 3.25,
+      "dollars": 32528.0,
+      "shares": 37,
+      "price": 863.04,
+      "score": 0.8626
+    },
+    {
+      "symbol": "C",
+      "weight_pct": 3.25,
+      "dollars": 32528.0,
+      "shares": 282,
+      "price": 115.25,
+      "score": 0.8204
+    },
+    {
+      "symbol": "GILD",
+      "weight_pct": 3.25,
+      "dollars": 32528.0,
+      "shares": 232,
+      "price": 139.71,
+      "score": 0.8064
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 3.25,
+      "dollars": 32528.0,
+      "shares": 269,
+      "price": 120.87,
+      "score": 0.7976
+    }
+  ]
+}

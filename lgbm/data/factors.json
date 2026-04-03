@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "volume_momentum"
+  ],
+  "stocks": {
+    "LRCX": {
+      "momentum": 2.001,
+      "high_proximity": 0.794,
+      "short_term_reversal": -0.405,
+      "vol_contraction": -0.699,
+      "volume_momentum": 0.183
+    },
+    "GE": {
+      "momentum": -0.299,
+      "high_proximity": -1.35,
+      "short_term_reversal": 1.027,
+      "vol_contraction": -0.881,
+      "volume_momentum": -1.053
+    },
+    "TJX": {
+      "momentum": 1.161,
+      "high_proximity": 1.618,
+      "short_term_reversal": -0.944,
+      "vol_contraction": 0.249,
+      "volume_momentum": 1.803
+    },
+    "BLK": {
+      "momentum": -0.125,
+      "high_proximity": -0.677,
+      "short_term_reversal": 0.827,
+      "vol_contraction": -0.136,
+      "volume_momentum": -0.197
+    },
+    "TSLA": {
+      "momentum": 0.681,
+      "high_proximity": -0.555,
+      "short_term_reversal": 0.119,
+      "vol_contraction": -0.714,
+      "volume_momentum": 0.089
+    },
+    "ZS": {
+      "momentum": -1.116,
+      "high_proximity": -2.282,
+      "short_term_reversal": 0.986,
+      "vol_contraction": 0.107,
+      "volume_momentum": -0.69
+    },
+    "DDOG": {
+      "momentum": -0.543,
+      "high_proximity": -1.02,
+      "short_term_reversal": 1.254,
+      "vol_contraction": 0.822,
+      "volume_momentum": -1.305
+    },
+    "AMD": {
+      "momentum": 0.307,
+      "high_proximity": 0.438,
+      "short_term_reversal": -1.2,
+      "vol_contraction": 0.028,
+      "volume_momentum": -0.691
+    },
+    "CRWD": {
+      "momentum": -0.461,
+      "high_proximity": -0.27,
+      "short_term_reversal": 0.037,
+      "vol_contraction": 0.053,
+      "volume_momentum": -0.377
+    },
+    "AMZN": {
+      "momentum": -0.411,
+      "high_proximity": 0.197,
+      "short_term_reversal": -0.705,
+      "vol_contraction": -0.001,
+      "volume_momentum": -0.289
+    },
+    "ADBE": {
+      "momentum": -0.942,
+      "high_proximity": -1.187,
+      "short_term_reversal": 0.29,
+      "vol_contraction": 1.177,
+      "volume_momentum": -0.17
+    },
+    "AVGO": {
+      "momentum": -0.02,
+      "high_proximity": 0.053,
+      "short_term_reversal": 0.047,
+      "vol_contraction": -0.875,
+      "volume_momentum": -0.521
+    }
+  }
+}

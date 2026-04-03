@@ -1,0 +1,105 @@
+{
+  "updated_at": "2026-04-03 21:43",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 92.9,
+  "cash_pct": 7.1,
+  "positions": [
+    {
+      "symbol": "TJX",
+      "weight_pct": 11.15,
+      "dollars": 111520.0,
+      "shares": 691,
+      "price": 161.29,
+      "score": 0.99
+    },
+    {
+      "symbol": "GE",
+      "weight_pct": 11.15,
+      "dollars": 111520.0,
+      "shares": 396,
+      "price": 281.16,
+      "score": 0.925
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 11.15,
+      "dollars": 111520.0,
+      "shares": 510,
+      "price": 218.44,
+      "score": 1.0
+    },
+    {
+      "symbol": "BLK",
+      "weight_pct": 11.15,
+      "dollars": 111520.0,
+      "shares": 115,
+      "price": 966.56,
+      "score": 0.925
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 10.22,
+      "dollars": 102227.0,
+      "shares": 283,
+      "price": 360.59,
+      "score": 0.925
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 10.22,
+      "dollars": 102227.0,
+      "shares": 737,
+      "price": 138.56,
+      "score": 0.98
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 7.74,
+      "dollars": 77444.0,
+      "shares": 643,
+      "price": 120.36,
+      "score": 0.97
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 7.74,
+      "dollars": 77444.0,
+      "shares": 356,
+      "price": 217.5,
+      "score": 0.96
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 4.03,
+      "dollars": 40271.0,
+      "shares": 100,
+      "price": 399.12,
+      "score": 0.95
+    },
+    {
+      "symbol": "ADBE",
+      "weight_pct": 2.79,
+      "dollars": 27880.0,
+      "shares": 114,
+      "price": 242.92,
+      "score": 0.925
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 2.79,
+      "dollars": 27880.0,
+      "shares": 132,
+      "price": 209.77,
+      "score": 0.865
+    },
+    {
+      "symbol": "AVGO",
+      "weight_pct": 2.79,
+      "dollars": 27880.0,
+      "shares": 88,
+      "price": 314.55,
+      "score": 0.865
+    }
+  ]
+}
