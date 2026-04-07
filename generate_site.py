@@ -135,7 +135,7 @@ def generate_trade_history():
 
 # Stock splits not yet reflected in Alpaca paper trading.
 STOCK_SPLITS = {
-    "BKNG": {"ratio": 25, "date": "2024-06-17"},  # 1:25 split
+    "BKNG": {"ratio": 25, "date": "2026-04-06"},  # 1:25 split
 }
 
 

@@ -145,7 +145,7 @@ def generate_trade_history():
 # Map symbol -> (ratio, split_date). Correction applies from
 # max(split_date, buy_date) onwards.
 STOCK_SPLITS = {
-    "BKNG": {"ratio": 25, "date": "2024-06-17"},  # 1:25 split
+    "BKNG": {"ratio": 25, "date": "2026-04-06"},  # 1:25 split
 }
 
 
