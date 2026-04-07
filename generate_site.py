@@ -133,6 +133,20 @@ def generate_trade_history():
     return _parse_local_trade_logs()
 
 
+# Stock splits not yet reflected in Alpaca paper trading.
+STOCK_SPLITS = {
+    "BKNG": 25,  # 1:25 split, June 2024
+}
+
+
+def _adjust_for_splits(symbol, qty, avg_entry_price, cost_basis):
+    """Adjust position data for stock splits Alpaca hasn't accounted for."""
+    ratio = STOCK_SPLITS.get(symbol)
+    if ratio and avg_entry_price > 0:
+        return qty * ratio, avg_entry_price / ratio, cost_basis
+    return qty, avg_entry_price, cost_basis
+
+
 def _fetch_trades_from_alpaca(api_key, secret_key):
     """Pull trade history and current positions from Alpaca API."""
     try:
@@ -173,18 +187,29 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         # Current positions
         positions = []
         for p in api.list_positions():
+            qty = float(p.qty)
+            avg_entry = float(p.avg_entry_price)
+            cost = float(p.cost_basis)
+            current = float(p.current_price)
+
+            qty, avg_entry, cost = _adjust_for_splits(p.symbol, qty, avg_entry, cost)
+
+            market_value = qty * current
+            total_pl = market_value - cost
+            total_pl_pct = (total_pl / cost * 100) if cost else 0
+
             positions.append({
                 "symbol": p.symbol,
-                "qty": float(p.qty),
+                "qty": qty,
                 "side": p.side,
-                "current_price": float(p.current_price),
-                "market_value": float(p.market_value),
-                "avg_entry_price": float(p.avg_entry_price),
-                "cost_basis": float(p.cost_basis),
+                "current_price": current,
+                "market_value": round(market_value, 2),
+                "avg_entry_price": round(avg_entry, 2),
+                "cost_basis": round(cost, 2),
                 "today_pl_pct": float(p.unrealized_intraday_plpc) * 100 if hasattr(p, 'unrealized_intraday_plpc') and p.unrealized_intraday_plpc else 0,
                 "today_pl": float(p.unrealized_intraday_pl) if hasattr(p, 'unrealized_intraday_pl') and p.unrealized_intraday_pl else 0,
-                "total_pl_pct": float(p.unrealized_plpc) * 100,
-                "total_pl": float(p.unrealized_pl),
+                "total_pl_pct": round(total_pl_pct, 3),
+                "total_pl": round(total_pl, 2),
             })
 
         # Recent orders (last 100 filled orders)
@@ -215,6 +240,29 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
 
         logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
                      len(filled_orders), len(rebalances))
+
+        # Adjust account equity and portfolio history for split corrections
+        equity_adjustment = 0
+        for p in api.list_positions():
+            if p.symbol in STOCK_SPLITS:
+                ratio = STOCK_SPLITS[p.symbol]
+                equity_adjustment += float(p.qty) * (ratio - 1) * float(p.current_price)
+
+        if equity_adjustment:
+            total_mv = sum(p["market_value"] for p in positions)
+            account_info["equity"] = round(account_info["cash"] + total_mv, 2)
+            logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
+            split_buy_date = None
+            for reb in rebalances:
+                for t in reb.get("trades", []):
+                    if t["symbol"] in STOCK_SPLITS and t["side"] == "buy":
+                        d = reb["date"]
+                        if split_buy_date is None or d < split_buy_date:
+                            split_buy_date = d
+            if split_buy_date:
+                for h in portfolio_history:
+                    if h["equity"] is not None and h["date"] > split_buy_date:
+                        h["equity"] = round(h["equity"] + equity_adjustment, 2)
 
         # Fetch SPY benchmark aligned to portfolio history dates
         spy_history = []

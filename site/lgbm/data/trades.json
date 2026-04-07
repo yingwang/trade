@@ -1,22 +1,22 @@
 {
   "account": {
-    "equity": 104448.17,
+    "equity": 104910.85,
     "cash": -49207.86,
-    "buying_power": 44789.19
+    "buying_power": 32444.67
   },
   "positions": [
     {
       "symbol": "ADBE",
       "qty": 31.0,
       "side": "long",
-      "current_price": 242.74,
-      "market_value": 7524.94,
+      "current_price": 244.0,
+      "market_value": 7564.0,
       "avg_entry_price": 242.41,
       "cost_basis": 7514.71,
-      "today_pl_pct": -0.661,
-      "today_pl": -50.065,
-      "total_pl_pct": 0.136,
-      "total_pl": 10.23
+      "today_pl_pct": -0.145,
+      "today_pl": -11.005,
+      "total_pl_pct": 0.656,
+      "total_pl": 49.29
     },
     {
       "symbol": "AMT",
@@ -35,79 +35,79 @@
       "symbol": "AVGO",
       "qty": 21.0,
       "side": "long",
-      "current_price": 343.8,
-      "market_value": 7219.8,
+      "current_price": 344.9626,
+      "market_value": 7244.21,
       "avg_entry_price": 307.09,
       "cost_basis": 6448.83,
-      "today_pl_pct": 9.341000000000001,
-      "today_pl": 616.77,
-      "total_pl_pct": 11.955,
-      "total_pl": 770.97
+      "today_pl_pct": 9.71,
+      "today_pl": 641.1846,
+      "total_pl_pct": 12.334,
+      "total_pl": 795.38
     },
     {
       "symbol": "BKNG",
       "qty": 75.0,
       "side": "long",
-      "current_price": 178.5,
-      "market_value": 13387.5,
+      "current_price": 178.06,
+      "market_value": 13354.5,
       "avg_entry_price": 169.34,
       "cost_basis": 12700.41,
-      "today_pl_pct": 1.311,
-      "today_pl": 6.93,
-      "total_pl_pct": 5.41,
-      "total_pl": 687.09
+      "today_pl_pct": 1.061,
+      "today_pl": 5.61,
+      "total_pl_pct": 5.15,
+      "total_pl": 654.09
     },
     {
       "symbol": "C",
       "qty": 94.0,
       "side": "long",
-      "current_price": 117.13,
-      "market_value": 11010.22,
+      "current_price": 119.5,
+      "market_value": 11233.0,
       "avg_entry_price": 115.64,
       "cost_basis": 10870.16,
-      "today_pl_pct": -0.196,
-      "today_pl": -21.62,
-      "total_pl_pct": 1.288,
-      "total_pl": 140.06
+      "today_pl_pct": 1.823,
+      "today_pl": 201.16,
+      "total_pl_pct": 3.338,
+      "total_pl": 362.84
     },
     {
       "symbol": "CRM",
       "qty": 37.0,
       "side": "long",
-      "current_price": 182.96,
-      "market_value": 6769.52,
+      "current_price": 186.35,
+      "market_value": 6894.95,
       "avg_entry_price": 183.71,
       "cost_basis": 6797.37,
-      "today_pl_pct": -1.119,
-      "today_pl": -76.59,
-      "total_pl_pct": -0.41,
-      "total_pl": -27.85
+      "today_pl_pct": 0.713,
+      "today_pl": 48.84,
+      "total_pl_pct": 1.436,
+      "total_pl": 97.58
     },
     {
       "symbol": "CRWD",
       "qty": 14.0,
       "side": "long",
-      "current_price": 431.7584,
-      "market_value": 6044.62,
+      "current_price": 434.0,
+      "market_value": 6076.0,
       "avg_entry_price": 394.11,
       "cost_basis": 5517.54,
-      "today_pl_pct": 8.315999999999999,
-      "today_pl": 464.0776,
-      "total_pl_pct": 9.553,
-      "total_pl": 527.08
+      "today_pl_pct": 8.878,
+      "today_pl": 495.46,
+      "total_pl_pct": 10.122,
+      "total_pl": 558.46
     },
     {
       "symbol": "DDOG",
       "qty": 115.0,
       "side": "long",
-      "current_price": 119.9181,
-      "market_value": 13790.58,
+      "current_price": 119.71,
+      "market_value": 13766.65,
       "avg_entry_price": 116.53,
       "cost_basis": 13400.41,
-      "today_pl_pct": 2.934,
-      "today_pl": 393.0815,
-      "total_pl_pct": 2.912,
-      "total_pl": 390.17
+      "today_pl_pct": 2.7550000000000003,
+      "today_pl": 369.15,
+      "total_pl_pct": 2.733,
+      "total_pl": 366.24
     },
     {
       "symbol": "DHR",
@@ -126,53 +126,53 @@
       "symbol": "GE",
       "qty": 31.0,
       "side": "long",
-      "current_price": 298.73,
-      "market_value": 9260.63,
+      "current_price": 298.57,
+      "market_value": 9255.67,
       "avg_entry_price": 286.45,
       "cost_basis": 8879.95,
-      "today_pl_pct": 3.4779999999999998,
-      "today_pl": 311.24,
-      "total_pl_pct": 4.287,
-      "total_pl": 380.68
+      "today_pl_pct": 3.422,
+      "today_pl": 306.28,
+      "total_pl_pct": 4.231,
+      "total_pl": 375.72
     },
     {
       "symbol": "NET",
       "qty": 66.0,
       "side": "long",
-      "current_price": 222.4167,
-      "market_value": 14679.5,
+      "current_price": 222.25,
+      "market_value": 14668.5,
       "avg_entry_price": 203.78,
       "cost_basis": 13449.48,
-      "today_pl_pct": 5.023,
-      "today_pl": 702.0222,
-      "total_pl_pct": 9.146,
-      "total_pl": 1230.02
+      "today_pl_pct": 4.944,
+      "today_pl": 691.02,
+      "total_pl_pct": 9.064,
+      "total_pl": 1219.02
     },
     {
       "symbol": "SBUX",
       "qty": 105.0,
       "side": "long",
-      "current_price": 96.25,
-      "market_value": 10106.25,
+      "current_price": 96.53,
+      "market_value": 10135.65,
       "avg_entry_price": 88.59,
       "cost_basis": 9302.4,
-      "today_pl_pct": 1.551,
-      "today_pl": 154.35,
-      "total_pl_pct": 8.641,
-      "total_pl": 803.85
+      "today_pl_pct": 1.846,
+      "today_pl": 183.75,
+      "total_pl_pct": 8.957,
+      "total_pl": 833.25
     },
     {
       "symbol": "SNOW",
       "qty": 68.0,
       "side": "long",
-      "current_price": 153.6929,
-      "market_value": 10451.12,
+      "current_price": 153.5,
+      "market_value": 10438.0,
       "avg_entry_price": 154.65,
       "cost_basis": 10516.2,
-      "today_pl_pct": 2.887,
-      "today_pl": 293.2772,
-      "total_pl_pct": -0.619,
-      "total_pl": -65.08
+      "today_pl_pct": 2.758,
+      "today_pl": 280.16,
+      "total_pl_pct": -0.744,
+      "total_pl": -78.2
     },
     {
       "symbol": "TJX",
@@ -191,14 +191,14 @@
       "symbol": "ZS",
       "qty": 77.0,
       "side": "long",
-      "current_price": 144.5,
-      "market_value": 11126.5,
+      "current_price": 145.49,
+      "market_value": 11202.73,
       "avg_entry_price": 137.21,
       "cost_basis": 10565.17,
-      "today_pl_pct": 3.569,
-      "today_pl": 383.46,
-      "total_pl_pct": 5.313,
-      "total_pl": 561.33
+      "today_pl_pct": 4.279,
+      "today_pl": 459.69,
+      "total_pl_pct": 6.035,
+      "total_pl": 637.56
     }
   ],
   "portfolio_history": [
@@ -289,17 +289,17 @@
     },
     {
       "date": "2026-04-02",
-      "equity": 112252.0,
+      "equity": 112220.32,
       "profit_loss": -600.0
     },
     {
       "date": "2026-04-03",
-      "equity": 113191.04,
+      "equity": 113159.36,
       "profit_loss": 939.04
     },
     {
       "date": "2026-04-07",
-      "equity": 101680.85,
+      "equity": 101649.17,
       "profit_loss": -11510.19
     }
   ],
@@ -324,7 +324,7 @@
   "rebalances": [
     {
       "date": "2026-04-02",
-      "portfolio_value": 91596.17,
+      "portfolio_value": 92090.53,
       "trades": [
         {
           "symbol": "AMT",
@@ -442,7 +442,7 @@
     },
     {
       "date": "2026-04-01",
-      "portfolio_value": 91596.17,
+      "portfolio_value": 92090.53,
       "trades": [
         {
           "symbol": "ZS",

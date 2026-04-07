@@ -269,8 +269,9 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
                 equity_adjustment += raw_qty * (ratio - 1) * current
 
         if equity_adjustment:
-            account_info["equity"] = round(account_info["equity"] + equity_adjustment, 2)
-            account_info["buying_power"] = round(account_info["buying_power"] + equity_adjustment, 2)
+            # Recompute equity = cash + sum of corrected market values
+            total_mv = sum(p["market_value"] for p in positions)
+            account_info["equity"] = round(account_info["cash"] + total_mv, 2)
             logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
             # Find earliest buy date of any split-affected stock
             split_buy_date = None
