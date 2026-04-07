@@ -227,32 +227,6 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
                 "total_pl": round(total_pl, 2),
             })
 
-        # Adjust account equity and portfolio history for split corrections.
-        # Alpaca's equity includes wrong market values for split-affected stocks.
-        equity_adjustment = 0
-        for p in api.list_positions():
-            sym = p.symbol
-            if sym in STOCK_SPLITS:
-                ratio = STOCK_SPLITS[sym]
-                raw_qty = float(p.qty)
-                current = float(p.current_price)
-                # Alpaca thinks market_value = raw_qty * current
-                # Correct market_value = raw_qty * ratio * current
-                equity_adjustment += raw_qty * (ratio - 1) * current
-
-        if equity_adjustment:
-            account_info["equity"] = round(account_info["equity"] + equity_adjustment, 2)
-            logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
-            # Adjust portfolio history (skip the first equity entry — it's
-            # the starting capital before any split distortion)
-            first_seen = False
-            for h in portfolio_history:
-                if h["equity"] is not None:
-                    if not first_seen:
-                        first_seen = True
-                        continue
-                    h["equity"] = round(h["equity"] + equity_adjustment, 2)
-
         # Recent orders (last 100 filled orders)
         orders = api.list_orders(status="closed", limit=200, direction="desc")
         filled_orders = [o for o in orders if o.status == "filled"]
@@ -281,6 +255,36 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
 
         logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
                      len(filled_orders), len(rebalances))
+
+        # Adjust account equity and portfolio history for split corrections.
+        # Alpaca paper trading doesn't process corporate actions, so equity
+        # and history include wrong market values for split-affected stocks.
+        equity_adjustment = 0
+        for p in api.list_positions():
+            sym = p.symbol
+            if sym in STOCK_SPLITS:
+                ratio = STOCK_SPLITS[sym]
+                raw_qty = float(p.qty)
+                current = float(p.current_price)
+                equity_adjustment += raw_qty * (ratio - 1) * current
+
+        if equity_adjustment:
+            account_info["equity"] = round(account_info["equity"] + equity_adjustment, 2)
+            account_info["buying_power"] = round(account_info["buying_power"] + equity_adjustment, 2)
+            logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
+            # Find earliest buy date of any split-affected stock
+            split_buy_date = None
+            for reb in rebalances:
+                for t in reb.get("trades", []):
+                    if t["symbol"] in STOCK_SPLITS and t["side"] == "buy":
+                        d = reb["date"]
+                        if split_buy_date is None or d < split_buy_date:
+                            split_buy_date = d
+            # Adjust portfolio history only for dates AFTER the buy date
+            if split_buy_date:
+                for h in portfolio_history:
+                    if h["equity"] is not None and h["date"] > split_buy_date:
+                        h["equity"] = round(h["equity"] + equity_adjustment, 2)
 
         # Fetch SPY benchmark aligned to portfolio history dates
         spy_history = []
