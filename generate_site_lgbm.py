@@ -141,6 +141,25 @@ def generate_trade_history():
     return _parse_local_trade_logs()
 
 
+# Stock splits not yet reflected in Alpaca's avg_entry_price.
+# Map symbol -> (split_ratio, effective_date) so we can adjust.
+STOCK_SPLITS = {
+    "BKNG": 25,  # 1:25 split, June 2024
+}
+
+
+def _adjust_for_splits(symbol, qty, avg_entry_price, cost_basis):
+    """Adjust position data for stock splits Alpaca hasn't accounted for."""
+    ratio = STOCK_SPLITS.get(symbol)
+    if ratio and avg_entry_price > 0:
+        # Heuristic: if entry price is ~ratio× current market price, it's unadjusted
+        adjusted_entry = avg_entry_price / ratio
+        adjusted_qty = qty * ratio
+        adjusted_cost = cost_basis  # total cost doesn't change
+        return adjusted_qty, adjusted_entry, adjusted_cost
+    return qty, avg_entry_price, cost_basis
+
+
 def _fetch_trades_from_alpaca(api_key, secret_key):
     """Pull trade history and current positions from Alpaca API."""
     try:
@@ -181,18 +200,31 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         # Current positions
         positions = []
         for p in api.list_positions():
+            qty = float(p.qty)
+            avg_entry = float(p.avg_entry_price)
+            cost = float(p.cost_basis)
+            current = float(p.current_price)
+
+            # Adjust for stock splits Alpaca hasn't reflected
+            qty, avg_entry, cost = _adjust_for_splits(p.symbol, qty, avg_entry, cost)
+
+            # Recompute P/L from adjusted values
+            market_value = qty * current
+            total_pl = market_value - cost
+            total_pl_pct = (total_pl / cost * 100) if cost else 0
+
             positions.append({
                 "symbol": p.symbol,
-                "qty": float(p.qty),
+                "qty": qty,
                 "side": p.side,
-                "current_price": float(p.current_price),
-                "market_value": float(p.market_value),
-                "avg_entry_price": float(p.avg_entry_price),
-                "cost_basis": float(p.cost_basis),
+                "current_price": current,
+                "market_value": round(market_value, 2),
+                "avg_entry_price": round(avg_entry, 2),
+                "cost_basis": round(cost, 2),
                 "today_pl_pct": float(p.unrealized_intraday_plpc) * 100 if hasattr(p, 'unrealized_intraday_plpc') and p.unrealized_intraday_plpc else 0,
                 "today_pl": float(p.unrealized_intraday_pl) if hasattr(p, 'unrealized_intraday_pl') and p.unrealized_intraday_pl else 0,
-                "total_pl_pct": float(p.unrealized_plpc) * 100,
-                "total_pl": float(p.unrealized_pl),
+                "total_pl_pct": round(total_pl_pct, 3),
+                "total_pl": round(total_pl, 2),
             })
 
         # Recent orders (last 100 filled orders)
