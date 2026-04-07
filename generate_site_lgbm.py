@@ -141,22 +141,20 @@ def generate_trade_history():
     return _parse_local_trade_logs()
 
 
-# Stock splits not yet reflected in Alpaca's avg_entry_price.
-# Map symbol -> (split_ratio, effective_date) so we can adjust.
+# Stock splits not yet reflected in Alpaca paper trading.
+# Map symbol -> (ratio, split_date). Correction applies from
+# max(split_date, buy_date) onwards.
 STOCK_SPLITS = {
-    "BKNG": 25,  # 1:25 split, June 2024
+    "BKNG": {"ratio": 25, "date": "2024-06-17"},  # 1:25 split
 }
 
 
 def _adjust_for_splits(symbol, qty, avg_entry_price, cost_basis):
     """Adjust position data for stock splits Alpaca hasn't accounted for."""
-    ratio = STOCK_SPLITS.get(symbol)
-    if ratio and avg_entry_price > 0:
-        # Heuristic: if entry price is ~ratio× current market price, it's unadjusted
-        adjusted_entry = avg_entry_price / ratio
-        adjusted_qty = qty * ratio
-        adjusted_cost = cost_basis  # total cost doesn't change
-        return adjusted_qty, adjusted_entry, adjusted_cost
+    split = STOCK_SPLITS.get(symbol)
+    if split and avg_entry_price > 0:
+        ratio = split["ratio"]
+        return qty * ratio, avg_entry_price / ratio, cost_basis
     return qty, avg_entry_price, cost_basis
 
 
@@ -261,30 +259,32 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         # and history include wrong market values for split-affected stocks.
         equity_adjustment = 0
         for p in api.list_positions():
-            sym = p.symbol
-            if sym in STOCK_SPLITS:
-                ratio = STOCK_SPLITS[sym]
-                raw_qty = float(p.qty)
-                current = float(p.current_price)
-                equity_adjustment += raw_qty * (ratio - 1) * current
+            split = STOCK_SPLITS.get(p.symbol)
+            if split:
+                ratio = split["ratio"]
+                equity_adjustment += float(p.qty) * (ratio - 1) * float(p.current_price)
 
         if equity_adjustment:
-            # Recompute equity = cash + sum of corrected market values
             total_mv = sum(p["market_value"] for p in positions)
             account_info["equity"] = round(account_info["cash"] + total_mv, 2)
             logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
-            # Find earliest buy date of any split-affected stock
-            split_buy_date = None
-            for reb in rebalances:
-                for t in reb.get("trades", []):
-                    if t["symbol"] in STOCK_SPLITS and t["side"] == "buy":
-                        d = reb["date"]
-                        if split_buy_date is None or d < split_buy_date:
-                            split_buy_date = d
-            # Adjust portfolio history only for dates AFTER the buy date
-            if split_buy_date:
+            # Find correction start date = max(split_date, buy_date) per symbol
+            cutoff_date = None
+            for sym, split in STOCK_SPLITS.items():
+                split_date = split["date"]
+                # Find earliest buy date for this symbol
+                buy_date = None
+                for reb in rebalances:
+                    for t in reb.get("trades", []):
+                        if t["symbol"] == sym and t["side"] == "buy":
+                            if buy_date is None or reb["date"] < buy_date:
+                                buy_date = reb["date"]
+                effective = max(split_date, buy_date) if buy_date else split_date
+                if cutoff_date is None or effective < cutoff_date:
+                    cutoff_date = effective
+            if cutoff_date:
                 for h in portfolio_history:
-                    if h["equity"] is not None and h["date"] > split_buy_date:
+                    if h["equity"] is not None and h["date"] > cutoff_date:
                         h["equity"] = round(h["equity"] + equity_adjustment, 2)
 
         # Fetch SPY benchmark aligned to portfolio history dates
