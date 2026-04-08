@@ -143,7 +143,11 @@ class PreTradeCheck:
 
         # 5. Position concentration check
         if portfolio_value > 0:
-            position_pct = (current_position_value + order_value) / portfolio_value
+            if order.side == "sell":
+                projected_position = max(0, current_position_value - order_value)
+            else:
+                projected_position = current_position_value + order_value
+            position_pct = projected_position / portfolio_value
             if position_pct > self.config.max_position_pct_of_portfolio:
                 reason = (
                     f"Position in {order.symbol} would be {position_pct:.1%} of portfolio, "

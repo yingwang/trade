@@ -233,7 +233,7 @@ class StrategyEnsemble:
                     returns, 21  # pred_horizon
                 )
                 y_ml = cs_targets.reindex(index=ml_dates, columns=ml_symbols).values
-                y_ml = np.nan_to_num(y_ml, nan=0.5)
+                # Keep NaN — _flatten() filters them via np.isfinite()
 
                 lgbm_model = LGBMRankingModel(
                     num_leaves=31,
@@ -412,7 +412,7 @@ class StrategyEnsemble:
                 )
                 cs_targets = self.feature_engine.get_cross_sectional_target(returns, 21)
                 y = cs_targets.reindex(index=dates, columns=syms).values
-                y = np.nan_to_num(y, nan=0.5)
+                # Keep NaN — _flatten() filters them via np.isfinite()
 
                 lgbm_model = LGBMRankingModel(
                     num_leaves=31, learning_rate=0.05,

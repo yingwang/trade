@@ -300,7 +300,7 @@ class LGBMStrategy:
             returns, self.pred_horizon
         )
         y = cs_targets.reindex(index=dates, columns=symbols).values
-        y = np.nan_to_num(y, nan=0.5)
+        # Keep NaN — _flatten() filters them via np.isfinite()
 
         if not ML_BACKEND_AVAILABLE:
             logger.error(
@@ -436,7 +436,7 @@ class LGBMStrategy:
             returns, self.pred_horizon
         )
         y = cs_targets.reindex(index=dates, columns=symbols).values
-        y = np.nan_to_num(y, nan=0.5)
+        # Keep NaN — _flatten() filters them via np.isfinite()
 
         # Train on all available data
         date_idx = len(dates) - 1
@@ -494,7 +494,7 @@ class LGBMStrategy:
                 returns, self.pred_horizon
             )
             y = cs_targets.reindex(index=dates, columns=symbols).values
-            y = np.nan_to_num(y, nan=0.5)
+            # Keep NaN — _flatten() filters them via np.isfinite()
 
             date_idx = len(dates) - 1
             self._train_model(X, y, date_idx, feature_names)

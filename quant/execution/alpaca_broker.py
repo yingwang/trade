@@ -238,12 +238,18 @@ class AlpacaBroker(BaseBroker):
             self.exec_log.log_order_filled(order, signal_price)
             self.safety.record_fill(order.quantity * order.filled_price)
         else:
-            order.status = "submitted"
             order.order_id = alpaca_order.id
-            logger.warning(
-                "Order for %s not filled within timeout, status=%s",
-                order.symbol, "submitted",
-            )
+            # Cancel unfilled/partially-filled order to prevent position drift
+            try:
+                self.api.cancel_order(alpaca_order.id)
+                logger.info("Cancelled timed-out order %s for %s", alpaca_order.id, order.symbol)
+                order.status = "cancelled"
+            except Exception as cancel_err:
+                logger.warning(
+                    "Failed to cancel timed-out order %s for %s: %s",
+                    alpaca_order.id, order.symbol, cancel_err,
+                )
+                order.status = "submitted"
 
         return order
 

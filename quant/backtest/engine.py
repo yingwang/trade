@@ -85,21 +85,25 @@ class BacktestEngine:
             if rd in dates:
                 rebalance_dates.add(rd)
 
+        pending_target = None  # Target weights waiting for T+1 execution
+
         for date in dates:
             px = prices_ffilled.loc[date, symbols]
             portfolio_value = cash + (holdings * px).sum()
 
-            # Rebalance if this is a rebalance date
-            if date in rebalance_dates:
-                target = target_weights_by_date.get(str(date.date()),
-                         target_weights_by_date.get(date, pd.Series(dtype=float)))
-                target = target.reindex(symbols).fillna(0)
+            # Execute pending rebalance at T+1 close (signal was computed at T)
+            if pending_target is not None:
+                target = pending_target
+                pending_target = None
 
-                target_shares = (portfolio_value * target / px).fillna(0).apply(np.floor)
+                # Reserve a fee buffer so target allocation doesn't push cash negative
+                fee_reserve_bps = self.txn_cost_bps + self.slippage_bps + self.impact_coeff
+                allocable = portfolio_value * (1 - fee_reserve_bps / 10000)
+
+                target_shares = (allocable * target / px).fillna(0).apply(np.floor)
                 trades = target_shares - holdings
 
                 # Apply transaction costs with market impact model
-                # cost = fixed_bps * trade_value + impact_coeff * sqrt(trade_value / portfolio) * trade_value
                 trade_value = (trades.abs() * px).sum()
                 fixed_cost = trade_value * (self.txn_cost_bps + self.slippage_bps) / 10000
                 participation = trade_value / portfolio_value if portfolio_value > 0 else 0
@@ -107,10 +111,9 @@ class BacktestEngine:
                 cost = fixed_cost + impact_cost
                 cash -= cost
 
-                # Execute trades
+                # Execute trades at T+1 close price
                 trade_cash = (trades * px).sum()
                 cash -= trade_cash
-                # Update entry prices: set for new/increased positions, clear for sold
                 new_positions = (holdings == 0) & (target_shares > 0)
                 entry_prices[new_positions] = px[new_positions]
                 closed_positions = target_shares == 0
@@ -123,6 +126,12 @@ class BacktestEngine:
                     "turnover": trade_value / portfolio_value if portfolio_value > 0 else 0,
                     "cost": cost,
                 })
+
+            # On signal day, capture target weights for next-day execution
+            if date in rebalance_dates:
+                target = target_weights_by_date.get(str(date.date()),
+                         target_weights_by_date.get(date, pd.Series(dtype=float)))
+                pending_target = target.reindex(symbols).fillna(0)
 
             portfolio_value = cash + (holdings * px).sum()
 
