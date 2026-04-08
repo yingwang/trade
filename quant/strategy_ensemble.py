@@ -323,12 +323,13 @@ class StrategyEnsemble:
             selected = self.optimizer.select_top_stocks(combined)
 
             ret_window = returns.loc[:date].tail(126)
-            selected_in_ret = [s for s in selected if s in ret_window.columns]
+            selected_in_ret = [s for s in selected if s in ret_window.columns
+                               and ret_window[s].notna().sum() > 20]
             if len(selected_in_ret) < 2:
                 continue
 
             if len(ret_window) > 20:
-                cov = _ledoit_wolf_shrinkage(ret_window[selected_in_ret])
+                cov = _ledoit_wolf_shrinkage(ret_window[selected_in_ret].fillna(0))
             else:
                 n = len(selected_in_ret)
                 cov = pd.DataFrame(
