@@ -228,6 +228,7 @@ class AlpacaBroker(BaseBroker):
                     int(order.quantity), order.filled_price,
                 )
                 order.quantity = filled_qty  # update to actual filled qty
+                self._cancel_open_order(alpaca_order.id, order.symbol, timed_out=True)
 
             logger.info(
                 "Filled: %s %s %d @ $%.2f (signal=$%.2f)",
@@ -239,19 +240,28 @@ class AlpacaBroker(BaseBroker):
             self.safety.record_fill(order.quantity * order.filled_price)
         else:
             order.order_id = alpaca_order.id
-            # Cancel unfilled/partially-filled order to prevent position drift
-            try:
-                self.api.cancel_order(alpaca_order.id)
-                logger.info("Cancelled timed-out order %s for %s", alpaca_order.id, order.symbol)
+            if self._cancel_open_order(alpaca_order.id, order.symbol, timed_out=True):
                 order.status = "cancelled"
-            except Exception as cancel_err:
-                logger.warning(
-                    "Failed to cancel timed-out order %s for %s: %s",
-                    alpaca_order.id, order.symbol, cancel_err,
-                )
+            else:
                 order.status = "submitted"
 
         return order
+
+    def _cancel_open_order(
+        self, order_id: str, symbol: str, timed_out: bool = False
+    ) -> bool:
+        """Cancel a still-open broker order and return whether it succeeded."""
+        reason = "timed-out " if timed_out else ""
+        try:
+            self.api.cancel_order(order_id)
+            logger.info("Cancelled %sorder %s for %s", reason, order_id, symbol)
+            return True
+        except Exception as cancel_err:
+            logger.warning(
+                "Failed to cancel %sorder %s for %s: %s",
+                reason, order_id, symbol, cancel_err,
+            )
+            return False
 
     def _execute_twap(
         self, order: Order, avg_daily_volume: float, signal_price: float

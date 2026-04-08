@@ -1,8 +1,10 @@
 """Tests for paper broker and order management."""
 
+from types import SimpleNamespace
 import pytest
 
 from quant.execution.broker import PaperBroker, Order, generate_rebalance_orders
+from quant.execution.alpaca_broker import AlpacaBroker
 import pandas as pd
 
 
@@ -64,3 +66,59 @@ class TestRebalanceOrders:
         sides = {o.symbol: o.side for o in orders}
         assert sides["BBBB"] == "sell"  # exit BBBB
         assert sides["CCCC"] == "buy"   # enter CCCC
+
+
+class TestAlpacaBroker:
+    def _make_broker(self):
+        broker = object.__new__(AlpacaBroker)
+
+        class FakeAPI:
+            def __init__(self):
+                self.cancelled = []
+
+            def submit_order(self, **kwargs):
+                return SimpleNamespace(id="abc")
+
+            def cancel_order(self, order_id):
+                self.cancelled.append(order_id)
+
+        class DummySafety:
+            def record_submission(self):
+                pass
+
+            def record_rejection(self):
+                pass
+
+            def record_fill(self, *args, **kwargs):
+                pass
+
+        class DummyLog:
+            def log_order_submitted(self, *args, **kwargs):
+                pass
+
+            def log_order_rejected(self, *args, **kwargs):
+                pass
+
+            def log_order_filled(self, *args, **kwargs):
+                pass
+
+        broker.api = FakeAPI()
+        broker.safety = DummySafety()
+        broker.exec_log = DummyLog()
+        return broker
+
+    def test_partial_fill_cancels_remaining_order(self):
+        broker = self._make_broker()
+        broker._wait_for_fill = lambda order_id, timeout=30: SimpleNamespace(
+            id="abc",
+            filled_qty="40",
+            filled_avg_price="10",
+            status="partially_filled",
+        )
+
+        order = Order(symbol="AAPL", side="buy", quantity=100, order_type="market")
+        result = broker._execute_single(order, signal_price=10.0)
+
+        assert result.status == "partial_fill"
+        assert result.quantity == 40.0
+        assert broker.api.cancelled == ["abc"]
