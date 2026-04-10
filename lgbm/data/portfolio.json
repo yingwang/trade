@@ -1,0 +1,105 @@
+{
+  "updated_at": "2026-04-10 21:47",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 88.6,
+  "cash_pct": 11.4,
+  "positions": [
+    {
+      "symbol": "XOM",
+      "weight_pct": 11.06,
+      "dollars": 110574.0,
+      "shares": 713,
+      "price": 155.04,
+      "score": 0.89
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 11.06,
+      "dollars": 110574.0,
+      "shares": 1664,
+      "price": 66.45,
+      "score": 0.9
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 11.06,
+      "dollars": 110574.0,
+      "shares": 319,
+      "price": 345.62,
+      "score": 0.94
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 7.97,
+      "dollars": 79700.0,
+      "shares": 652,
+      "price": 122.23,
+      "score": 1.0
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 7.97,
+      "dollars": 79700.0,
+      "shares": 731,
+      "price": 108.98,
+      "score": 0.97
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 7.97,
+      "dollars": 79700.0,
+      "shares": 189,
+      "price": 421.51,
+      "score": 0.98
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 7.97,
+      "dollars": 79700.0,
+      "shares": 602,
+      "price": 132.24,
+      "score": 0.99
+    },
+    {
+      "symbol": "ADBE",
+      "weight_pct": 7.04,
+      "dollars": 70441.0,
+      "shares": 306,
+      "price": 229.94,
+      "score": 0.96
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 6.04,
+      "dollars": 60378.0,
+      "shares": 151,
+      "price": 397.81,
+      "score": 0.95
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 4.03,
+      "dollars": 40253.0,
+      "shares": 23,
+      "price": 1727.26,
+      "score": 0.93
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 3.23,
+      "dollars": 32333.0,
+      "shares": 189,
+      "price": 170.85,
+      "score": 0.91
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.23,
+      "dollars": 32333.0,
+      "shares": 81,
+      "price": 394.68,
+      "score": 0.92
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "updated_at": "2026-04-10 21:49",
+  "backend": "lightgbm",
+  "train_window": 504,
+  "val_window": 63,
+  "pred_horizon": 21,
+  "retrain_every": 3,
+  "turnover_penalty": 0.1,
+  "hyperparameters": {
+    "num_leaves": 31,
+    "learning_rate": 0.05,
+    "n_estimators": 200,
+    "early_stopping_rounds": 20,
+    "min_child_samples": 20,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "random_state": 42
+  },
+  "training_runs": [],
+  "n_features": 46
+}

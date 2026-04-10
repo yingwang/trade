@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "volume_momentum"
+  ],
+  "stocks": {
+    "MU": {
+      "momentum": 3.164,
+      "high_proximity": 0.661,
+      "short_term_reversal": -1.039,
+      "vol_contraction": -0.859,
+      "volume_momentum": 1.42
+    },
+    "JNJ": {
+      "momentum": 1.682,
+      "high_proximity": 1.054,
+      "short_term_reversal": 0.643,
+      "vol_contraction": 0.92,
+      "volume_momentum": -0.541
+    },
+    "CAT": {
+      "momentum": 1.764,
+      "high_proximity": 1.668,
+      "short_term_reversal": -1.066,
+      "vol_contraction": -1.329,
+      "volume_momentum": -0.137
+    },
+    "GILD": {
+      "momentum": 1.363,
+      "high_proximity": 0.6,
+      "short_term_reversal": -0.061,
+      "vol_contraction": 0.958,
+      "volume_momentum": 0.58
+    },
+    "AMAT": {
+      "momentum": 1.701,
+      "high_proximity": 1.095,
+      "short_term_reversal": -0.855,
+      "vol_contraction": -1.077,
+      "volume_momentum": 0.664
+    },
+    "LRCX": {
+      "momentum": 1.69,
+      "high_proximity": 1.095,
+      "short_term_reversal": -1.229,
+      "vol_contraction": -1.255,
+      "volume_momentum": 0.861
+    },
+    "C": {
+      "momentum": 1.714,
+      "high_proximity": 1.804,
+      "short_term_reversal": -1.58,
+      "vol_contraction": -1.832,
+      "volume_momentum": 0.02
+    },
+    "TJX": {
+      "momentum": 1.078,
+      "high_proximity": 1.262,
+      "short_term_reversal": 0.122,
+      "vol_contraction": -0.383,
+      "volume_momentum": 0.986
+    },
+    "AMGN": {
+      "momentum": 1.014,
+      "high_proximity": 0.591,
+      "short_term_reversal": 0.101,
+      "vol_contraction": 0.872,
+      "volume_momentum": 1.159
+    },
+    "GS": {
+      "momentum": 1.397,
+      "high_proximity": 0.629,
+      "short_term_reversal": 0.517,
+      "vol_contraction": -0.844,
+      "volume_momentum": 0.381
+    },
+    "FCX": {
+      "momentum": 1.691,
+      "high_proximity": 0.345,
+      "short_term_reversal": -1.464,
+      "vol_contraction": -0.397,
+      "volume_momentum": 0.59
+    },
+    "INTC": {
+      "momentum": 1.373,
+      "high_proximity": 1.095,
+      "short_term_reversal": -2.229,
+      "vol_contraction": -0.12,
+      "volume_momentum": 1.321
+    }
+  }
+}
