@@ -225,12 +225,7 @@ class PortfolioOptimizer:
         except Exception as e:
             logger.warning("Optimization failed (%s), using score-proportional weights", e)
             weights = self._score_proportional(selected, scores, sector_map)
-
-        # Enforce constraints post-hoc
-        weights = weights.clip(lower=self.min_weight, upper=self.max_weight)
-        weights /= weights.sum()
-
-        return weights
+        return self._finalize_weights(weights, sector_map)
 
     def _score_proportional(self, selected: list[str], scores: pd.Series,
                              sector_map: Optional[pd.Series] = None) -> pd.Series:
@@ -241,9 +236,7 @@ class PortfolioOptimizer:
         """
         s = scores.reindex(selected).fillna(0)
         s = s - s.min() + 1e-6
-        w = s / s.sum()
-        w = w.clip(lower=self.min_weight, upper=self.max_weight)
-        w = w / w.sum()
+        w = self._enforce_bounds(s / s.sum())
 
         # Enforce sector constraints if sector_map is provided
         if sector_map is not None:
@@ -260,12 +253,69 @@ class PortfolioOptimizer:
                         breached = True
                 if not breached:
                     break
-                # Renormalize to sum to 1
-                w = w / w.sum()
-            w = w.clip(lower=self.min_weight, upper=self.max_weight)
-            w = w / w.sum()
+                w = self._enforce_bounds(w)
 
         return w
+
+    def _enforce_bounds(self, weights: pd.Series) -> pd.Series:
+        """Project weights into configured min/max bounds while preserving sum=1."""
+        w = weights.astype(float).copy()
+        n = len(w)
+        if n == 0:
+            return w
+
+        if self.min_weight * n > 1.0 + 1e-9 or self.max_weight * n < 1.0 - 1e-9:
+            logger.warning("Infeasible min/max bounds for %d positions; using equal weights", n)
+            return pd.Series(1.0 / n, index=w.index)
+
+        total = float(w.sum())
+        if total <= 0:
+            w[:] = 1.0 / n
+        else:
+            w /= total
+
+        for _ in range(20):
+            w = w.clip(lower=self.min_weight, upper=self.max_weight)
+            deficit = 1.0 - float(w.sum())
+            if abs(deficit) < 1e-10:
+                break
+
+            if deficit > 0:
+                free = (self.max_weight - w).clip(lower=0)
+            else:
+                free = (w - self.min_weight).clip(lower=0)
+            free_sum = float(free.sum())
+            if free_sum <= 1e-12:
+                break
+            w = w + deficit * (free / free_sum)
+
+        return w / w.sum()
+
+    def _finalize_weights(
+        self,
+        weights: pd.Series,
+        sector_map: Optional[pd.Series] = None,
+    ) -> pd.Series:
+        """Apply fallback-safe normalization without perturbing optimized solutions."""
+        weights = self._enforce_bounds(weights)
+        if sector_map is None or weights.empty:
+            return weights
+
+        sectors = sector_map.reindex(weights.index).dropna()
+        for _ in range(10):
+            breached = False
+            for sector_name in sectors.unique():
+                mask = sectors == sector_name
+                sector_w = weights[mask].sum()
+                if sector_w <= self.max_sector_weight + 1e-6:
+                    continue
+                weights[mask] = weights[mask] * (self.max_sector_weight / sector_w)
+                breached = True
+            if not breached:
+                break
+            weights = self._enforce_bounds(weights)
+
+        return weights
 
     def detect_regime(self, spy_returns: pd.Series) -> str:
         """Detect market regime from SPY realized volatility.

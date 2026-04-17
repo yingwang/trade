@@ -44,7 +44,8 @@ class BacktestEngine:
         self.rebalance_freq = port_cfg["rebalance_frequency_days"]
         self.margin_rate = config.get("leverage", {}).get("margin_annual_rate", 0.0)
         self.stop_loss_pct = config.get("risk", {}).get("stop_loss_pct", 0.0)
-        self.risk_free_rate = bt_cfg.get("risk_free_rate", config.get("risk_free_rate", 0.0))
+        annual_risk_free_rate = bt_cfg.get("risk_free_rate", config.get("risk_free_rate", 0.0))
+        self.risk_free_rate = annual_risk_free_rate / 252
         # Market impact: cost = fixed_bps + impact_coeff * sqrt(participation_rate)
         # where participation_rate = trade_value / portfolio_value (proxy for ADV fraction)
         self.impact_coeff = bt_cfg.get("market_impact_coeff", 2.5)  # bps per sqrt(participation)

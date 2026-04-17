@@ -83,6 +83,21 @@ class PaperBroker(BaseBroker):
         else:
             fill_price = price - slip
 
+        if order.order_type == "limit" and order.limit_price is not None:
+            buy_miss = order.side == "buy" and fill_price > order.limit_price
+            sell_miss = order.side == "sell" and fill_price < order.limit_price
+            if buy_miss or sell_miss:
+                order.status = "unfilled"
+                logger.info(
+                    "Limit order not filled: %s %s %.0f @ %.2f (market %.2f)",
+                    order.side.upper(),
+                    order.symbol,
+                    order.quantity,
+                    order.limit_price,
+                    fill_price,
+                )
+                return order
+
         trade_value = fill_price * order.quantity
         cost = trade_value * self.txn_cost_bps / 10000
 

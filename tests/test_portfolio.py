@@ -45,6 +45,14 @@ class TestPortfolioOptimizer:
         assert weights.max() <= config["portfolio"]["max_position_weight"] + 1e-6
         assert weights.min() >= config["portfolio"]["min_position_weight"] - 1e-6
 
+    def test_enforce_bounds_preserves_limits_after_normalization(self, config):
+        opt = PortfolioOptimizer(config)
+        raw = pd.Series({"A": 0.80, "B": 0.10, "C": 0.05, "D": 0.03, "E": 0.02})
+        weights = opt._enforce_bounds(raw)
+        assert abs(weights.sum() - 1.0) < 1e-6
+        assert weights.max() <= config["portfolio"]["max_position_weight"] + 1e-6
+        assert weights.min() >= config["portfolio"]["min_position_weight"] - 1e-6
+
     def test_vol_scaling_reduces_weights(self, config):
         opt = PortfolioOptimizer(config)
         weights = pd.Series({"A": 0.5, "B": 0.5})

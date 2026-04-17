@@ -55,6 +55,35 @@ class TestPaperBroker:
         result = broker.submit_order(order)
         assert result.filled_price > 100.0  # slippage increases buy price
 
+    def test_limit_buy_not_filled_above_limit(self):
+        broker = PaperBroker(initial_capital=100_000, slippage_bps=100)  # 1%
+        broker.update_prices({"AAAA": 100.0})
+        order = Order(
+            symbol="AAAA",
+            side="buy",
+            quantity=10,
+            order_type="limit",
+            limit_price=100.50,
+        )
+        result = broker.submit_order(order)
+        assert result.status == "unfilled"
+        assert broker.get_positions().empty
+
+    def test_limit_sell_not_filled_below_limit(self):
+        broker = PaperBroker(initial_capital=100_000, slippage_bps=100)
+        broker.update_prices({"AAAA": 100.0})
+        broker.submit_order(Order(symbol="AAAA", side="buy", quantity=10, order_type="market"))
+        order = Order(
+            symbol="AAAA",
+            side="sell",
+            quantity=10,
+            order_type="limit",
+            limit_price=99.50,
+        )
+        result = broker.submit_order(order)
+        assert result.status == "unfilled"
+        assert broker.get_positions()["AAAA"] == 10
+
 
 class TestRebalanceOrders:
     def test_generates_buys_and_sells(self):

@@ -9,6 +9,14 @@ from quant.backtest.report import monthly_returns_table, risk_report
 
 
 class TestBacktestEngine:
+    def test_risk_free_rate_is_converted_to_daily(self, config):
+        config = {
+            **config,
+            "backtest": {**config["backtest"], "risk_free_rate": 0.0525},
+        }
+        engine = BacktestEngine(config)
+        assert engine.risk_free_rate == pytest.approx(0.0525 / 252)
+
     def test_no_trades_preserves_capital(self, config, synthetic_prices):
         """With no rebalance targets, portfolio stays in cash."""
         engine = BacktestEngine(config)
