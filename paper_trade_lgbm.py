@@ -386,21 +386,28 @@ def main():
         )
 
         if filled and not args.dry_run:
-            # Update entry prices for new/changed positions
-            entry_prices = state.get("entry_prices", {})
-            prices = broker.get_current_prices(target_weights.index.tolist())
-            for trade in filled:
-                sym = trade["symbol"]
-                if trade["side"] == "buy" and trade["status"] in ("filled", "partial_fill"):
-                    entry_prices[sym] = trade["price"] or prices.get(sym, 0)
-                elif trade["side"] == "sell" and trade["status"] in ("filled", "partial_fill"):
-                    # If fully sold, remove entry price
-                    new_positions = broker.get_positions()
-                    if sym not in new_positions.index or new_positions[sym] == 0:
-                        entry_prices.pop(sym, None)
-            state["entry_prices"] = entry_prices
+            any_executed = any(
+                t["status"] in ("filled", "partial_fill") for t in filled
+            )
 
-            state["last_rebalance"] = datetime.now().isoformat()
+            if any_executed:
+                # Update entry prices for new/changed positions
+                entry_prices = state.get("entry_prices", {})
+                prices = broker.get_current_prices(target_weights.index.tolist())
+                for trade in filled:
+                    sym = trade["symbol"]
+                    if trade["side"] == "buy" and trade["status"] in ("filled", "partial_fill"):
+                        entry_prices[sym] = trade["price"] or prices.get(sym, 0)
+                    elif trade["side"] == "sell" and trade["status"] in ("filled", "partial_fill"):
+                        # If fully sold, remove entry price
+                        new_positions = broker.get_positions()
+                        if sym not in new_positions.index or new_positions[sym] == 0:
+                            entry_prices.pop(sym, None)
+                state["entry_prices"] = entry_prices
+                state["last_rebalance"] = datetime.now().isoformat()
+            else:
+                logger.warning("No orders filled — last_rebalance not updated")
+
             state["trade_history"].append({
                 "date": datetime.now().isoformat(),
                 "trades": filled,
