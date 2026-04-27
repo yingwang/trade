@@ -2,8 +2,10 @@ name: Paper Trade Rebalance (LightGBM)
 
 on:
   schedule:
-    # Same schedule as factor strategy - 3:55 PM ET weekdays
-    - cron: '55 19 * * 1-5'
+    # 18:00 UTC = 14:00 ET (EDT) / 13:00 ET (EST). 2h+ before close so
+    # GH Actions startup delay (often 30+ min) still leaves enough time
+    # for orders to fill during market hours.
+    - cron: '0 18 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
