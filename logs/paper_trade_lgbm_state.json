@@ -1,5 +1,5 @@
 {
-  "last_rebalance": null,
+  "last_rebalance": "2026-04-28T19:48:52.791085",
   "trade_history": [
     {
       "date": "2026-04-01T20:39:23.730359",
@@ -225,7 +225,286 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-04-28T19:48:52.791099",
+      "trades": [
+        {
+          "time": "2026-04-28T19:48:04.380838",
+          "symbol": "ADBE",
+          "side": "sell",
+          "qty": 31.0,
+          "status": "filled",
+          "price": 243.068387,
+          "signal_price": 243.09,
+          "order_id": "4fd0c3d3-8582-4ab2-88cc-9f001823d68f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:07.237684",
+          "symbol": "AMT",
+          "side": "sell",
+          "qty": 55.0,
+          "status": "filled",
+          "price": 176.582727,
+          "signal_price": 176.71,
+          "order_id": "e02d46e2-c798-439e-9eb9-b57033c8f7a9",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:08.993874",
+          "symbol": "AVGO",
+          "side": "sell",
+          "qty": 21.0,
+          "status": "filled",
+          "price": 400.98,
+          "signal_price": 400.89,
+          "order_id": "9fe823f7-7013-46a7-a2cd-32b7b9eef16b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:10.701443",
+          "symbol": "BKNG",
+          "side": "sell",
+          "qty": 3.0,
+          "status": "filled",
+          "price": 175.4,
+          "signal_price": 175.495,
+          "order_id": "4eda4601-b0dc-4701-8923-c3277c5af323",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:12.360748",
+          "symbol": "C",
+          "side": "sell",
+          "qty": 94.0,
+          "status": "filled",
+          "price": 128.36,
+          "signal_price": 128.38,
+          "order_id": "b798db7e-16bc-4fb6-be21-7d5669031221",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:13.970980",
+          "symbol": "CRM",
+          "side": "sell",
+          "qty": 37.0,
+          "status": "filled",
+          "price": 181.98,
+          "signal_price": 181.99,
+          "order_id": "e03feb38-a117-441b-8c7c-057cc47655f4",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:16.848089",
+          "symbol": "CRWD",
+          "side": "sell",
+          "qty": 14.0,
+          "status": "filled",
+          "price": 455.61,
+          "signal_price": 455.84,
+          "order_id": "40a99c4e-09dc-4d72-a985-c786059cf81e",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:19.436001",
+          "symbol": "DDOG",
+          "side": "sell",
+          "qty": 69.0,
+          "status": "filled",
+          "price": 131.33,
+          "signal_price": 131.43,
+          "order_id": "3c0b6bac-e600-42cf-a932-bd63ef3c36be",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:23.078139",
+          "symbol": "DHR",
+          "side": "sell",
+          "qty": 49.0,
+          "status": "filled",
+          "price": 179.4,
+          "signal_price": 179.475,
+          "order_id": "7189f164-6bee-44f8-ac66-f57693f8e3c6",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:24.624702",
+          "symbol": "GE",
+          "side": "sell",
+          "qty": 31.0,
+          "status": "filled",
+          "price": 288.94,
+          "signal_price": 289.095,
+          "order_id": "d8c123bb-ddb6-4f3f-b38a-9d8aeeced25d",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:27.136623",
+          "symbol": "NET",
+          "side": "sell",
+          "qty": 66.0,
+          "status": "filled",
+          "price": 208.53,
+          "signal_price": 208.6,
+          "order_id": "14648d38-c3a7-46ee-bdec-0465d3af74a1",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:28.585953",
+          "symbol": "SBUX",
+          "side": "sell",
+          "qty": 105.0,
+          "status": "filled",
+          "price": 96.84,
+          "signal_price": 96.905,
+          "order_id": "f771d127-62e3-4fb9-aaa6-ba5f7f2daac3",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:29.987147",
+          "symbol": "SNOW",
+          "side": "sell",
+          "qty": 25.0,
+          "status": "filled",
+          "price": 142.78,
+          "signal_price": 142.995,
+          "order_id": "71739cfa-7c18-47aa-81e8-f2dd3e1c5169",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:32.424552",
+          "symbol": "TJX",
+          "side": "sell",
+          "qty": 84.0,
+          "status": "filled",
+          "price": 156.92,
+          "signal_price": 156.93,
+          "order_id": "79485194-9a43-4c53-be71-844de1063185",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:33.787856",
+          "symbol": "ZS",
+          "side": "sell",
+          "qty": 32.0,
+          "status": "filled",
+          "price": 135.91,
+          "signal_price": 136.02,
+          "order_id": "80f960df-3c2b-412b-9bcb-e3af6b6f279c",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:35.139672",
+          "symbol": "COP",
+          "side": "buy",
+          "qty": 78,
+          "status": "filled",
+          "price": 124.22,
+          "signal_price": 124.13,
+          "order_id": "a90c1c80-2b68-4137-a843-e2d4aa668429",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:36.532862",
+          "symbol": "KLAC",
+          "side": "buy",
+          "qty": 3,
+          "status": "filled",
+          "price": 1822.19,
+          "signal_price": 1822.74,
+          "order_id": "48605840-7d9c-4edd-9a55-8f82c5e1a3e3",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:40.052639",
+          "symbol": "LRCX",
+          "side": "buy",
+          "qty": 24,
+          "status": "filled",
+          "price": 252.21,
+          "signal_price": 252.19,
+          "order_id": "9ed9900c-7f3c-4b27-af81-9ce9c57600fe",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:41.539452",
+          "symbol": "MCHP",
+          "side": "buy",
+          "qty": 73,
+          "status": "filled",
+          "price": 84.32,
+          "signal_price": 84.31,
+          "order_id": "d11d94d1-ce38-400e-a0c7-33482cd4d669",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:43.055415",
+          "symbol": "MU",
+          "side": "buy",
+          "qty": 12,
+          "status": "filled",
+          "price": 505.67,
+          "signal_price": 505.56,
+          "order_id": "d0aca07e-79cd-4fa1-86d6-cbb2a5a0cc01",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:45.637272",
+          "symbol": "NOW",
+          "side": "buy",
+          "qty": 68,
+          "status": "filled",
+          "price": 90.721324,
+          "signal_price": 90.69,
+          "order_id": "3dd0a341-99cb-4545-bea1-69cd7aa93fdf",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:47.244018",
+          "symbol": "ORCL",
+          "side": "buy",
+          "qty": 37,
+          "status": "filled",
+          "price": 166.21,
+          "signal_price": 166.42,
+          "order_id": "e2314e0d-1610-473f-ac14-a9ce7c4268cd",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:49.896199",
+          "symbol": "PANW",
+          "side": "buy",
+          "qty": 33,
+          "status": "filled",
+          "price": 181.883031,
+          "signal_price": 181.99,
+          "order_id": "3e8a7234-7310-4c08-92b5-2a092cdc126f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-04-28T19:48:51.557088",
+          "symbol": "UNH",
+          "side": "buy",
+          "qty": 26,
+          "status": "filled",
+          "price": 367.28,
+          "signal_price": 366.87,
+          "order_id": "c8a833e3-11fe-4596-a3b1-8c4650417215",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
-  "entry_prices": {}
+  "entry_prices": {
+    "COP": 124.22,
+    "KLAC": 1822.19,
+    "LRCX": 252.21,
+    "MCHP": 84.32,
+    "MU": 505.67,
+    "NOW": 90.721324,
+    "ORCL": 166.21,
+    "PANW": 181.883031,
+    "UNH": 367.28
+  }
 }
