@@ -91,3 +91,21 @@
 {"event": "order_filled", "symbol": "UNH", "side": "buy", "quantity": 26, "filled_price": 367.28, "signal_price": 366.87, "slippage_bps": 11.18, "order_id": "c8a833e3-11fe-4596-a3b1-8c4650417215", "timestamp": "2026-04-28T19:48:51.556934Z"}
 {"event": "rebalance_complete", "n_filled": 24, "n_rejected": 0, "total_value_traded": 184514.590037, "timestamp": "2026-04-28T19:48:51.557099Z"}
 {"event": "reconciliation", "portfolio_value": 92292.57, "n_positions": 12, "total_abs_drift_pct": 1.52, "max_drift_symbol": "KLAC", "max_drift_pct": 0.72, "timestamp": "2026-04-28T19:48:53.357259Z"}
+{"event": "rebalance_start", "portfolio_value": 105657.9, "n_orders": 15, "timestamp": "2026-04-28T20:00:24.887521Z"}
+{"event": "order_submitted", "symbol": "CAT", "side": "sell", "quantity": 3.0, "order_type": "market", "limit_price": null, "signal_price": 818.1, "timestamp": "2026-04-28T20:00:26.890935Z"}
+{"event": "order_submitted", "symbol": "FCX", "side": "sell", "quantity": 211.0, "order_type": "market", "limit_price": null, "signal_price": 58.205, "timestamp": "2026-04-28T20:00:59.563718Z"}
+{"event": "order_submitted", "symbol": "GILD", "side": "sell", "quantity": 84.0, "order_type": "market", "limit_price": null, "signal_price": 129.225, "timestamp": "2026-04-28T20:01:31.996138Z"}
+{"event": "order_submitted", "symbol": "GS", "side": "sell", "quantity": 3.0, "order_type": "market", "limit_price": null, "signal_price": 926.38, "timestamp": "2026-04-28T20:02:04.512120Z"}
+{"event": "order_submitted", "symbol": "LRCX", "side": "sell", "quantity": 7.0, "order_type": "market", "limit_price": null, "signal_price": 251.14, "timestamp": "2026-04-28T20:02:36.797947Z"}
+{"event": "order_submitted", "symbol": "MU", "side": "sell", "quantity": 3.0, "order_type": "market", "limit_price": null, "signal_price": 504.25, "timestamp": "2026-04-28T20:03:09.129368Z"}
+{"event": "order_submitted", "symbol": "USB", "side": "sell", "quantity": 57.0, "order_type": "market", "limit_price": null, "signal_price": 56.23, "timestamp": "2026-04-28T20:03:41.342416Z"}
+{"event": "order_submitted", "symbol": "WMT", "side": "sell", "quantity": 57.0, "order_type": "market", "limit_price": null, "signal_price": 127.595, "timestamp": "2026-04-28T20:04:13.969378Z"}
+{"event": "order_submitted", "symbol": "AMAT", "side": "buy", "quantity": 24, "order_type": "market", "limit_price": null, "signal_price": 380.81, "timestamp": "2026-04-28T20:04:46.412746Z"}
+{"event": "order_submitted", "symbol": "BMY", "side": "buy", "quantity": 48, "order_type": "market", "limit_price": null, "signal_price": 58.27, "timestamp": "2026-04-28T20:05:18.768011Z"}
+{"event": "order_submitted", "symbol": "C", "side": "buy", "quantity": 11.0, "order_type": "market", "limit_price": null, "signal_price": 128.53, "timestamp": "2026-04-28T20:05:51.099820Z"}
+{"event": "order_submitted", "symbol": "CSCO", "side": "buy", "quantity": 32, "order_type": "market", "limit_price": null, "signal_price": 86.87, "timestamp": "2026-04-28T20:06:23.464632Z"}
+{"event": "order_submitted", "symbol": "MRK", "side": "buy", "quantity": 11.0, "order_type": "market", "limit_price": null, "signal_price": 109.98, "timestamp": "2026-04-28T20:06:55.684580Z"}
+{"event": "order_submitted", "symbol": "TGT", "side": "buy", "quantity": 88, "order_type": "market", "limit_price": null, "signal_price": 127.12, "timestamp": "2026-04-28T20:07:28.056806Z"}
+{"event": "order_submitted", "symbol": "TJX", "side": "buy", "quantity": 22.0, "order_type": "market", "limit_price": null, "signal_price": 157.21, "timestamp": "2026-04-28T20:08:00.354015Z"}
+{"event": "rebalance_complete", "n_filled": 0, "n_rejected": 0, "total_value_traded": 0.0, "timestamp": "2026-04-28T20:08:31.433941Z"}
+{"event": "reconciliation", "portfolio_value": 105847.43, "n_positions": 16, "total_abs_drift_pct": 70.01, "max_drift_symbol": "FCX", "max_drift_pct": 11.6, "timestamp": "2026-04-28T20:08:33.031594Z"}
