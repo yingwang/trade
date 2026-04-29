@@ -2,10 +2,10 @@ name: Paper Trade Rebalance
 
 on:
   schedule:
-    # 17:30 UTC = 13:30 ET (EDT) / 12:30 ET (EST). 2.5h+ before close so
-    # GH Actions startup delay (often 1-2h) still leaves enough time
-    # for orders to fill during market hours.
-    - cron: '30 17 * * 1-5'
+    # 15:00 UTC = 11:00 ET (EDT) / 10:00 ET (EST). ~1.5h after open;
+    # 5h before close. With typical 1-2h GH Actions delay, orders go
+    # out mid-session with ample time to fill.
+    - cron: '0 15 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
