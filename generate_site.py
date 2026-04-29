@@ -242,17 +242,32 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
                      len(filled_orders), len(rebalances))
 
-        # Adjust account equity and portfolio history for split corrections
-        equity_adjustment = 0
+        # Adjust account equity and portfolio history for split corrections.
+        # See generate_site_lgbm.py for held vs sold breakdown.
+        held_adjustment = 0
         for p in api.list_positions():
             split = STOCK_SPLITS.get(p.symbol)
             if split:
-                equity_adjustment += float(p.qty) * (split["ratio"] - 1) * float(p.current_price)
+                held_adjustment += float(p.qty) * (split["ratio"] - 1) * float(p.current_price)
 
+        sold_credit = 0
+        for o in filled_orders:
+            split = STOCK_SPLITS.get(o.symbol)
+            if not split or o.side != "sell":
+                continue
+            fill_dt = str(o.filled_at)[:10] if o.filled_at else str(o.submitted_at)[:10]
+            if fill_dt >= split["date"]:
+                ratio = split["ratio"]
+                qty = float(o.filled_qty)
+                price = float(o.filled_avg_price) if o.filled_avg_price else 0
+                sold_credit += (ratio - 1) * qty * price
+
+        equity_adjustment = held_adjustment + sold_credit
         if equity_adjustment:
             total_mv = sum(p["market_value"] for p in positions)
-            account_info["equity"] = round(account_info["cash"] + total_mv, 2)
-            logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
+            account_info["equity"] = round(account_info["cash"] + sold_credit + total_mv, 2)
+            logger.info("Adjusted account equity by +$%.2f for stock splits (held=%.2f, sold=%.2f)",
+                        equity_adjustment, held_adjustment, sold_credit)
             cutoff_date = None
             for sym, split in STOCK_SPLITS.items():
                 split_date = split["date"]

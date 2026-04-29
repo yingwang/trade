@@ -257,17 +257,35 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         # Adjust account equity and portfolio history for split corrections.
         # Alpaca paper trading doesn't process corporate actions, so equity
         # and history include wrong market values for split-affected stocks.
-        equity_adjustment = 0
+        # Two cases: (a) currently held — positions[] already split-adjusted,
+        # but Alpaca cash is correct so equity needs +(ratio-1)*qty*price added;
+        # (b) sold post-split — Alpaca booked proceeds at qty×price (pre-split
+        # qty), missing (ratio-1)×qty×price of cash that should have come in.
+        held_adjustment = 0
         for p in api.list_positions():
             split = STOCK_SPLITS.get(p.symbol)
             if split:
                 ratio = split["ratio"]
-                equity_adjustment += float(p.qty) * (ratio - 1) * float(p.current_price)
+                held_adjustment += float(p.qty) * (ratio - 1) * float(p.current_price)
 
+        sold_credit = 0
+        for o in filled_orders:
+            split = STOCK_SPLITS.get(o.symbol)
+            if not split or o.side != "sell":
+                continue
+            fill_dt = str(o.filled_at)[:10] if o.filled_at else str(o.submitted_at)[:10]
+            if fill_dt >= split["date"]:
+                ratio = split["ratio"]
+                qty = float(o.filled_qty)
+                price = float(o.filled_avg_price) if o.filled_avg_price else 0
+                sold_credit += (ratio - 1) * qty * price
+
+        equity_adjustment = held_adjustment + sold_credit
         if equity_adjustment:
             total_mv = sum(p["market_value"] for p in positions)
-            account_info["equity"] = round(account_info["cash"] + total_mv, 2)
-            logger.info("Adjusted account equity by +$%.2f for stock splits", equity_adjustment)
+            account_info["equity"] = round(account_info["cash"] + sold_credit + total_mv, 2)
+            logger.info("Adjusted account equity by +$%.2f for stock splits (held=%.2f, sold=%.2f)",
+                        equity_adjustment, held_adjustment, sold_credit)
             # Find correction start date = max(split_date, buy_date) per symbol
             cutoff_date = None
             for sym, split in STOCK_SPLITS.items():
