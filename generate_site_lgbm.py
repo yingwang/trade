@@ -181,7 +181,7 @@ def _fetch_trades_from_alpaca(api_key, secret_key):
         # Portfolio equity history (daily) for actual P&L tracking
         portfolio_history = []
         try:
-            ph = api.get_portfolio_history(period="1M", timeframe="1D")
+            ph = api.get_portfolio_history(period="all", timeframe="1D")
             if ph and hasattr(ph, 'equity') and ph.equity:
                 import datetime as dt
                 for ts, eq, pl in zip(ph.timestamp, ph.equity, ph.profit_loss):
