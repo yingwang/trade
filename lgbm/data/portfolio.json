@@ -1,0 +1,105 @@
+{
+  "updated_at": "2026-05-04 22:10",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 69.5,
+  "cash_pct": 30.5,
+  "positions": [
+    {
+      "symbol": "DDOG",
+      "weight_pct": 8.34,
+      "dollars": 83367.0,
+      "shares": 593,
+      "price": 140.53,
+      "score": 1.0
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 8.34,
+      "dollars": 83367.0,
+      "shares": 324,
+      "price": 256.72,
+      "score": 0.99
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 8.34,
+      "dollars": 83367.0,
+      "shares": 596,
+      "price": 139.81,
+      "score": 0.98
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 8.34,
+      "dollars": 83367.0,
+      "shares": 914,
+      "price": 91.16,
+      "score": 0.97
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 7.62,
+      "dollars": 76162.0,
+      "shares": 140,
+      "price": 542.21,
+      "score": 0.96
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 6.59,
+      "dollars": 65870.0,
+      "shares": 467,
+      "price": 141.0,
+      "score": 0.95
+    },
+    {
+      "symbol": "ON",
+      "weight_pct": 5.56,
+      "dollars": 55578.0,
+      "shares": 539,
+      "price": 103.03,
+      "score": 0.94
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 4.53,
+      "dollars": 45286.0,
+      "shares": 274,
+      "price": 164.95,
+      "score": 0.93
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 3.5,
+      "dollars": 34994.0,
+      "shares": 22,
+      "price": 1583.48,
+      "score": 0.92
+    },
+    {
+      "symbol": "MCHP",
+      "weight_pct": 2.78,
+      "dollars": 27789.0,
+      "shares": 295,
+      "price": 93.95,
+      "score": 0.91
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 2.78,
+      "dollars": 27789.0,
+      "shares": 153,
+      "price": 181.08,
+      "score": 0.895
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 2.78,
+      "dollars": 27789.0,
+      "shares": 60,
+      "price": 455.64,
+      "score": 0.895
+    }
+  ]
+}

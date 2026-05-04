@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "volume_momentum"
+  ],
+  "stocks": {
+    "DDOG": {
+      "momentum": -0.42,
+      "high_proximity": -0.695,
+      "short_term_reversal": -0.824,
+      "vol_contraction": 1.235,
+      "volume_momentum": 0.32
+    },
+    "LRCX": {
+      "momentum": 1.621,
+      "high_proximity": 0.568,
+      "short_term_reversal": 1.015,
+      "vol_contraction": 1.004,
+      "volume_momentum": 1.169
+    },
+    "ZS": {
+      "momentum": -1.732,
+      "high_proximity": -2.218,
+      "short_term_reversal": -0.086,
+      "vol_contraction": 0.531,
+      "volume_momentum": 0.765
+    },
+    "NOW": {
+      "momentum": -1.089,
+      "high_proximity": -2.109,
+      "short_term_reversal": 0.248,
+      "vol_contraction": -1.272,
+      "volume_momentum": -0.995
+    },
+    "MU": {
+      "momentum": 2.684,
+      "high_proximity": 0.873,
+      "short_term_reversal": -0.928,
+      "vol_contraction": 0.687,
+      "volume_momentum": -1.604
+    },
+    "SNOW": {
+      "momentum": -0.995,
+      "high_proximity": -1.726,
+      "short_term_reversal": 0.324,
+      "vol_contraction": 0.693,
+      "volume_momentum": 0.222
+    },
+    "ON": {
+      "momentum": 0.545,
+      "high_proximity": 0.873,
+      "short_term_reversal": -0.308,
+      "vol_contraction": 0.042,
+      "volume_momentum": -0.568
+    },
+    "MRVL": {
+      "momentum": 1.508,
+      "high_proximity": 0.853,
+      "short_term_reversal": 0.319,
+      "vol_contraction": 0.715,
+      "volume_momentum": 2.085
+    },
+    "MPWR": {
+      "momentum": 0.63,
+      "high_proximity": 0.715,
+      "short_term_reversal": 0.81,
+      "vol_contraction": 0.296,
+      "volume_momentum": 0.155
+    },
+    "MCHP": {
+      "momentum": -0.233,
+      "high_proximity": 0.873,
+      "short_term_reversal": -0.361,
+      "vol_contraction": -0.916,
+      "volume_momentum": -0.333
+    },
+    "PANW": {
+      "momentum": -0.637,
+      "high_proximity": -0.09,
+      "short_term_reversal": 0.204,
+      "vol_contraction": 0.674,
+      "volume_momentum": -0.537
+    },
+    "CRWD": {
+      "momentum": -0.57,
+      "high_proximity": -0.094,
+      "short_term_reversal": 0.167,
+      "vol_contraction": 1.043,
+      "volume_momentum": 0.13
+    }
+  }
+}
