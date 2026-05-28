@@ -494,6 +494,209 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-05-28T20:38:58.279057",
+      "trades": [
+        {
+          "time": "2026-05-28T20:30:00.202460",
+          "symbol": "COP",
+          "side": "sell",
+          "qty": 78.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 114.96,
+          "order_id": "bcc1bd5e-c26e-477c-9d19-798ac3d8241f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:30:31.511444",
+          "symbol": "DDOG",
+          "side": "sell",
+          "qty": 46.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 225.3,
+          "order_id": "a98ffb49-ba7f-412a-8ad6-ba3006e6cad0",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:31:02.931128",
+          "symbol": "KLAC",
+          "side": "sell",
+          "qty": 3.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 1927.27,
+          "order_id": "3f1bbf34-789c-45de-b84d-5973279dd977",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:31:35.178190",
+          "symbol": "MU",
+          "side": "sell",
+          "qty": 12.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 927.86,
+          "order_id": "3e1838fc-e87b-4ea2-b784-42f2f93800db",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:32:07.337752",
+          "symbol": "ORCL",
+          "side": "sell",
+          "qty": 37.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 205.89,
+          "order_id": "93d83f77-b8a0-4e88-b4a7-7e128df92b4e",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:32:39.516820",
+          "symbol": "SNOW",
+          "side": "sell",
+          "qty": 7.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 239.01,
+          "order_id": "75403c72-eeeb-4928-b544-b42f330d7bcf",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:33:11.685525",
+          "symbol": "UNH",
+          "side": "sell",
+          "qty": 26.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 382.41,
+          "order_id": "2fda913e-6b72-43aa-87be-ada7cdb4c3c9",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:33:43.870765",
+          "symbol": "ZS",
+          "side": "sell",
+          "qty": 45.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 130.29,
+          "order_id": "dfe29ecf-4129-436d-9ffd-05435345a08b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:34:16.092122",
+          "symbol": "AMAT",
+          "side": "buy",
+          "qty": 19,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 449.84,
+          "order_id": "5b0f1791-45a6-48f2-a5bf-a65e3ad0465c",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:34:48.251041",
+          "symbol": "CAT",
+          "side": "buy",
+          "qty": 16,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 887.515,
+          "order_id": "d7b780d2-82f8-4b40-9cd0-2936844520cb",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:35:19.522805",
+          "symbol": "INTU",
+          "side": "buy",
+          "qty": 28,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 313.59,
+          "order_id": "52661916-8561-4a14-b38f-6a6506471e36",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:35:50.818793",
+          "symbol": "KO",
+          "side": "buy",
+          "qty": 183,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 80.44,
+          "order_id": "346161f5-f869-4662-9e82-2c6affa29277",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:36:22.077782",
+          "symbol": "LRCX",
+          "side": "buy",
+          "qty": 3.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 318.11,
+          "order_id": "74956e6f-23eb-4946-9970-6b16c3340281",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:36:53.360336",
+          "symbol": "MCHP",
+          "side": "buy",
+          "qty": 17.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 96.02,
+          "order_id": "fb9574b3-8db5-4e55-ad9b-75e1aecb99b5",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:37:24.553879",
+          "symbol": "MRVL",
+          "side": "buy",
+          "qty": 43,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 204.62,
+          "order_id": "40633349-ef48-4397-9ea7-df309b1db0a4",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:37:55.789123",
+          "symbol": "NOW",
+          "side": "buy",
+          "qty": 11.0,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 109.84,
+          "order_id": "f49b75fd-cf7f-453e-b5d2-fbbbc289ed73",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:38:27.008554",
+          "symbol": "ON",
+          "side": "buy",
+          "qty": 71,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 123.83,
+          "order_id": "2c0789f6-38b9-47be-8e88-253e1d1fbf18",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-05-28T20:38:58.278790",
+          "symbol": "V",
+          "side": "buy",
+          "qty": 45,
+          "status": "cancelled",
+          "price": null,
+          "signal_price": 324.93,
+          "order_id": "40402995-b4b7-4de2-8ff8-f8e248db615b",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "entry_prices": {
