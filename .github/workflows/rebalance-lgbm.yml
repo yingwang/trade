@@ -2,10 +2,12 @@ name: Paper Trade Rebalance (LightGBM)
 
 on:
   schedule:
-    # 18:00 UTC = 14:00 ET (EDT) / 13:00 ET (EST). 2h+ before close so
-    # GH Actions startup delay (often 30+ min) still leaves enough time
-    # for orders to fill during market hours.
-    - cron: '0 18 * * 1-5'
+    # 14:30 UTC = 10:30 ET (EDT) / 09:30 ET (EST), ~1h after the open (EDT).
+    # Moved earlier from 18:00 UTC: GH Actions scheduler delay (often 2h+) was
+    # pushing the run to ~16:00-16:28 ET, at/after the 16:00 ET close, so
+    # rebalance orders missed fills. At 14:30 UTC even a 2h delay lands the run
+    # mid-session with hours of runway before close.
+    - cron: '30 14 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
