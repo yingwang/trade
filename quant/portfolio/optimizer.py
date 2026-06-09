@@ -117,6 +117,13 @@ class PortfolioOptimizer:
                                          self.txn_cost_bps / 10000 * 5)
         self.max_turnover = pcfg.get("max_turnover_per_rebalance", 1.0)
 
+        # Per-position hard cap from the safety config: leverage scaling must
+        # not push any single position past what pre-trade checks allow,
+        # otherwise those orders get rejected at the broker and the actual
+        # portfolio silently drifts from the target.
+        self.max_position_pct_safety = config.get("safety", {}).get(
+            "max_position_pct_of_portfolio")
+
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
         valid = scores.dropna().sort_values(ascending=False)
@@ -361,6 +368,17 @@ class PortfolioOptimizer:
             logger.info("Vol scaling: port_vol=%.1f%%, regime=%s, scale=%.2f, "
                         "invested=%.1f%%", port_vol * 100, regime, scale,
                         weights.sum() * 100)
+
+        # Clip individual positions to the safety concentration limit so the
+        # broker's pre-trade check never rejects a leveraged target weight.
+        if self.max_position_pct_safety is not None:
+            over = weights > self.max_position_pct_safety
+            if over.any():
+                logger.info(
+                    "Capping %d position(s) at safety limit %.0f%%: %s",
+                    int(over.sum()), self.max_position_pct_safety * 100,
+                    weights[over].index.tolist())
+                weights = weights.clip(upper=self.max_position_pct_safety)
 
         return weights
 

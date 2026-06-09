@@ -38,7 +38,7 @@ import pandas as pd
 from quant.utils.config import load_config
 from quant.signals.lgbm_strategy import LGBMStrategy
 from quant.execution.broker import generate_rebalance_orders
-from quant.execution.safety import SafetyConfig, ExecutionLogger
+from quant.execution.safety import PreTradeCheck, SafetyConfig, ExecutionLogger
 
 logger = logging.getLogger(__name__)
 
@@ -194,10 +194,31 @@ def check_stop_losses(broker, optimizer, state, dry_run=False):
 
 
 def run_rebalance(strategy, broker, config, dry_run=False):
-    """Compute target portfolio and execute rebalance trades."""
+    """Compute target portfolio and execute rebalance trades.
+
+    Returns (filled, target_weights) where filled is:
+      - None if nothing was attempted (dry run, or daily loss kill-switch)
+      - [] if the portfolio is already at target (counts as a completed
+        rebalance)
+      - a list of trade records otherwise
+    """
     exec_log = ExecutionLogger()
     capital = broker.get_portfolio_value()
     logger.info("Computing LightGBM target portfolio for $%.2f...", capital)
+
+    # Daily loss kill-switch: if today's loss already exceeds the configured
+    # limit, do not trade into a falling market — skip the rebalance entirely.
+    if hasattr(broker, "get_daily_pnl"):
+        daily_pnl = broker.get_daily_pnl()
+        if daily_pnl is not None:
+            checker = PreTradeCheck(SafetyConfig.from_config(config))
+            ok, reason = checker.check_daily_loss_limit(unrealised_pnl=daily_pnl)
+            if not ok:
+                logger.error("Rebalance blocked by daily loss limit: %s", reason)
+                if not dry_run:
+                    return None, None
+                print(f"\n  ** DAILY LOSS LIMIT BREACHED ({reason}) — "
+                      f"live run would abort here **")
 
     # Check market hours (skip if dry run)
     if not dry_run and hasattr(broker, 'is_market_open'):
@@ -233,7 +254,7 @@ def run_rebalance(strategy, broker, config, dry_run=False):
 
     if not orders:
         print("\n  No trades needed - portfolio already at target.")
-        return None, target_weights
+        return [], target_weights
 
     # Show planned trades
     print(f"\n  TRADES TO EXECUTE ({len(orders)} orders):")
@@ -255,6 +276,15 @@ def run_rebalance(strategy, broker, config, dry_run=False):
         print("\n  ** DRY RUN - no orders submitted **\n")
         return None, target_weights
 
+    # Fetch average daily volume so the broker's liquidity check (max ADV
+    # fraction) and TWAP splitting can engage. Missing ADV data must not
+    # block trading — those orders are simply submitted without the check.
+    adv_map = strategy.data.fetch_adv([o.symbol for o in orders])
+    if adv_map:
+        logger.info("Fetched ADV for %d/%d order symbols", len(adv_map), len(orders))
+    else:
+        logger.warning("No ADV data available — liquidity checks skipped")
+
     # Execute trades
     exec_log.log_rebalance_start(capital, len(orders))
     print("\n  Executing trades...")
@@ -265,7 +295,7 @@ def run_rebalance(strategy, broker, config, dry_run=False):
     total_value_traded = 0.0
 
     for o in orders:
-        result = broker.submit_order(o)
+        result = broker.submit_order(o, avg_daily_volume=adv_map.get(o.symbol))
         record = {
             "time": datetime.now().isoformat(),
             "symbol": result.symbol,
@@ -384,6 +414,12 @@ def main():
         filled, target_weights = run_rebalance(
             strategy, broker, config, dry_run=args.dry_run
         )
+
+        if filled is not None and not args.dry_run and not filled:
+            # Portfolio already at target: counts as a completed rebalance,
+            # otherwise the strategy re-runs (and re-fetches data) every day.
+            state["last_rebalance"] = datetime.now().isoformat()
+            save_state(state)
 
         if filled and not args.dry_run:
             any_executed = any(

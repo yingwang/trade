@@ -76,7 +76,10 @@ class BacktestEngine:
         holdings = pd.Series(0.0, index=symbols)  # number of shares
         entry_prices = pd.Series(np.nan, index=symbols)  # track entry price per position
         equity_history = {}
-        benchmark_start = prices[benchmark_col].iloc[0] if benchmark_col in prices.columns else 1.0
+        if benchmark_col in prices.columns and prices[benchmark_col].notna().any():
+            benchmark_start = prices[benchmark_col].dropna().iloc[0]
+        else:
+            benchmark_start = 1.0
 
         current_weights = pd.Series(0.0, index=symbols)
 

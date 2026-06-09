@@ -36,7 +36,7 @@ class BaseBroker(ABC):
     """Abstract broker interface."""
 
     @abstractmethod
-    def submit_order(self, order: Order) -> Order:
+    def submit_order(self, order: Order, avg_daily_volume: float = None) -> Order:
         ...
 
     @abstractmethod
@@ -69,7 +69,7 @@ class PaperBroker(BaseBroker):
         """Feed latest prices into the paper broker."""
         self._prices = prices
 
-    def submit_order(self, order: Order) -> Order:
+    def submit_order(self, order: Order, avg_daily_volume: float = None) -> Order:
         price = self._prices.get(order.symbol)
         if price is None:
             order.status = "rejected"

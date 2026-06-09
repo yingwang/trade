@@ -53,6 +53,18 @@ class TestBacktestEngine:
         assert "Total Return" in m
         assert m["Num Trades"] > 0
 
+    def test_benchmark_curve_handles_leading_nan(self, config, synthetic_prices):
+        """A NaN benchmark price on the first day must not wipe out the curve."""
+        prices = synthetic_prices.copy()
+        prices.iloc[0, prices.columns.get_loc("BENCH")] = np.nan
+
+        engine = BacktestEngine(config)
+        result = engine.run(prices, {}, benchmark_col="BENCH")
+        assert result.benchmark_curve.notna().any()
+        # Normalized to initial capital at the first valid benchmark price
+        first_valid = result.benchmark_curve.dropna().iloc[0]
+        assert first_valid == pytest.approx(config["backtest"]["initial_capital"])
+
     def test_transaction_costs_reduce_returns(self, config, synthetic_prices):
         """Higher transaction costs should result in lower final equity."""
         # Low cost

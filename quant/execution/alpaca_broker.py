@@ -51,7 +51,7 @@ class AlpacaBroker(BaseBroker):
         self,
         api_key: str = None,
         secret_key: str = None,
-        paper: bool = True,
+        paper: Optional[bool] = None,
         safety_config: SafetyConfig = None,
     ):
         try:
@@ -63,10 +63,13 @@ class AlpacaBroker(BaseBroker):
 
         self.api_key = api_key or os.environ.get("ALPACA_API_KEY", "")
         self.secret_key = secret_key or os.environ.get("ALPACA_SECRET_KEY", "")
-        self.paper = (
-            paper if paper else
-            os.environ.get("ALPACA_PAPER", "true").lower() == "true"
-        )
+        # Explicit argument wins; otherwise fall back to ALPACA_PAPER env var
+        # (defaults to paper mode). Live trading is still gated by
+        # require_paper_mode below.
+        if paper is None:
+            self.paper = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
+        else:
+            self.paper = paper
 
         if not self.api_key or not self.secret_key:
             raise ValueError(
@@ -358,6 +361,19 @@ class AlpacaBroker(BaseBroker):
     def get_cash(self) -> float:
         account = self.api.get_account()
         return float(account.cash)
+
+    def get_daily_pnl(self) -> Optional[float]:
+        """Today's PnL in dollars (equity now vs yesterday's close).
+
+        Returns None if the account data is unavailable, so callers can
+        distinguish "no data" from "flat day".
+        """
+        try:
+            account = self.api.get_account()
+            return float(account.equity) - float(account.last_equity)
+        except Exception as e:
+            logger.warning("Could not compute daily PnL: %s", e)
+            return None
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get latest prices from Alpaca."""

@@ -76,6 +76,36 @@ class TestPortfolioOptimizer:
         assert scaled.sum() > 1.0  # leveraged
         assert scaled.sum() <= config["leverage"]["regime_leverage_caps"]["low_vol"] + 0.01
 
+    def test_vol_scaling_respects_safety_position_cap(self, config):
+        """Leveraged weights must not exceed the pre-trade concentration limit,
+        otherwise the broker rejects those orders and the portfolio drifts."""
+        config = {**config, "safety": {"max_position_pct_of_portfolio": 0.20}}
+        opt = PortfolioOptimizer(config)
+        # One position whose levered weight breaches the cap, eight that don't
+        syms = list("ABCDEFGHI")
+        weights = pd.Series([0.20] + [0.10] * 8, index=syms)
+        # Very low vol -> scale up to the low_vol leverage cap (1.5x)
+        cov = pd.DataFrame(
+            np.eye(9) * 0.0001 / 252,
+            index=syms, columns=syms,
+        )
+        scaled = opt.apply_vol_scaling(weights, cov, regime="low_vol")
+        assert scaled.sum() > 1.0  # still leveraged overall
+        assert scaled.max() <= 0.20 + 1e-9  # but no single position above cap
+        assert scaled["B"] == pytest.approx(0.15)  # uncapped positions levered
+
+    def test_vol_scaling_no_safety_section_unchanged(self, config):
+        """Without a safety section, scaling behaves exactly as before."""
+        assert "safety" not in config
+        opt = PortfolioOptimizer(config)
+        weights = pd.Series({"A": 0.5, "B": 0.5})
+        cov = pd.DataFrame(
+            [[0.0001, 0.0], [0.0, 0.0001]],
+            index=["A", "B"], columns=["A", "B"],
+        )
+        scaled = opt.apply_vol_scaling(weights, cov, regime="low_vol")
+        assert scaled.max() > 0.5  # levered above original weight, uncapped
+
     def test_detect_regime_low_vol(self, config):
         np.random.seed(0)
         opt = PortfolioOptimizer(config)
