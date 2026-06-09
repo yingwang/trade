@@ -40,5 +40,8 @@ def risk_report(returns: pd.Series) -> dict:
         "VaR 95%": ret.quantile(0.05),
         "CVaR 95%": ret[ret <= ret.quantile(0.05)].mean(),
         "Positive Days %": (ret > 0).mean(),
-        "Avg Win / Avg Loss": abs(ret[ret > 0].mean() / ret[ret < 0].mean()) if (ret < 0).any() else np.inf,
+        "Avg Win / Avg Loss": (
+            abs(ret[ret > 0].mean() / ret[ret < 0].mean())
+            if (ret > 0).any() and (ret < 0).any() else np.inf
+        ),
     }

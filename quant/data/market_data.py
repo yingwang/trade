@@ -54,6 +54,34 @@ class MarketData:
         prices = prices.dropna(how="all")
         return prices
 
+    def fetch_adv(self, symbols: list[str], window: int = 30) -> dict[str, float]:
+        """Average daily share volume over the trailing `window` trading days.
+
+        Used by pre-trade liquidity checks (max ADV fraction) and TWAP
+        splitting. Returns an empty dict on failure so callers can treat
+        missing ADV as "no liquidity data" rather than blocking trading.
+        """
+        if not symbols:
+            return {}
+        try:
+            start = (datetime.today() - timedelta(days=window * 2 + 10)).strftime("%Y-%m-%d")
+            data = yf.download(
+                list(symbols),
+                start=start,
+                interval="1d",
+                auto_adjust=True,
+                progress=False,
+            )
+            if isinstance(data.columns, pd.MultiIndex):
+                volume = data["Volume"]
+            else:
+                volume = data[["Volume"]].rename(columns={"Volume": symbols[0]})
+            adv = volume.tail(window).mean()
+            return {sym: float(v) for sym, v in adv.items() if pd.notna(v) and v > 0}
+        except Exception as e:
+            logger.warning("Could not fetch ADV data: %s", e)
+            return {}
+
     def fetch_ohlcv(self, symbol: str, start: str = None, end: str = None) -> pd.DataFrame:
         """Return OHLCV DataFrame for a single symbol."""
         if end is None:

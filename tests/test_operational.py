@@ -97,6 +97,126 @@ class TestPaperTradeHelpers:
             release_lock()
 
 
+# ── Rebalance safety wiring ─────────────────────────────────────────────────
+
+@pytest.fixture
+def quiet_exec_log():
+    """Keep run_rebalance from writing events to the real logs/ directory."""
+    with patch("paper_trade.ExecutionLogger", MagicMock()):
+        yield
+
+
+class TestRebalanceSafety:
+    def _config_with_safety(self, config):
+        return {**config, "safety": {"max_daily_loss": 25_000}}
+
+    def test_daily_loss_kill_switch_blocks_rebalance(self, config, quiet_exec_log):
+        """When today's loss exceeds the limit, no orders are computed or sent."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 1_000_000
+        broker.get_daily_pnl.return_value = -30_000  # breaches $25k limit
+
+        strategy = MagicMock()
+
+        filled, target = run_rebalance(
+            strategy, broker, self._config_with_safety(config), dry_run=False
+        )
+        assert filled is None and target is None
+        strategy.get_current_portfolio.assert_not_called()
+        broker.submit_order.assert_not_called()
+
+    def test_daily_loss_within_limit_proceeds(self, config, quiet_exec_log):
+        """A normal down day must not block the rebalance."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 1_000_000
+        broker.get_daily_pnl.return_value = -5_000
+        broker.get_positions.return_value = pd.Series({"AAAA": 500.0})
+        broker.get_current_prices.return_value = {"AAAA": 100.0}
+        broker.is_market_open.return_value = True
+
+        strategy = MagicMock()
+        # Target matches current holdings exactly -> no orders needed
+        portfolio = pd.DataFrame({
+            "score": [1.0], "weight": [0.05], "weight_pct": [5.0],
+            "dollars": [50_000.0], "shares": [500], "price": [100.0],
+        }, index=["AAAA"])
+        strategy.get_current_portfolio.return_value = portfolio
+
+        filled, target = run_rebalance(
+            strategy, broker, self._config_with_safety(config), dry_run=False
+        )
+        # Empty list (not None) signals "at target": main() records the
+        # rebalance as done instead of retrying daily.
+        assert filled == []
+        assert target is not None
+        broker.submit_order.assert_not_called()
+
+    def test_adv_passed_to_broker(self, config, quiet_exec_log):
+        """ADV reaches submit_order so liquidity checks / TWAP can engage."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 1_000_000
+        broker.get_daily_pnl.return_value = 0.0
+        broker.get_positions.return_value = pd.Series(dtype=float)
+        broker.get_current_prices.return_value = {"AAAA": 100.0}
+        broker.is_market_open.return_value = True
+        fill = MagicMock()
+        fill.status = "filled"
+        fill.quantity = 500
+        fill.filled_price = 100.0
+        broker.submit_order.return_value = fill
+
+        strategy = MagicMock()
+        portfolio = pd.DataFrame({
+            "score": [1.0], "weight": [0.05], "weight_pct": [5.0],
+            "dollars": [50_000.0], "shares": [500], "price": [100.0],
+        }, index=["AAAA"])
+        strategy.get_current_portfolio.return_value = portfolio
+        strategy.data.fetch_adv.return_value = {"AAAA": 2_000_000.0}
+
+        run_rebalance(strategy, broker, self._config_with_safety(config), dry_run=False)
+
+        strategy.data.fetch_adv.assert_called_once()
+        _, kwargs = broker.submit_order.call_args
+        assert kwargs["avg_daily_volume"] == 2_000_000.0
+
+
+# ── ADV fetching ────────────────────────────────────────────────────────────
+
+class TestFetchADV:
+    def _market_data(self, config):
+        from quant.data.market_data import MarketData
+        return MarketData(config)
+
+    def test_fetch_adv_returns_means(self, config):
+        md = self._market_data(config)
+        dates = pd.bdate_range("2026-01-01", periods=40)
+        cols = pd.MultiIndex.from_product([["Close", "Volume"], ["AAAA", "BBBB"]])
+        data = pd.DataFrame(1.0, index=dates, columns=cols)
+        data[("Volume", "AAAA")] = 1_000_000.0
+        data[("Volume", "BBBB")] = 2_000_000.0
+
+        with patch("quant.data.market_data.yf.download", return_value=data):
+            adv = md.fetch_adv(["AAAA", "BBBB"], window=30)
+        assert adv["AAAA"] == pytest.approx(1_000_000.0)
+        assert adv["BBBB"] == pytest.approx(2_000_000.0)
+
+    def test_fetch_adv_failure_returns_empty(self, config):
+        """Network failures must not block trading — empty dict means
+        'no liquidity data', and the ADV check is skipped downstream."""
+        md = self._market_data(config)
+        with patch("quant.data.market_data.yf.download", side_effect=Exception("boom")):
+            assert md.fetch_adv(["AAAA"]) == {}
+
+    def test_fetch_adv_empty_symbols(self, config):
+        assert self._market_data(config).fetch_adv([]) == {}
+
+
 # ── Stop-loss in backtest engine ────────────────────────────────────────────
 
 class TestBacktestStopLoss:
