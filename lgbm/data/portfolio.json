@@ -1,0 +1,105 @@
+{
+  "updated_at": "2026-06-12 22:32",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 68.2,
+  "cash_pct": 31.8,
+  "positions": [
+    {
+      "symbol": "FCX",
+      "weight_pct": 8.18,
+      "dollars": 81798.0,
+      "shares": 1233,
+      "price": 66.34,
+      "score": 0.96
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 5.48,
+      "dollars": 54750.0,
+      "shares": 434,
+      "price": 126.11,
+      "score": 1.0
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 5.48,
+      "dollars": 54750.0,
+      "shares": 151,
+      "price": 362.52,
+      "score": 0.98
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 5.48,
+      "dollars": 54750.0,
+      "shares": 34,
+      "price": 1589.55,
+      "score": 0.99
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 5.48,
+      "dollars": 54750.0,
+      "shares": 531,
+      "price": 103.08,
+      "score": 0.97
+    },
+    {
+      "symbol": "INTU",
+      "weight_pct": 5.46,
+      "dollars": 54604.0,
+      "shares": 197,
+      "price": 276.91,
+      "score": 0.95
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 5.45,
+      "dollars": 54527.0,
+      "shares": 98,
+      "price": 552.64,
+      "score": 0.94
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 5.45,
+      "dollars": 54451.0,
+      "shares": 225,
+      "price": 241.16,
+      "score": 0.93
+    },
+    {
+      "symbol": "NXPI",
+      "weight_pct": 5.44,
+      "dollars": 54375.0,
+      "shares": 179,
+      "price": 302.55,
+      "score": 0.92
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 5.43,
+      "dollars": 54298.0,
+      "shares": 294,
+      "price": 184.1,
+      "score": 0.91
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 5.43,
+      "dollars": 54297.0,
+      "shares": 111,
+      "price": 488.45,
+      "score": 0.9
+    },
+    {
+      "symbol": "MCHP",
+      "weight_pct": 5.43,
+      "dollars": 54297.0,
+      "shares": 584,
+      "price": 92.94,
+      "score": 0.89
+    }
+  ]
+}

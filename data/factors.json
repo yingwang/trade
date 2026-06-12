@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "volume_momentum"
+  ],
+  "stocks": {
+    "CAT": {
+      "momentum": 2.431,
+      "high_proximity": 1.197,
+      "short_term_reversal": 1.447,
+      "vol_contraction": -0.07,
+      "volume_momentum": 0.077
+    },
+    "MU": {
+      "momentum": 2.965,
+      "high_proximity": 0.619,
+      "short_term_reversal": -0.948,
+      "vol_contraction": 0.174,
+      "volume_momentum": -0.2
+    },
+    "INTC": {
+      "momentum": 2.803,
+      "high_proximity": 0.51,
+      "short_term_reversal": -1.458,
+      "vol_contraction": 0.902,
+      "volume_momentum": -1.03
+    },
+    "GOOGL": {
+      "momentum": 1.95,
+      "high_proximity": -0.119,
+      "short_term_reversal": 0.56,
+      "vol_contraction": 1.782,
+      "volume_momentum": 0.203
+    },
+    "C": {
+      "momentum": 1.858,
+      "high_proximity": 1.312,
+      "short_term_reversal": -0.654,
+      "vol_contraction": 0.396,
+      "volume_momentum": -0.127
+    },
+    "UNH": {
+      "momentum": 1.797,
+      "high_proximity": 1.058,
+      "short_term_reversal": -1.032,
+      "vol_contraction": 1.469,
+      "volume_momentum": -0.464
+    },
+    "AMZN": {
+      "momentum": 1.524,
+      "high_proximity": 0.51,
+      "short_term_reversal": 1.577,
+      "vol_contraction": 0.386,
+      "volume_momentum": 0.109
+    },
+    "TGT": {
+      "momentum": 1.61,
+      "high_proximity": 1.707,
+      "short_term_reversal": -1.181,
+      "vol_contraction": 0.732,
+      "volume_momentum": -0.524
+    },
+    "MS": {
+      "momentum": 1.599,
+      "high_proximity": 0.981,
+      "short_term_reversal": 1.472,
+      "vol_contraction": -0.837,
+      "volume_momentum": -0.145
+    },
+    "SLB": {
+      "momentum": 1.802,
+      "high_proximity": 1.588,
+      "short_term_reversal": 0.513,
+      "vol_contraction": -1.382,
+      "volume_momentum": -1.753
+    },
+    "GS": {
+      "momentum": 1.558,
+      "high_proximity": 0.64,
+      "short_term_reversal": 2.648,
+      "vol_contraction": -1.684,
+      "volume_momentum": -0.286
+    },
+    "SBUX": {
+      "momentum": 1.235,
+      "high_proximity": 1.178,
+      "short_term_reversal": -1.172,
+      "vol_contraction": 0.061,
+      "volume_momentum": 2.302
+    }
+  }
+}

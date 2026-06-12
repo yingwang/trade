@@ -1,0 +1,104 @@
+{
+  "updated_at": "2026-06-12 22:29",
+  "regime": "normal",
+  "total_invested_pct": 81.4,
+  "cash_pct": 18.6,
+  "positions": [
+    {
+      "symbol": "CAT",
+      "weight_pct": 9.77,
+      "dollars": 97728.0,
+      "shares": 108,
+      "price": 897.63,
+      "score": 1.6003
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 9.77,
+      "dollars": 97728.0,
+      "shares": 98,
+      "price": 995.87,
+      "score": 1.5092
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 9.77,
+      "dollars": 97728.0,
+      "shares": 835,
+      "price": 116.96,
+      "score": 1.3449
+    },
+    {
+      "symbol": "GOOGL",
+      "weight_pct": 8.6,
+      "dollars": 86007.0,
+      "shares": 240,
+      "price": 357.77,
+      "score": 1.2057
+    },
+    {
+      "symbol": "C",
+      "weight_pct": 7.42,
+      "dollars": 74163.0,
+      "shares": 537,
+      "price": 138.07,
+      "score": 1.153
+    },
+    {
+      "symbol": "UNH",
+      "weight_pct": 6.39,
+      "dollars": 63857.0,
+      "shares": 157,
+      "price": 405.55,
+      "score": 1.1071
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 5.58,
+      "dollars": 55759.0,
+      "shares": 230,
+      "price": 241.51,
+      "score": 1.0711
+    },
+    {
+      "symbol": "TGT",
+      "weight_pct": 5.08,
+      "dollars": 50844.0,
+      "shares": 383,
+      "price": 132.64,
+      "score": 1.0492
+    },
+    {
+      "symbol": "MS",
+      "weight_pct": 4.98,
+      "dollars": 49824.0,
+      "shares": 234,
+      "price": 212.66,
+      "score": 1.0447
+    },
+    {
+      "symbol": "GS",
+      "weight_pct": 4.69,
+      "dollars": 46920.0,
+      "shares": 45,
+      "price": 1035.64,
+      "score": 0.9747
+    },
+    {
+      "symbol": "SBUX",
+      "weight_pct": 4.69,
+      "dollars": 46920.0,
+      "shares": 458,
+      "price": 102.28,
+      "score": 0.9723
+    },
+    {
+      "symbol": "SLB",
+      "weight_pct": 4.69,
+      "dollars": 46920.0,
+      "shares": 837,
+      "price": 56.0,
+      "score": 0.9564
+    }
+  ]
+}
