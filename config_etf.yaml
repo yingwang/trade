@@ -1,0 +1,132 @@
+# Quant Trading System Configuration — HONEST CONTROL (ETF universe)
+#
+# 目的：把现有多因子动量策略原样跑在一个"天然无幸存者偏差"的池子上，
+# 用来回答"去掉作弊后到底还剩多少真 alpha"。
+#
+# 与 config.yaml 的唯一区别：universe.symbols 换成一篮子流动性好、历史深、
+# 几乎不退市的 ETF（行业 + 规模 + 国际 + 债券 + 商品）。
+# signals / portfolio / risk / leverage / safety / backtest 全部与主策略保持一致，
+# 这样对比才公平 —— 同一套逻辑，只换池子。
+#
+# 为什么 ETF 能消除幸存者偏差：
+#   - 这些是"按类别"发行的 ETF（科技/能源/债券/黄金…），不是按未来表现挑出来的赢家；
+#   - ETF 极少退市，不存在"今天名单里全是赢家"的问题；
+#   - 个别较新的 ETF（XLRE 2015、XLC 2018）上市前价格为 NaN，引擎会按 0 权重处理，
+#     不构成前视（上市本身与未来表现无关）。
+
+universe:
+  # ~31 liquid, deep-history, category-defined ETFs. No winner-picking.
+  symbols:
+    # Sector SPDRs (since 1998-12; XLRE 2015, XLC 2018)
+    - XLK   # technology
+    - XLF   # financials
+    - XLE   # energy
+    - XLV   # health care
+    - XLY   # consumer discretionary
+    - XLP   # consumer staples
+    - XLI   # industrials
+    - XLB   # materials
+    - XLU   # utilities
+    - XLRE  # real estate
+    - XLC   # communication services
+    # Broad / size / style
+    - QQQ   # nasdaq 100
+    - IWM   # russell 2000 (small cap)
+    - MDY   # s&p midcap 400
+    - DIA   # dow 30
+    # International
+    - EFA   # developed ex-US
+    - EEM   # emerging markets
+    - VGK   # europe
+    - EWJ   # japan
+    # Fixed income
+    - TLT   # 20y+ treasuries
+    - IEF   # 7-10y treasuries
+    - SHY   # 1-3y treasuries
+    - LQD   # investment-grade credit
+    - HYG   # high-yield credit
+    # Commodities / real assets
+    - GLD   # gold
+    - SLV   # silver
+    - DBC   # broad commodities
+    - USO   # crude oil
+    # Other equity sleeves
+    - VNQ   # us reits
+    - XBI   # biotech
+    - SMH   # semiconductors
+  benchmark: SPY
+
+data:
+  lookback_years: 5
+  frequency: 1d  # daily bars
+
+signals:
+  # IDENTICAL to config.yaml — same momentum logic, no changes.
+  momentum_windows: [42, 126, 252]
+  mean_reversion_window: 20
+  mean_reversion_zscore_threshold: 4.0
+  sma_short: 50
+  sma_long: 200
+  volatility_window: 63
+  industry_neutral: true           # no ETF sector map → falls back to cross-sectional z-score
+  winsorize_clip: 3.0
+  factor_weights:
+    momentum: 0.50
+    high_proximity: 0.20
+    short_term_reversal: 0.10
+    vol_contraction: 0.10
+    volume_momentum: 0.10
+    quality: 0.00
+    volatility: 0.00
+    value: 0.00
+    mean_reversion: 0.00
+    trend: 0.00
+
+portfolio:
+  # IDENTICAL to config.yaml — same concentration / vol target / rebalance / turnover.
+  max_positions: 12
+  max_position_weight: 0.12
+  min_position_weight: 0.03
+  target_volatility: 0.22
+  rebalance_frequency_days: 21
+  transaction_cost_bps: 10
+  max_turnover_per_rebalance: 0.40
+
+risk:
+  # IDENTICAL to config.yaml.
+  max_drawdown_limit: 0.25
+  max_sector_weight: 0.50
+  stop_loss_pct: 0.15
+
+leverage:
+  # IDENTICAL to config.yaml — same dynamic leverage so the comparison is fair.
+  max_leverage: 2.0
+  regime_spy_vol_window: 21
+  regime_thresholds:
+    low: 0.12
+    high: 0.25
+  regime_leverage_caps:
+    low_vol: 1.8
+    normal: 1.5
+    high_vol: 0.8
+  margin_annual_rate: 0.06
+
+safety:
+  # IDENTICAL to config.yaml.
+  max_single_order_value: 50000
+  max_single_order_shares: 10000
+  max_daily_trade_value: 500000
+  max_daily_loss: 25000
+  max_adv_fraction: 0.01
+  min_price: 1.0
+  max_position_pct_of_portfolio: 0.20
+  require_paper_mode: true
+
+backtest:
+  # Longer clean window than the stock config — includes the 2008 GFC and the
+  # 2009 momentum crash, which are the honest stress tests for a momentum book.
+  start_date: "2007-01-01"
+  end_date: null  # null = today
+  initial_capital: 1000000
+  slippage_bps: 5
+  market_impact_coeff: 2.5
