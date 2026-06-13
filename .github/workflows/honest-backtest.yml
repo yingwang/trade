@@ -1,0 +1,67 @@
+name: Honest Backtest (ETF control)
+
+# Runs the EXACT same multi-factor momentum strategy on a clean, survivorship-free
+# ETF universe (config_etf.yaml) to measure how much real alpha survives once the
+# stock-universe cheating is removed. Manual trigger only. No Alpaca, no secrets,
+# no commits — pure read-only backtest. Result is printed to the job summary.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'Backtest start date (YYYY-MM-DD)'
+        required: false
+        default: '2007-01-01'
+      end:
+        description: 'Backtest end date (YYYY-MM-DD, blank = today)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      - name: Run honest ETF backtest
+        id: bt
+        env:
+          PYTHONPATH: .
+        run: |
+          END_ARG=""
+          if [ -n "${{ github.event.inputs.end }}" ]; then
+            END_ARG="--end ${{ github.event.inputs.end }}"
+          fi
+          set -o pipefail
+          python run.py -c config_etf.yaml backtest \
+            --start "${{ github.event.inputs.start }}" $END_ARG \
+            | tee backtest_output.txt
+
+      - name: Publish result to job summary
+        if: always()
+        run: |
+          {
+            echo "# Honest Backtest — ETF control universe"
+            echo ""
+            echo "Same momentum engine as the main strategy, run on a clean ETF universe"
+            echo "(\`config_etf.yaml\`). Window: **${{ github.event.inputs.start }} → ${{ github.event.inputs.end || 'today' }}**."
+            echo ""
+            echo '```'
+            cat backtest_output.txt 2>/dev/null || echo "(no output captured)"
+            echo '```'
+            echo ""
+            echo "> Read 'Total Return' vs 'Benchmark Return' — the gap is the honest alpha"
+            echo "> (no survivorship bias, no look-ahead). Compare against the README's"
+            echo "> stock-universe numbers, which ride a hand-picked winners list."
+          } >> "$GITHUB_STEP_SUMMARY"
