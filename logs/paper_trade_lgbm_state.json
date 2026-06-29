@@ -1,5 +1,5 @@
 {
-  "last_rebalance": "2026-05-29T17:46:12.687568",
+  "last_rebalance": "2026-06-29T17:17:59.903176",
   "trade_history": [
     {
       "date": "2026-04-01T20:39:23.730359",
@@ -922,20 +922,201 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-06-29T17:17:59.903188",
+      "trades": [
+        {
+          "time": "2026-06-29T17:17:12.509873",
+          "symbol": "C",
+          "side": "sell",
+          "qty": 120.0,
+          "status": "filled",
+          "price": 143.2,
+          "signal_price": 143.19,
+          "order_id": "2ee727f0-f335-4f0e-a878-738062040063",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:14.498963",
+          "symbol": "FCX",
+          "side": "sell",
+          "qty": 58.0,
+          "status": "filled",
+          "price": 61.62,
+          "signal_price": 61.62,
+          "order_id": "5a5b6344-3355-4652-91f1-d9defd9cae2b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:19.655760",
+          "symbol": "LRCX",
+          "side": "sell",
+          "qty": 11.0,
+          "status": "filled",
+          "price": 410.88,
+          "signal_price": 411.05,
+          "order_id": "afe64a79-f0db-4a93-9278-5d0e619ea54e",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:22.791293",
+          "symbol": "MRVL",
+          "side": "sell",
+          "qty": 44.0,
+          "status": "filled",
+          "price": 272.67,
+          "signal_price": 272.68,
+          "order_id": "adc25113-a219-4893-ac8a-5dfec5f9f34c",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:26.842370",
+          "symbol": "PANW",
+          "side": "sell",
+          "qty": 32.0,
+          "status": "filled",
+          "price": 328.85,
+          "signal_price": 328.855,
+          "order_id": "76ad121d-c140-4306-8bf5-bdda0fd00d7e",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:28.692265",
+          "symbol": "TGT",
+          "side": "sell",
+          "qty": 120.0,
+          "status": "filled",
+          "price": 135.49,
+          "signal_price": 135.58,
+          "order_id": "61a9335f-b992-45ac-b269-007277eca74b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:30.517371",
+          "symbol": "ZS",
+          "side": "sell",
+          "qty": 11.0,
+          "status": "filled",
+          "price": 136.99,
+          "signal_price": 137.105,
+          "order_id": "eb0d4e57-13d6-4bf9-a6b6-bdacb81e97e5",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:34.406916",
+          "symbol": "ADBE",
+          "side": "buy",
+          "qty": 34,
+          "status": "filled",
+          "price": 205.421765,
+          "signal_price": 205.66,
+          "order_id": "ec131e59-adee-41e0-8d64-45a2ecbcfef4",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:38.448150",
+          "symbol": "AMD",
+          "side": "buy",
+          "qty": 13,
+          "status": "filled",
+          "price": 535.99,
+          "signal_price": 535.85,
+          "order_id": "a1dcb94a-32dc-4d47-b762-afdfa094b554",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:40.299680",
+          "symbol": "AVGO",
+          "side": "buy",
+          "qty": 19,
+          "status": "filled",
+          "price": 374.47,
+          "signal_price": 374.36,
+          "order_id": "7cff79a6-9831-4b06-9b70-6144798fd5ef",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:42.262387",
+          "symbol": "IBM",
+          "side": "buy",
+          "qty": 25,
+          "status": "filled",
+          "price": 276.55,
+          "signal_price": 276.44,
+          "order_id": "83def346-99ef-4f69-a2f5-4edfabdafcb5",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:46.500453",
+          "symbol": "MCHP",
+          "side": "buy",
+          "qty": 80,
+          "status": "filled",
+          "price": 89.08,
+          "signal_price": 88.96,
+          "order_id": "7963f382-598a-47c0-9fc1-ec26c59aab71",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:48.571312",
+          "symbol": "MPWR",
+          "side": "buy",
+          "qty": 5,
+          "status": "filled",
+          "price": 1329.46,
+          "signal_price": 1329.01,
+          "order_id": "5c49640a-570c-415e-ab5d-695562ff8dc8",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:51.782850",
+          "symbol": "NOW",
+          "side": "buy",
+          "qty": 6.0,
+          "status": "filled",
+          "price": 100.588333,
+          "signal_price": 100.48,
+          "order_id": "4c46c6d8-fabf-44cc-835c-ef367fe97cc6",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:55.061984",
+          "symbol": "NXPI",
+          "side": "buy",
+          "qty": 25,
+          "status": "filled",
+          "price": 278.42,
+          "signal_price": 278.03,
+          "order_id": "1dc74b78-8a36-4c53-9b2a-18cd37a4dc34",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:17:58.299755",
+          "symbol": "TXN",
+          "side": "buy",
+          "qty": 4.0,
+          "status": "filled",
+          "price": 290.04,
+          "signal_price": 289.81,
+          "order_id": "32605a53-e993-4675-8b38-84ff6cee5715",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "entry_prices": {
     "LRCX": 317.75,
-    "NOW": 90.721324,
-    "PANW": 181.883031,
-    "C": 126.13,
+    "NOW": 100.588333,
     "FCX": 65.6,
-    "INTU": 330.89,
-    "MRVL": 203.64,
-    "ON": 120.05,
-    "SLB": 54.92,
-    "TGT": 126.07,
-    "TXN": 307.87,
-    "ZS": 137.38
+    "TXN": 290.04,
+    "ZS": 137.38,
+    "ADBE": 205.421765,
+    "AMD": 535.99,
+    "AVGO": 374.47,
+    "IBM": 276.55,
+    "MCHP": 89.08,
+    "MPWR": 1329.46,
+    "NXPI": 278.42
   }
 }
