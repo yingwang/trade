@@ -1,5 +1,5 @@
 {
-  "last_rebalance": "2026-05-29T17:51:48.321790",
+  "last_rebalance": "2026-06-29T17:18:55.251766",
   "trade_history": [
     {
       "date": "2026-03-18T13:26:54.767470",
@@ -1141,19 +1141,200 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-06-29T17:18:55.251777",
+      "trades": [
+        {
+          "time": "2026-06-29T17:18:05.488299",
+          "symbol": "AMZN",
+          "side": "sell",
+          "qty": 38.0,
+          "status": "filled",
+          "price": 240.609737,
+          "signal_price": 240.65,
+          "order_id": "74121da2-79d2-4bba-9b0b-c3326353804c",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:08.680281",
+          "symbol": "BMY",
+          "side": "sell",
+          "qty": 55.0,
+          "status": "filled",
+          "price": 57.59,
+          "signal_price": 57.6,
+          "order_id": "877403e1-6303-4ff6-b19b-6c81c85a36fd",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:13.957679",
+          "symbol": "C",
+          "side": "sell",
+          "qty": 69.0,
+          "status": "filled",
+          "price": 143.26,
+          "signal_price": 143.3,
+          "order_id": "10dfd109-e7bb-4b55-838a-74ea79b4cdf2",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:17.057531",
+          "symbol": "CAT",
+          "side": "sell",
+          "qty": 3.0,
+          "status": "filled",
+          "price": 1027.09,
+          "signal_price": 1026.68,
+          "order_id": "4811495e-edc4-43d7-8dec-26d21950b79d",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:19.261136",
+          "symbol": "ELV",
+          "side": "sell",
+          "qty": 8.0,
+          "status": "filled",
+          "price": 389.61,
+          "signal_price": 389.81,
+          "order_id": "9c061b1e-7c34-4c6e-b550-ffa9d19211be",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:21.228784",
+          "symbol": "GOOGL",
+          "side": "sell",
+          "qty": 9.0,
+          "status": "filled",
+          "price": 352.49,
+          "signal_price": 352.58,
+          "order_id": "6e4c77b5-cb51-4efe-91f0-f09dc6f12f04",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:24.245963",
+          "symbol": "INTC",
+          "side": "sell",
+          "qty": 16.0,
+          "status": "filled",
+          "price": 129.768125,
+          "signal_price": 129.73,
+          "order_id": "d3149c19-7916-406d-8622-037bc59d86bc",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:28.388561",
+          "symbol": "MRVL",
+          "side": "sell",
+          "qty": 22.0,
+          "status": "filled",
+          "price": 272.95,
+          "signal_price": 272.92,
+          "order_id": "26fa21f7-18e0-433c-a5e7-b4fca4a4ba6b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:31.401942",
+          "symbol": "MU",
+          "side": "sell",
+          "qty": 3.0,
+          "status": "filled",
+          "price": 1121.82,
+          "signal_price": 1123.005,
+          "order_id": "138fe59f-9768-4add-9de2-e671b44add0b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:34.395806",
+          "symbol": "FCX",
+          "side": "buy",
+          "qty": 72,
+          "status": "filled",
+          "price": 61.66,
+          "signal_price": 61.66,
+          "order_id": "e583136b-751d-4872-964b-f481894fe59f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:36.394808",
+          "symbol": "GS",
+          "side": "buy",
+          "qty": 9,
+          "status": "filled",
+          "price": 1023.76,
+          "signal_price": 1023.355,
+          "order_id": "ae232104-1437-4a61-80e3-67b966fb46a0",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:39.538133",
+          "symbol": "MS",
+          "side": "buy",
+          "qty": 24,
+          "status": "filled",
+          "price": 214.03,
+          "signal_price": 213.95,
+          "order_id": "ed708b84-2247-4ab8-bc3e-16a445914666",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:43.807498",
+          "symbol": "SBUX",
+          "side": "buy",
+          "qty": 42,
+          "status": "filled",
+          "price": 104.23,
+          "signal_price": 104.225,
+          "order_id": "9f01151f-c16f-48c3-bdf8-89e55ab0d6d9",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:47.037601",
+          "symbol": "SLB",
+          "side": "buy",
+          "qty": 96,
+          "status": "filled",
+          "price": 46.61,
+          "signal_price": 46.62,
+          "order_id": "94c1c48f-987d-4480-a9c5-8d4fd554c4ed",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:49.283758",
+          "symbol": "TGT",
+          "side": "buy",
+          "qty": 8.0,
+          "status": "filled",
+          "price": 135.65,
+          "signal_price": 135.58,
+          "order_id": "8c116de4-3dd5-4a8a-a6cf-91eb029e7562",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-06-29T17:18:53.722936",
+          "symbol": "UNH",
+          "side": "buy",
+          "qty": 5.0,
+          "status": "filled",
+          "price": 419.11,
+          "signal_price": 419.17,
+          "order_id": "636d770a-e580-41f2-a77b-92b6a5eeef76",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "entry_prices": {
-    "BMY": 56.59,
     "C": 126.24,
-    "TGT": 127.39,
-    "AMZN": 271.338158,
+    "TGT": 135.65,
     "CAT": 869.1,
-    "ELV": 394.19,
     "GOOGL": 382.81,
     "INTC": 117.271481,
-    "MRVL": 204.2,
-    "SLB": 54.934035,
-    "UNH": 380.18
+    "UNH": 419.11,
+    "FCX": 61.66,
+    "GS": 1023.76,
+    "MS": 214.03,
+    "SBUX": 104.23,
+    "SLB": 46.61
   }
 }
