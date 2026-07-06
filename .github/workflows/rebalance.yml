@@ -2,10 +2,13 @@ name: Paper Trade Rebalance
 
 on:
   schedule:
-    # 14:30 UTC = 10:30 ET (EDT) / 09:30 ET (EST), ~1h after the open (EDT).
+    # 15:00 UTC = 11:00 ET (EDT) / 10:00 ET (EST) — comfortably mid-morning in
+    # both DST regimes (the old 14:30 UTC hit 09:30 ET in winter, i.e. the
+    # opening auction where spreads are widest). Staggered 10 min ahead of
+    # rebalance-lgbm.yml so the two workflows don't race each other's pushes.
     # With GH Actions' typical 1-2h+ scheduler delay the run still lands
     # mid-session with hours of runway before the 16:00 ET close.
-    - cron: '30 14 * * 1-5'
+    - cron: '0 15 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -87,5 +90,9 @@ jobs:
             echo "No state changes to commit"
           else
             git commit -m "chore: update trade state after rebalance [skip ci]"
+            # The LGBM workflow may have pushed its own state commit in the
+            # meantime (this race turned the 2026-06-29 run red); rebase our
+            # commit on top instead of failing the push.
+            git pull --rebase origin main
             git push
           fi

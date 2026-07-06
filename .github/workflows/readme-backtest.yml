@@ -1,0 +1,68 @@
+name: README Backtest Refresh
+
+# Recomputes the README performance tables (5y/3y/1y windows ending today)
+# and the 5-year chart, on Actions instead of a local machine. Manual
+# trigger only. No Alpaca, no secrets, no commits — tables go to the job
+# summary and the chart is uploaded as an artifact; a human pastes/commits
+# them so every README number stays traceable to a specific run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lgbm:
+        description: 'Also run the LightGBM strategy tables'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      - name: Recompute README tables
+        env:
+          PYTHONPATH: .
+        run: |
+          LGBM_ARG=""
+          if [ "${{ github.event.inputs.lgbm }}" = "true" ]; then
+            LGBM_ARG="--lgbm"
+          fi
+          set -o pipefail
+          python refresh_backtest_tables.py $LGBM_ARG | tee tables_output.txt
+
+      - name: Render 5-year chart
+        env:
+          PYTHONPATH: .
+        run: |
+          START=$(python -c "from datetime import date; from dateutil.relativedelta import relativedelta; print((date.today() - relativedelta(years=5)).isoformat())")
+          python run.py backtest --start "$START" --plot --plot-output backtest_5yr.png
+
+      - name: Publish tables to job summary
+        if: always()
+        run: |
+          {
+            echo "# README backtest tables — windows ending $(date -u +%F)"
+            echo ""
+            echo '```'
+            cat tables_output.txt 2>/dev/null || echo "(no output captured)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload chart artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-5yr-chart
+          path: backtest_5yr.png
