@@ -2,12 +2,12 @@
 """Generate static dashboard data for GitHub Pages.
 
 Produces JSON data files in site/data/ that are loaded by the
-static HTML dashboard. Run daily after US market close.
+static HTML dashboard. Run daily after US market close (via the
+update-site.yml workflow — do not run locally against the live account).
 """
 
 import json
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +19,7 @@ matplotlib.use("Agg")
 
 from quant.utils.config import load_config
 from quant.strategy import MultiFactorStrategy
+from site_common import fetch_trade_history
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -26,12 +27,10 @@ logger = logging.getLogger(__name__)
 OUTPUT_DIR = Path("site/data")
 
 
-def generate_portfolio_data(strategy, config):
+def generate_portfolio_data(strategy, portfolio):
     """Section 1: Current portfolio recommendation."""
-    portfolio = strategy.get_current_portfolio()
-
-    # Get regime
-    prices = strategy.data.fetch_prices()
+    # Reuse the prices already fetched by get_current_portfolio
+    prices = strategy.last_prices_ if strategy.last_prices_ is not None else strategy.data.fetch_prices()
     returns = strategy.data.compute_returns(prices)
     spy_ret = returns.get(strategy.data.benchmark)
     regime = strategy.optimizer.detect_regime(spy_ret) if spy_ret is not None else "normal"
@@ -52,18 +51,17 @@ def generate_portfolio_data(strategy, config):
             "dollars": float(round(row["dollars"], 0)),
             "shares": int(row["shares"]),
             "price": float(row["price"]),
-            "score": round(float(row["score"]), 4),
+            "score": round(float(row["score"]), 4) if pd.notna(row["score"]) else None,
         })
     return data
 
 
-def generate_factor_data(strategy):
+def generate_factor_data(strategy, portfolio):
     """Section 3: Factor score breakdown for held stocks."""
     factors = getattr(strategy.signal_gen, "last_factors_", {})
     if not factors:
         return {"factors": [], "stocks": {}}
 
-    portfolio = strategy.get_current_portfolio()
     held_symbols = portfolio.index.tolist()
 
     active_factors = [name for name, w in strategy.signal_gen.weights.items()
@@ -116,298 +114,29 @@ def generate_backtest_data(strategy):
     return data
 
 
-def generate_trade_history():
-    """Section 4: Fetch trade history from Alpaca API.
-
-    Falls back to local log files if Alpaca API keys are not available.
-    """
-    import os
-
-    api_key = os.environ.get("ALPACA_API_KEY", "")
-    secret_key = os.environ.get("ALPACA_SECRET_KEY", "")
-
-    if api_key and secret_key:
-        return _fetch_trades_from_alpaca(api_key, secret_key)
-
-    logger.warning("No Alpaca API keys found, falling back to local logs")
-    return _parse_local_trade_logs()
-
-
-# Stock splits not yet reflected in Alpaca paper trading.
-STOCK_SPLITS = {
-    "BKNG": {"ratio": 25, "date": "2026-04-06"},  # 1:25 split
-}
-
-
-def _adjust_for_splits(symbol, qty, avg_entry_price, cost_basis):
-    """Adjust position data for stock splits Alpaca hasn't accounted for."""
-    split = STOCK_SPLITS.get(symbol)
-    if split and avg_entry_price > 0:
-        ratio = split["ratio"]
-        return qty * ratio, avg_entry_price / ratio, cost_basis
-    return qty, avg_entry_price, cost_basis
-
-
-def _fetch_trades_from_alpaca(api_key, secret_key):
-    """Pull trade history and current positions from Alpaca API."""
-    try:
-        import alpaca_trade_api as tradeapi
-    except ImportError:
-        logger.warning("alpaca-trade-api not installed, falling back to local logs")
-        return _parse_local_trade_logs()
-
-    try:
-        api = tradeapi.REST(api_key, secret_key,
-                            "https://paper-api.alpaca.markets", api_version="v2")
-
-        # Current account info
-        account = api.get_account()
-        account_info = {
-            "equity": float(account.equity),
-            "cash": float(account.cash),
-            "buying_power": float(account.buying_power),
-        }
-
-        # Portfolio equity history (daily) for actual P&L tracking
-        portfolio_history = []
-        try:
-            ph = api.get_portfolio_history(period="all", timeframe="1D")
-            if ph and hasattr(ph, 'equity') and ph.equity:
-                import datetime as dt
-                for ts, eq, pl in zip(ph.timestamp, ph.equity, ph.profit_loss):
-                    d = dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                    portfolio_history.append({
-                        "date": d,
-                        "equity": float(eq) if eq else None,
-                        "profit_loss": float(pl) if pl else None,
-                    })
-                logger.info("Fetched %d days of portfolio history from Alpaca", len(portfolio_history))
-        except Exception as e:
-            logger.warning("Could not fetch portfolio history: %s", e)
-
-        # Current positions
-        positions = []
-        for p in api.list_positions():
-            qty = float(p.qty)
-            avg_entry = float(p.avg_entry_price)
-            cost = float(p.cost_basis)
-            current = float(p.current_price)
-
-            qty, avg_entry, cost = _adjust_for_splits(p.symbol, qty, avg_entry, cost)
-
-            market_value = qty * current
-            total_pl = market_value - cost
-            total_pl_pct = (total_pl / cost * 100) if cost else 0
-
-            positions.append({
-                "symbol": p.symbol,
-                "qty": qty,
-                "side": p.side,
-                "current_price": current,
-                "market_value": round(market_value, 2),
-                "avg_entry_price": round(avg_entry, 2),
-                "cost_basis": round(cost, 2),
-                "today_pl_pct": float(p.unrealized_intraday_plpc) * 100 if hasattr(p, 'unrealized_intraday_plpc') and p.unrealized_intraday_plpc else 0,
-                "today_pl": float(p.unrealized_intraday_pl) if hasattr(p, 'unrealized_intraday_pl') and p.unrealized_intraday_pl else 0,
-                "total_pl_pct": round(total_pl_pct, 3),
-                "total_pl": round(total_pl, 2),
-            })
-
-        # Recent orders (last 100 filled orders)
-        orders = api.list_orders(status="closed", limit=200, direction="desc")
-        filled_orders = [o for o in orders if o.status == "filled"]
-
-        # Group orders by date into "rebalances"
-        from collections import defaultdict
-        by_date = defaultdict(list)
-        for o in filled_orders:
-            filled = str(o.filled_at) if o.filled_at else str(o.submitted_at)
-            date = filled[:10]
-            by_date[date].append({
-                "symbol": o.symbol,
-                "side": o.side,
-                "quantity": float(o.filled_qty),
-                "price": float(o.filled_avg_price) if o.filled_avg_price else 0,
-                "slippage_bps": 0,
-            })
-
-        rebalances = []
-        for date in sorted(by_date.keys(), reverse=True):
-            rebalances.append({
-                "date": date,
-                "portfolio_value": account_info["equity"],
-                "trades": by_date[date],
-            })
-
-        logger.info("Fetched %d orders across %d rebalance dates from Alpaca",
-                     len(filled_orders), len(rebalances))
-
-        # Adjust account equity and portfolio history for split corrections.
-        # See generate_site_lgbm.py for held vs sold breakdown.
-        held_adjustment = 0
-        for p in api.list_positions():
-            split = STOCK_SPLITS.get(p.symbol)
-            if split:
-                held_adjustment += float(p.qty) * (split["ratio"] - 1) * float(p.current_price)
-
-        sold_credit = 0
-        for o in filled_orders:
-            split = STOCK_SPLITS.get(o.symbol)
-            if not split or o.side != "sell":
-                continue
-            fill_dt = str(o.filled_at)[:10] if o.filled_at else str(o.submitted_at)[:10]
-            if fill_dt >= split["date"]:
-                ratio = split["ratio"]
-                qty = float(o.filled_qty)
-                price = float(o.filled_avg_price) if o.filled_avg_price else 0
-                sold_credit += (ratio - 1) * qty * price
-
-        equity_adjustment = held_adjustment + sold_credit
-        if equity_adjustment:
-            total_mv = sum(p["market_value"] for p in positions)
-            account_info["equity"] = round(account_info["cash"] + sold_credit + total_mv, 2)
-            logger.info("Adjusted account equity by +$%.2f for stock splits (held=%.2f, sold=%.2f)",
-                        equity_adjustment, held_adjustment, sold_credit)
-            cutoff_date = None
-            for sym, split in STOCK_SPLITS.items():
-                split_date = split["date"]
-                buy_date = None
-                for reb in rebalances:
-                    for t in reb.get("trades", []):
-                        if t["symbol"] == sym and t["side"] == "buy":
-                            if buy_date is None or reb["date"] < buy_date:
-                                buy_date = reb["date"]
-                effective = max(split_date, buy_date) if buy_date else split_date
-                if cutoff_date is None or effective < cutoff_date:
-                    cutoff_date = effective
-            if cutoff_date:
-                for h in portfolio_history:
-                    if h["equity"] is not None and h["date"] > cutoff_date:
-                        h["equity"] = round(h["equity"] + equity_adjustment, 2)
-
-        # Fetch SPY benchmark aligned to portfolio history dates
-        spy_history = []
-        valid_hist = [h for h in portfolio_history if h["equity"]]
-        if valid_hist:
-            try:
-                import yfinance as yf
-                from datetime import timedelta
-                start_date = valid_hist[0]["date"]
-                # yfinance end is exclusive, add 2 days buffer
-                end_dt = datetime.strptime(valid_hist[-1]["date"], "%Y-%m-%d") + timedelta(days=2)
-                spy = yf.download("SPY", start=start_date, end=end_dt.strftime("%Y-%m-%d"), progress=False)
-                if not spy.empty:
-                    if hasattr(spy.columns, 'levels'):
-                        spy.columns = spy.columns.get_level_values(0)
-                    # Build date->close lookup, forward-fill for non-trading days
-                    spy_by_date = {}
-                    last_close = None
-                    for idx_date, row in spy.iterrows():
-                        last_close = float(row["Close"])
-                        spy_by_date[idx_date.strftime("%Y-%m-%d")] = last_close
-                    start_equity = valid_hist[0]["equity"]
-                    first_spy = spy_by_date.get(valid_hist[0]["date"])
-                    if first_spy is None:
-                        # Use earliest available SPY price
-                        first_spy = float(spy["Close"].iloc[0])
-                    # Emit one SPY point per portfolio history date
-                    last_spy_close = first_spy
-                    for h in valid_hist:
-                        d = h["date"]
-                        if d in spy_by_date:
-                            last_spy_close = spy_by_date[d]
-                        spy_equity = start_equity * last_spy_close / first_spy
-                        spy_history.append({"date": d, "equity": round(spy_equity, 2)})
-                    logger.info("Fetched %d days of SPY benchmark data", len(spy_history))
-            except Exception as e:
-                logger.warning("Could not fetch SPY benchmark: %s", e)
-
-        return {
-            "account": account_info,
-            "positions": positions,
-            "portfolio_history": portfolio_history,
-            "spy_history": spy_history,
-            "rebalances": rebalances,
-        }
-
-    except Exception as e:
-        logger.error("Failed to fetch from Alpaca: %s, falling back to local logs", e)
-        return _parse_local_trade_logs()
-
-
-def _parse_local_trade_logs():
-    """Fallback: parse local log files for trade history."""
-    rebalances = []
-
-    # Try trade_events.jsonl first
-    events_file = Path("logs/trade_events.jsonl")
-    if events_file.exists():
-        current = None
-        for line in events_file.read_text().strip().split("\n"):
-            if not line.strip():
-                continue
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if event.get("event") == "rebalance_start":
-                current = {
-                    "date": event.get("timestamp", "")[:10],
-                    "portfolio_value": event.get("portfolio_value", 0),
-                    "trades": [],
-                }
-                rebalances.append(current)
-            elif event.get("event") == "order_filled" and current is not None:
-                current["trades"].append({
-                    "symbol": event.get("symbol", ""),
-                    "side": event.get("side", ""),
-                    "quantity": event.get("quantity", 0),
-                    "price": event.get("filled_price", 0),
-                    "slippage_bps": round(event.get("slippage_bps", 0), 2),
-                })
-
-    # Fallback to paper_trade_state.json
-    state_file = Path("logs/paper_trade_state.json")
-    if not rebalances and state_file.exists():
-        state = json.loads(state_file.read_text())
-        for entry in state.get("trade_history", []):
-            reb = {
-                "date": entry.get("date", "")[:10],
-                "portfolio_value": 0,
-                "trades": [],
-            }
-            for t in entry.get("trades", []):
-                if t.get("status") == "filled":
-                    reb["trades"].append({
-                        "symbol": t.get("symbol", ""),
-                        "side": t.get("side", ""),
-                        "quantity": t.get("qty", 0),
-                        "price": t.get("price", 0),
-                        "slippage_bps": 0,
-                    })
-            if reb["trades"]:
-                rebalances.append(reb)
-
-    return {"rebalances": rebalances}
-
-
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     config = load_config()
     strategy = MultiFactorStrategy(config)
 
-    # Order matters: portfolio first populates last_factors_
+    # Compute the current portfolio ONCE (it fetches prices, fundamentals and
+    # runs the optimizer) and share it between the sections that need it.
+    logger.info("Computing current portfolio...")
+    current_portfolio = strategy.get_current_portfolio()
+
     logger.info("Generating portfolio data...")
-    portfolio = generate_portfolio_data(strategy, config)
+    portfolio = generate_portfolio_data(strategy, current_portfolio)
 
     logger.info("Generating factor data...")
-    factors = generate_factor_data(strategy)
+    factors = generate_factor_data(strategy, current_portfolio)
 
     logger.info("Generating backtest data...")
     backtest = generate_backtest_data(strategy)
 
     logger.info("Generating trade history...")
-    trades = generate_trade_history()
+    trades = fetch_trade_history(
+        "ALPACA_API_KEY", "ALPACA_SECRET_KEY", "logs/paper_trade_state.json"
+    )
 
     # Write JSON files
     for name, data in [("portfolio", portfolio), ("backtest", backtest),

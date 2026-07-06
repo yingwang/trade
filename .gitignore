@@ -12,11 +12,21 @@ build/
 env/
 venv/
 *.png
+!backtest_5yr*.png
 *.csv
 *.pkl
 .DS_Store
 
-# Logs and trading state (contains personal trading data)
+# Dashboard data is generated fresh by update-site.yml and published to
+# gh-pages; snapshots must not live on main (they only go stale and mislead)
+site/data/
+site/lgbm/data/
+
+# Logs and trading state (contains personal trading data).
+# The two state files and the trade event log ARE tracked: the rebalance
+# workflows commit them to main as the durable record of live state.
 logs/
 !logs/paper_trade_state.json
+!logs/paper_trade_lgbm_state.json
+!logs/trade_events.jsonl
 *.log
