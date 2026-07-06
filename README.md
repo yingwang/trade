@@ -10,9 +10,9 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 ## Backtest Performance / 回测表现
 
-> **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, volume momentum, volatility contraction), 12 concentrated positions, 22% target volatility, 3-week rebalance with 40% turnover cap, dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. No look-ahead bias — fundamental factors disabled due to yfinance data limitations.
+> **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, trend persistence, volatility contraction), 12 concentrated positions, 22% target volatility, 3-week rebalance with a 40% cap on total turnover (exit legs and leverage changes included), dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. Sharpe/Sortino computed against a 4% risk-free rate. Fundamental factors disabled due to yfinance look-ahead limitations.
 >
-> **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 成交量动量10%），12只集中持仓，22%目标波动率，3周再平衡+40%换手上限，快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。无前视偏差——基本面因子因yfinance数据限制已禁用。
+> **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10%），12只集中持仓，22%目标波动率，3周再平衡+40%总换手上限（含退出腿与杠杆变化），快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。Sharpe/Sortino 按 4% 无风险利率计算。基本面因子因yfinance前视偏差已禁用。
 
 ### 5-Year Backtest (2021-06 → 2026-06)
 
@@ -66,28 +66,28 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 | Parameter / 参数 | Value / 值 | Description / 说明 |
 |---------|-------|-------------|
-| **Alpha Signals** | 5 factors | 动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 成交量动量10% |
+| **Alpha Signals** | 5 factors | 动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10% |
 | **Positions** | 12 | 集中持仓，高信念选股 |
 | **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
 | **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
 | **Rebalance** | Every 21 trading days | 3周再平衡，降低换手成本 |
-| **Max Turnover** | 40% per rebalance | 单次换手上限，防止过度交易 |
+| **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡 |
 | **Max Sector** | 50% | 允许科技股集中但有上限 |
-| **Max Drawdown** | 25% | 组合回撤超限时停止交易 |
-| **Stop Loss** | 15% | 单只股票止损线 |
+| **Max Drawdown** | 25% | 回测层面的风险监控指标；实盘的对应保护是日亏损熔断与每日止损 |
+| **Stop Loss** | 15% | 单只股票止损线，回测与实盘均每日检查 |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
 | **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数(2.5) × √(参与率) |
 
 ### Signal Pipeline / 信号管道
 
 ```
-Price Data (yfinance)
+Price Data (yfinance, live path behind a hard data-quality gate)
     │
     ├── Momentum (42d/126d/252d, skip 1m) ─── 50%
     ├── 52-Week High Proximity ──────────── 20%
     ├── Short-Term Reversal (5d) ────────── 10%
     ├── Volatility Contraction (10d/63d) ── 10%
-    ├── Volume Momentum (21d autocorr) ──── 10%
+    ├── Trend Persistence (21d autocorr) ── 10%
     │   └── All: Industry-neutral z-score → Winsorize ±3
     │
     ├── Trend Filter: price < 200d SMA → score × 0.5
@@ -96,13 +96,14 @@ Price Data (yfinance)
         ▼
     Portfolio Optimizer (Ledoit-Wolf covariance + 5x turnover penalty)
         │
-        ├── Max 40% turnover per rebalance
         ├── Sector constraints (max 50% per sector)
         ├── Vol-targeting (22% annual, regime-adjusted)
-        └── Dynamic leverage (21d SPY vol regime detection)
+        ├── Dynamic leverage (21d SPY vol regime detection)
+        └── Total turnover cap: 40% per rebalance, on final weights,
+            including exit legs and leverage changes
             │
             ▼
-    Execution (Alpaca API with safety checks)
+    Execution (Alpaca API with safety checks; T+1 close in backtest)
 ```
 
 ### Disabled Factors / 已禁用因子
@@ -186,29 +187,41 @@ python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 ```
 trade/
 ├── config.yaml                 # 策略配置（进攻型）
-├── run.py                      # CLI：回测与信号
-├── paper_trade.py              # Alpaca 自动交易
+├── config_etf.yaml             # honest-backtest 的 ETF 对照池配置
+├── run.py                      # CLI：回测与信号（含 backtest-lgbm / ensemble）
+├── paper_trade.py              # Alpaca 自动交易入口（多因子账户）
+├── paper_trade_lgbm.py         # Alpaca 自动交易入口（LightGBM 账户）
+├── paper_trade_common.py       # 两个交易入口的共享实现
+├── generate_site.py            # 看板数据生成（多因子；仅在 Actions 上跑）
+├── generate_site_lgbm.py       # 看板数据生成（LightGBM；仅在 Actions 上跑）
+├── site_common.py              # 看板脚本共享逻辑（拆股修正、交易历史）
+├── refresh_backtest_tables.py  # README 表格重算（经 readme-backtest workflow）
 ├── quant/
-│   ├── strategy.py             # 主策略调度器
+│   ├── strategy.py             # 多因子策略调度器
+│   ├── strategy_ensemble.py    # 多因子 + LightGBM 集成（研究用）
 │   ├── data/
 │   │   ├── market_data.py      # Yahoo Finance 数据获取
-│   │   └── quality.py          # 数据质量检查 + 时点数据管理
+│   │   └── quality.py          # 数据质量检查 + 实盘质量闸门 + 时点数据管理
 │   ├── signals/
 │   │   ├── factors.py          # Alpha 因子计算
-│   │   └── factor_analysis.py  # IC/ICIR、因子衰减分析工具
+│   │   ├── factor_analysis.py  # IC/ICIR、因子衰减分析工具
+│   │   ├── ml_features.py      # LightGBM 特征工程（46 个价格派生特征）
+│   │   ├── lgbm_model.py       # LightGBM 排序模型 + purged split
+│   │   └── lgbm_strategy.py    # LightGBM 策略调度器
 │   ├── portfolio/
-│   │   └── optimizer.py        # MVO优化 + Ledoit-Wolf + 风控
+│   │   └── optimizer.py        # MVO优化 + Ledoit-Wolf + 换手上限 + 风控
 │   ├── backtest/
-│   │   ├── engine.py           # 事件驱动回测引擎
+│   │   ├── engine.py           # 事件驱动回测引擎（T+1、每日止损、保证金利息）
 │   │   └── report.py           # 报告与分析
 │   ├── execution/
 │   │   ├── broker.py           # 券商接口 + 模拟券商
 │   │   ├── alpaca_broker.py    # Alpaca API 集成
-│   │   └── safety.py           # 交易安全模块
+│   │   └── safety.py           # 交易安全模块（限额、TWAP、对账）
 │   └── utils/
 │       └── config.py           # 配置加载器
-├── tests/                      # 89个单元测试（全部通过）
-└── docs/audit/                 # 6-Agent 审计报告（12份文档）
+├── .github/workflows/          # rebalance ×2、update-site、tests、honest-backtest、readme-backtest
+├── tests/                      # 单元测试（离线合成数据）
+└── docs/audit/                 # 6-Agent 审计报告（12份文档，历史存档）
 ```
 
 ## System Audit / 系统审计
@@ -238,7 +251,7 @@ signals:
     high_proximity: 0.20   # 52周新高距离
     short_term_reversal: 0.10  # 短期反转
     vol_contraction: 0.10  # 波动率收缩
-    volume_momentum: 0.10  # 成交量动量
+    trend_persistence: 0.10  # 趋势持续（收益自相关；旧名 volume_momentum，实际从未用过成交量）
     quality: 0.00          # 已禁用（前视偏差）
     value: 0.00            # 已禁用（前视偏差）
 
@@ -246,7 +259,7 @@ portfolio:
   max_positions: 12
   target_volatility: 0.22
   rebalance_frequency_days: 21    # 3周再平衡
-  max_turnover_per_rebalance: 0.40  # 40%换手上限
+  max_turnover_per_rebalance: 0.40  # 40%总换手上限（含退出腿与杠杆变化）
 
 risk:
   max_drawdown_limit: 0.25
@@ -255,16 +268,19 @@ risk:
 
 backtest:
   market_impact_coeff: 2.5   # Almgren-Chriss 市场冲击系数（小账户适配）
+  risk_free_rate: 0.04       # Sharpe/Sortino 按超额收益计算
 ```
 
 ---
 
 ## Known Limitations / 已知局限
 
-1. **Survivorship bias / 幸存者偏差**: 静态100股票池排除历史退市股，回测收益偏高
+1. **Survivorship bias / 幸存者偏差**: 静态100股票池排除历史退市股，回测收益偏高。定量对照见 honest-backtest workflow（同一策略跑在无幸存者偏差的 ETF 池上）
 2. **No point-in-time fundamentals / 无时点基本面**: yfinance只提供当前快照，quality/value因子已禁用
-3. **Same-day execution / 同日执行**: 信号和交易使用同一收盘价
-4. **Stop-loss not active / 止损未激活**: 配置了但回测中未实际执行
+3. **T+1 close execution / T+1收盘价执行**: 回测中信号在 T 日收盘计算，交易在 T+1 日收盘价成交；真实盘中成交价仍会有偏差
+4. **Paper-trading fills / 模拟盘成交**: Alpaca paper 账户的成交不含真实点差与市场冲击，实盘成本会更高
+
+（旧版此处写着"止损未激活"与"同日执行"，均已过时：回测引擎与实盘脚本都做每日止损检查，回测为 T+1 执行。）
 
 详见 `docs/audit/CONFIDENCE_ASSESSMENT.md` 和 `docs/audit/FINAL_DELIVERY.md`。
 
