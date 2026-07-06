@@ -233,6 +233,80 @@ class DataQualityChecker:
 
 
 # ======================================================================
+# Live-path quality gate
+# ======================================================================
+
+def enforce_live_data_quality(
+    prices: pd.DataFrame,
+    benchmark: str = None,
+    min_valid_frac: float = 0.8,
+    min_history_days: int = 200,
+) -> pd.DataFrame:
+    """Hard quality gate for the live/paper trading path.
+
+    The backtest path only logs quality problems; the live path must never
+    generate signals (and orders) from a half-failed yfinance fetch.  This
+    gate:
+
+      1. Runs the standard DataQualityChecker and logs its report.
+      2. Drops individual symbols that are unusable (too little history,
+         excessive missing data, or no price in the last two rows) so that
+         one dead ticker cannot poison the cross-section.
+      3. Aborts the whole run (raises RuntimeError) when the surviving
+         breadth falls below ``min_valid_frac`` of the universe, or when
+         the benchmark column itself is unusable — both indicate a broken
+         data feed rather than isolated bad symbols.
+
+    Returns the pruned price DataFrame on success.
+    """
+    if prices is None or prices.empty:
+        raise RuntimeError("Live data quality gate: price fetch returned no data")
+
+    checker = DataQualityChecker()
+    report = checker.run_all_checks(prices)
+    if not report["passed"] or report["warnings"]:
+        logger.warning(
+            "Live data quality report:\n%s", DataQualityChecker.format_report(report)
+        )
+
+    universe = [c for c in prices.columns if c != benchmark]
+
+    def _usable(col: str) -> bool:
+        s = prices[col]
+        if s.notna().sum() < min_history_days:
+            return False
+        if s.isna().mean() > checker.max_missing_rate:
+            return False
+        # Allow one straggler day (some symbols lag the benchmark by a bar)
+        return s.tail(2).notna().any()
+
+    if benchmark is not None and benchmark in prices.columns and not _usable(benchmark):
+        raise RuntimeError(
+            f"Live data quality gate: benchmark {benchmark} data is unusable — "
+            "aborting rather than trading on a broken feed"
+        )
+
+    valid = [c for c in universe if _usable(c)]
+    dropped = sorted(set(universe) - set(valid))
+    if dropped:
+        logger.warning(
+            "Live data quality gate: dropping %d unusable symbol(s): %s",
+            len(dropped), dropped,
+        )
+
+    min_valid = max(int(np.ceil(min_valid_frac * len(universe))), 2)
+    if len(valid) < min_valid:
+        raise RuntimeError(
+            f"Live data quality gate: only {len(valid)}/{len(universe)} symbols "
+            f"usable (need >= {min_valid}) — aborting today's run instead of "
+            "trading on degraded data"
+        )
+
+    keep = valid + ([benchmark] if benchmark is not None and benchmark in prices.columns else [])
+    return prices[keep]
+
+
+# ======================================================================
 # Point-in-Time Data Manager
 # ======================================================================
 

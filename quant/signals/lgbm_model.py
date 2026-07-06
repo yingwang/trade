@@ -43,6 +43,53 @@ except (ImportError, OSError):
         logger.info("Neither lightgbm nor sklearn available; LightGBM strategy will use equal-weight fallback")
 
 
+def purged_train_val_split(
+    X: np.ndarray,
+    y: np.ndarray,
+    date_idx: int,
+    train_window: int,
+    val_window: int,
+    pred_horizon: int,
+):
+    """Purged and embargoed walk-forward split (de Prado).
+
+    The target at row t is built from returns through t + pred_horizon, so a
+    naive split leaks future information in two ways:
+
+      1. Validation rows in [date_idx - pred_horizon, date_idx) have targets
+         that use prices AFTER the rebalance date — early stopping would then
+         pick the boosting round count using future information.
+      2. Training rows in [val_start - pred_horizon, val_start) have targets
+         that overlap the validation window — the classic purge problem.
+
+    This helper truncates both boundaries by pred_horizon rows.
+
+    Returns
+    -------
+    (X_train, y_train, X_val, y_val) on success, or None when the purged
+    training window is too short to be meaningful (< 63 rows).
+    """
+    val_start = max(0, date_idx - val_window)
+    train_start = max(0, val_start - train_window)
+    train_end = max(train_start, val_start - pred_horizon)   # purge
+    val_end = max(val_start, date_idx - pred_horizon)        # embargo
+
+    min_train_days = 63  # at least 3 months of usable rows
+    if train_end - train_start < min_train_days:
+        logger.warning(
+            "Insufficient training data after purge: %d days (need >= %d). Skipping.",
+            train_end - train_start, min_train_days,
+        )
+        return None
+
+    return (
+        X[train_start:train_end],
+        y[train_start:train_end],
+        X[val_start:val_end],
+        y[val_start:val_end],
+    )
+
+
 class LGBMRankingModel:
     """LightGBM-based cross-sectional stock ranking model.
 

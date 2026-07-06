@@ -75,6 +75,40 @@ class DailyTracker:
             self.orders_filled = 0
             self.orders_rejected = 0
 
+    def to_dict(self) -> dict:
+        """Serialize for cross-process persistence (each Actions run is a
+        fresh process; without this the daily cumulative limits reset on
+        every manual re-run within the same day)."""
+        return {
+            "trade_date": self.trade_date.isoformat(),
+            "total_value_traded": self.total_value_traded,
+            "total_realised_pnl": self.total_realised_pnl,
+            "orders_submitted": self.orders_submitted,
+            "orders_filled": self.orders_filled,
+            "orders_rejected": self.orders_rejected,
+        }
+
+    def restore(self, data: dict) -> bool:
+        """Restore persisted counters if they belong to today.
+
+        Returns True when restored, False when the snapshot is stale (a
+        previous day) or unreadable — in both cases today's counters
+        legitimately start from zero.
+        """
+        try:
+            snap_date = date.fromisoformat(data["trade_date"])
+        except (KeyError, TypeError, ValueError):
+            return False
+        if snap_date != date.today():
+            return False
+        self.trade_date = snap_date
+        self.total_value_traded = float(data.get("total_value_traded", 0.0))
+        self.total_realised_pnl = float(data.get("total_realised_pnl", 0.0))
+        self.orders_submitted = int(data.get("orders_submitted", 0))
+        self.orders_filled = int(data.get("orders_filled", 0))
+        self.orders_rejected = int(data.get("orders_rejected", 0))
+        return True
+
 
 class PreTradeCheck:
     """Validates every order against safety limits before submission.

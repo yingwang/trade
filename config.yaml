@@ -143,7 +143,7 @@ signals:
     high_proximity: 0.20   # 52-week high proximity — reinforces momentum (George & Hwang 2004)
     short_term_reversal: 0.10  # buy oversold momentum stocks — complements momentum skip-month
     vol_contraction: 0.10  # volatility squeeze → breakout setup
-    volume_momentum: 0.10  # trending (autocorrelation) stocks > choppy ones
+    trend_persistence: 0.10  # return autocorrelation (renamed from volume_momentum — never used volume)
     quality: 0.00          # disabled — yfinance .info has look-ahead bias
     volatility: 0.00       # disabled — fights momentum in bull markets
     value: 0.00            # disabled — same look-ahead bias as quality
@@ -192,3 +192,4 @@ backtest:
   initial_capital: 1000000
   slippage_bps: 5
   market_impact_coeff: 2.5  # bps per sqrt(participation_rate) — Almgren-Chriss simplified (lowered for small accounts)
+  risk_free_rate: 0.04  # annual; Sharpe/Sortino use excess returns (0 made Sharpe look ~0.2 better at 2026 cash rates)

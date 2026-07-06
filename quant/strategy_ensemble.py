@@ -282,19 +282,16 @@ class StrategyEnsemble:
                 if date_idx is None:
                     date_idx = len(ml_dates) - 1
 
-                # Retrain periodically
+                # Retrain periodically (purged/embargoed split — see lgbm_model)
                 if ml_rebalance_count % ml_retrain_every == 0:
-                    val_start = max(0, date_idx - 63)
-                    train_start = max(0, val_start - 504)
-                    if val_start - train_start >= 63:
+                    from quant.signals.lgbm_model import purged_train_val_split
+                    split = purged_train_val_split(
+                        X_ml, y_ml, date_idx,
+                        train_window=504, val_window=63, pred_horizon=21,
+                    )
+                    if split is not None:
                         try:
-                            lgbm_model.train(
-                                X_ml[train_start:val_start],
-                                y_ml[train_start:val_start],
-                                X_ml[val_start:date_idx],
-                                y_ml[val_start:date_idx],
-                                feature_names=ml_feature_names,
-                            )
+                            lgbm_model.train(*split, feature_names=ml_feature_names)
                         except Exception as e:
                             logger.warning("LightGBM training failed at %s: %s",
                                            date.date(), e)
@@ -349,18 +346,6 @@ class StrategyEnsemble:
             regime = self.optimizer.detect_regime(spy_ret)
             weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
 
-            # --- Shared risk check: drawdown gate ---
-            # If running drawdown exceeds 80% of limit, reduce exposure
-            if prev_weights is not None and len(target_weights) > 10:
-                recent_weights_list = list(target_weights.values())[-5:]
-                # Simple proxy: if we've been reducing, keep reducing
-                avg_invested = np.mean([w.sum() for w in recent_weights_list])
-                if avg_invested < 0.5:
-                    logger.warning(
-                        "Ensemble drawdown protection: avg invested=%.1f%%, "
-                        "maintaining defensive posture", avg_invested * 100
-                    )
-
             target_weights[str(date.date())] = weights
             prev_weights = weights
 
@@ -405,7 +390,9 @@ class StrategyEnsemble:
         scores_b = pd.Series(0.5, index=symbols)  # default neutral
 
         try:
-            from quant.signals.lgbm_model import LGBMRankingModel, LGBM_AVAILABLE
+            from quant.signals.lgbm_model import (
+                LGBMRankingModel, LGBM_AVAILABLE, purged_train_val_split,
+            )
             if LGBM_AVAILABLE:
                 factor_scores_dict = getattr(self.signal_gen, "last_factors_", None)
                 X, names, dates, syms = self.feature_engine.build_feature_matrix(
@@ -419,15 +406,12 @@ class StrategyEnsemble:
                     num_leaves=31, learning_rate=0.05,
                     n_estimators=200, early_stopping_rounds=20,
                 )
-                date_idx = len(dates) - 1
-                val_start = max(0, date_idx - 63)
-                train_start = max(0, val_start - 504)
-                if val_start - train_start >= 63:
-                    lgbm_model.train(
-                        X[train_start:val_start], y[train_start:val_start],
-                        X[val_start:date_idx], y[val_start:date_idx],
-                        feature_names=names,
-                    )
+                split = purged_train_val_split(
+                    X, y, len(dates) - 1,
+                    train_window=504, val_window=63, pred_horizon=21,
+                )
+                if split is not None:
+                    lgbm_model.train(*split, feature_names=names)
                     if lgbm_model.model is not None:
                         ranks = lgbm_model.predict_ranking(X)
                         scores_b = pd.Series(ranks, index=syms)

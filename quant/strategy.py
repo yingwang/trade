@@ -9,6 +9,7 @@ from quant.data.market_data import MarketData
 from quant.data.quality import (
     DataQualityChecker,
     PointInTimeDataManager,
+    enforce_live_data_quality,
     warn_survivorship_bias,
 )
 from quant.signals.factors import SignalGenerator
@@ -39,6 +40,8 @@ class MultiFactorStrategy:
         self.optimizer = PortfolioOptimizer(config)
         self.risk_monitor = RiskMonitor(config)
         self.backtest_engine = BacktestEngine(config)
+        # Live-path price snapshot, exposed for site generation reuse
+        self.last_prices_ = None
 
     def run_backtest(self, start: str = None, end: str = None) -> BacktestResult:
         """Full backtest pipeline."""
@@ -142,6 +145,11 @@ class MultiFactorStrategy:
             # Do NOT renormalize after vol scaling -- the remainder is held as cash.
             # This preserves the vol-targeting effect.
 
+            # Real turnover cap on final weights: includes exit legs and the
+            # turnover created by vol scaling, which the in-optimizer
+            # constraint cannot see.
+            weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
+
             target_weights[str(date.date())] = weights
             prev_weights = weights  # Save for next rebalance turnover penalty
 
@@ -171,13 +179,22 @@ class MultiFactorStrategy:
         signals = self.signal_gen.generate(prices, returns, fundamentals)
         return signals.iloc[-1].sort_values(ascending=False)
 
-    def get_current_portfolio(self, capital: float = None) -> pd.DataFrame:
+    def get_current_portfolio(
+        self,
+        capital: float = None,
+        prev_weights: pd.Series = None,
+    ) -> pd.DataFrame:
         """Get optimized target portfolio with weights and dollar amounts.
 
         Parameters
         ----------
         capital : float, optional
             Total capital to allocate. Defaults to config initial_capital.
+        prev_weights : Series, optional
+            The account's ACTUAL current weights.  When provided, the
+            optimizer's turnover penalty/constraint and the final total
+            turnover cap (including exit legs) are enforced against it —
+            same semantics as the backtest loop.
 
         Returns
         -------
@@ -186,7 +203,11 @@ class MultiFactorStrategy:
         if capital is None:
             capital = self.config["backtest"]["initial_capital"]
 
-        prices = self.data.fetch_prices()
+        # Hard quality gate: never generate live orders from a broken fetch
+        prices = enforce_live_data_quality(
+            self.data.fetch_prices(), benchmark=self.data.benchmark
+        )
+        self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)
         try:
             fundamentals = self.data.fetch_fundamentals()
@@ -217,16 +238,19 @@ class MultiFactorStrategy:
 
         # Optimize weights with dynamic leverage and sector constraints
         weights = self.optimizer.optimize_weights(
-            symbols, day_scores, cov, sector_map=sector_map
+            symbols, day_scores, cov,
+            prev_weights=prev_weights,
+            sector_map=sector_map,
         )
         spy_col = self.data.benchmark
         spy_ret = returns[spy_col] if spy_col in returns.columns else None
         regime = self.optimizer.detect_regime(spy_ret)
         weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
         # Do NOT renormalize -- remainder is cash buffer for vol targeting.
+        weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
 
         # Build output table
-        latest_prices = prices[symbols].iloc[-1]
+        latest_prices = prices.reindex(columns=weights.index).iloc[-1]
         dollars = weights * capital
         shares = (dollars / latest_prices).apply(np.floor).fillna(0).astype(int)
 

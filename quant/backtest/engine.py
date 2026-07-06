@@ -45,6 +45,7 @@ class BacktestEngine:
         self.margin_rate = config.get("leverage", {}).get("margin_annual_rate", 0.0)
         self.stop_loss_pct = config.get("risk", {}).get("stop_loss_pct", 0.0)
         annual_risk_free_rate = bt_cfg.get("risk_free_rate", config.get("risk_free_rate", 0.0))
+        self.annual_risk_free_rate = annual_risk_free_rate
         self.risk_free_rate = annual_risk_free_rate / 252
         # Market impact: cost = fixed_bps + impact_coeff * sqrt(participation_rate)
         # where participation_rate = trade_value / portfolio_value (proxy for ADV fraction)
@@ -216,9 +217,9 @@ class BacktestEngine:
         # Calmar ratio
         calmar = cagr / abs(max_dd) if max_dd != 0 else 0
 
-        # Sortino
+        # Sortino (excess CAGR over the risk-free rate, same convention as Sharpe)
         downside = ret[ret < 0].std() * np.sqrt(252) if (ret < 0).any() else 0
-        sortino = cagr / downside if downside > 0 else 0
+        sortino = (cagr - self.annual_risk_free_rate) / downside if downside > 0 else 0
 
         # Win rate
         win_rate = (ret > 0).mean() if len(ret) > 0 else 0

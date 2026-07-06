@@ -1,13 +1,18 @@
-"""Feature engineering for the ML (TFT) strategy.
+"""Feature engineering for the ML strategy.
 
-Builds a rich feature matrix from price/volume data and the existing factor
+Builds a rich feature matrix from price data and the existing factor
 signals.  Output is a 3D tensor (dates x symbols x features) suitable for
-the Temporal Fusion Transformer's rolling-window training scheme.
+rolling-window training schemes.
+
+The pipeline has NO volume data — every feature here is derived from close
+prices and daily returns only.  Feature names say so honestly: what used to
+be called "volume_momentum" / "obv_trend" / "vratio_*" are return
+autocorrelation, up-day bias, and activity ratios of absolute returns.
 
 Feature groups:
-  1. Existing 5 factor scores (momentum, high_proximity, reversal, vol_contraction, volume_momentum)
-  2. Technical indicators: RSI(14), MACD, Bollinger Band width, ATR(14), OBV trend
-  3. Rolling statistics: 5/10/21/63 day returns, volatility, volume ratios
+  1. Existing 5 factor scores (momentum, high_proximity, reversal, vol_contraction, trend_persistence)
+  2. Technical indicators: RSI(14), MACD, Bollinger Band width, ATR proxy(14), up/down bias
+  3. Rolling statistics: 5/10/21/63 day returns, volatility, activity ratios
   4. Cross-sectional rank features (percentile rank of each feature across stocks)
 """
 
@@ -67,14 +72,13 @@ def compute_bollinger_width(prices: pd.DataFrame, window: int = 20,
     return width
 
 
-def compute_atr(prices: pd.DataFrame, returns: pd.DataFrame,
-                window: int = 14) -> pd.DataFrame:
-    """Average True Range approximation from close prices and returns.
+def compute_atr_proxy(prices: pd.DataFrame, returns: pd.DataFrame,
+                      window: int = 14) -> pd.DataFrame:
+    """Average True Range proxy from close prices only.
 
-    Without high/low data, we approximate TR as the absolute daily return
-    multiplied by the price level, then take a rolling mean.
+    Without high/low data, TR is approximated by the absolute close-to-close
+    change, then rolling-averaged and normalized by price level.
     """
-    # Approximate true range from absolute daily changes
     tr = prices.diff().abs()
     atr = tr.rolling(window).mean()
     # Normalize by price to make it cross-sectionally comparable
@@ -82,17 +86,15 @@ def compute_atr(prices: pd.DataFrame, returns: pd.DataFrame,
     return atr_pct
 
 
-def compute_obv_trend(prices: pd.DataFrame, returns: pd.DataFrame,
-                      window: int = 21) -> pd.DataFrame:
-    """On-Balance Volume trend proxy.
+def compute_updown_bias(prices: pd.DataFrame, returns: pd.DataFrame,
+                        window: int = 21) -> pd.DataFrame:
+    """Up-day bias: rolling sum of daily return signs.
 
-    Without volume data, we use signed returns as a proxy: cumulate the
-    sign of daily returns over a rolling window.  Positive trend means
-    more up-days than down-days (a volume-independent proxy for OBV slope).
+    Positive means more up-days than down-days over the window.  Formerly
+    misnamed "obv_trend" — there is no volume data anywhere in this pipeline.
     """
     signed = returns.apply(np.sign)
-    obv_proxy = signed.rolling(window).sum()
-    return obv_proxy
+    return signed.rolling(window).sum()
 
 
 # ======================================================================
@@ -121,12 +123,13 @@ def compute_rolling_volatility(returns: pd.DataFrame,
     return result
 
 
-def compute_volume_ratios(returns: pd.DataFrame,
-                          windows: list[int] = None) -> dict[str, pd.DataFrame]:
-    """Volume ratio proxies using absolute returns as a volume proxy.
+def compute_activity_ratios(returns: pd.DataFrame,
+                            windows: list[int] = None) -> dict[str, pd.DataFrame]:
+    """Activity ratios of absolute returns.
 
     Ratio of short-window average absolute return to longer-window average,
-    capturing activity spikes relative to baseline.
+    capturing activity spikes relative to baseline.  Formerly misnamed
+    "volume ratios" — computed purely from returns, no volume data involved.
     """
     if windows is None:
         windows = [5, 10, 21, 63]
@@ -137,7 +140,7 @@ def compute_volume_ratios(returns: pd.DataFrame,
         long_w = windows[-1]
         short_avg = abs_ret.rolling(short_w).mean()
         long_avg = abs_ret.rolling(long_w).mean()
-        result[f"vratio_{short_w}_{long_w}"] = short_avg / long_avg.replace(0, np.nan)
+        result[f"activity_{short_w}_{long_w}"] = short_avg / long_avg.replace(0, np.nan)
     return result
 
 
@@ -163,18 +166,19 @@ class MLFeatureEngine:
         Full system config (used to read signal parameters).
     """
 
-    # Canonical feature names (stable ordering for model input)
+    # Canonical feature names (stable ordering for model input).
+    # FACTOR_FEATURES must stay in sync with factors.ML_INPUT_FACTORS.
     FACTOR_FEATURES = [
         "momentum", "high_proximity", "short_term_reversal",
-        "vol_contraction", "volume_momentum",
+        "vol_contraction", "trend_persistence",
     ]
     TECHNICAL_FEATURES = [
         "rsi_14", "macd_line", "macd_signal", "macd_histogram",
-        "bb_width", "atr_14", "obv_trend",
+        "bb_width", "atr_proxy_14", "updown_bias_21",
     ]
     ROLLING_RET_FEATURES = ["ret_5d", "ret_10d", "ret_21d", "ret_63d"]
     ROLLING_VOL_FEATURES = ["vol_5d", "vol_10d", "vol_21d", "vol_63d"]
-    VOLUME_RATIO_FEATURES = ["vratio_5_63", "vratio_10_63", "vratio_21_63"]
+    ACTIVITY_RATIO_FEATURES = ["activity_5_63", "activity_10_63", "activity_21_63"]
 
     def __init__(self, config: dict):
         self.config = config
@@ -188,7 +192,7 @@ class MLFeatureEngine:
             + self.TECHNICAL_FEATURES
             + self.ROLLING_RET_FEATURES
             + self.ROLLING_VOL_FEATURES
-            + self.VOLUME_RATIO_FEATURES
+            + self.ACTIVITY_RATIO_FEATURES
         )
         # Rank versions of every feature
         ranked = [f"{f}_rank" for f in base]
@@ -240,14 +244,14 @@ class MLFeatureEngine:
             logger.info("No pre-computed factor scores; using return-based proxies")
             from quant.signals.factors import (
                 momentum_factor, high_proximity_factor, short_term_reversal_factor,
-                volatility_contraction_factor, volume_momentum_factor,
+                volatility_contraction_factor, trend_persistence_factor,
             )
             sig_cfg = self.config["signals"]
             features["momentum"] = momentum_factor(px, sig_cfg["momentum_windows"])
             features["high_proximity"] = high_proximity_factor(px, window=252)
             features["short_term_reversal"] = short_term_reversal_factor(ret, window=5)
             features["vol_contraction"] = volatility_contraction_factor(ret)
-            features["volume_momentum"] = volume_momentum_factor(px, ret, window=21)
+            features["trend_persistence"] = trend_persistence_factor(px, ret, window=21)
 
         # --- Group 2: Technical indicators ---
         features["rsi_14"] = compute_rsi(px, window=14)
@@ -258,8 +262,8 @@ class MLFeatureEngine:
         features["macd_histogram"] = macd["macd_histogram"]
 
         features["bb_width"] = compute_bollinger_width(px, window=20)
-        features["atr_14"] = compute_atr(px, ret, window=14)
-        features["obv_trend"] = compute_obv_trend(px, ret, window=21)
+        features["atr_proxy_14"] = compute_atr_proxy(px, ret, window=14)
+        features["updown_bias_21"] = compute_updown_bias(px, ret, window=21)
 
         # --- Group 3: Rolling statistics ---
         for name, df in compute_rolling_returns(px).items():
@@ -268,7 +272,7 @@ class MLFeatureEngine:
         for name, df in compute_rolling_volatility(ret).items():
             features[name] = df
 
-        for name, df in compute_volume_ratios(ret).items():
+        for name, df in compute_activity_ratios(ret).items():
             features[name] = df
 
         # --- Group 4: Cross-sectional rank features ---

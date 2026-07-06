@@ -194,6 +194,63 @@ class TestTransactionCostPenalty:
         assert len(weights) == 5
 
 
+class TestTurnoverCap:
+    """enforce_turnover_cap: total two-sided turnover including exit legs
+    and post-scaling leverage changes, measured on final weights."""
+
+    def _opt(self, config, cap):
+        cfg = {**config, "portfolio": {**config["portfolio"],
+                                       "max_turnover_per_rebalance": cap}}
+        return PortfolioOptimizer(cfg)
+
+    @staticmethod
+    def _turnover(new, prev):
+        union = new.index.union(prev.index)
+        return float((new.reindex(union).fillna(0)
+                      - prev.reindex(union).fillna(0)).abs().sum())
+
+    def test_under_cap_untouched(self, config):
+        opt = self._opt(config, 0.40)
+        prev = pd.Series({"A": 0.5, "B": 0.5})
+        new = pd.Series({"A": 0.6, "B": 0.4})  # turnover 0.2 < cap
+        result = opt.enforce_turnover_cap(new, prev)
+        pd.testing.assert_series_equal(result, new)
+
+    def test_exit_legs_counted_and_capped(self, config):
+        """Full portfolio replacement (turnover 2.0) must be capped at 40%,
+        which the old selected-only constraint could never see."""
+        opt = self._opt(config, 0.40)
+        prev = pd.Series({"A": 0.5, "B": 0.5})
+        new = pd.Series({"C": 0.5, "D": 0.5})
+        result = opt.enforce_turnover_cap(new, prev)
+        assert self._turnover(result, prev) <= 0.40 + 1e-9
+        # Exiting names are sold down gradually, entering names scaled in
+        assert result["A"] == pytest.approx(0.4)
+        assert result["C"] == pytest.approx(0.1)
+
+    def test_leverage_change_counted(self, config):
+        """Same names, leverage 1.0 -> 1.5: the vol-scaling turnover the
+        in-optimizer constraint cannot see is capped here."""
+        opt = self._opt(config, 0.40)
+        prev = pd.Series({"A": 0.5, "B": 0.5})
+        new = pd.Series({"A": 0.75, "B": 0.75})
+        result = opt.enforce_turnover_cap(new, prev)
+        assert self._turnover(result, prev) == pytest.approx(0.40)
+
+    def test_no_prev_weights_is_noop(self, config):
+        opt = self._opt(config, 0.40)
+        new = pd.Series({"A": 0.5, "B": 0.5})
+        result = opt.enforce_turnover_cap(new, None)
+        pd.testing.assert_series_equal(result, new)
+
+    def test_cap_disabled_at_one(self, config):
+        opt = self._opt(config, 1.0)
+        prev = pd.Series({"A": 1.0})
+        new = pd.Series({"B": 1.0})
+        result = opt.enforce_turnover_cap(new, prev)
+        pd.testing.assert_series_equal(result, new)
+
+
 class TestSectorConstraints:
     """Tests for sector constraint enforcement in optimizer."""
 

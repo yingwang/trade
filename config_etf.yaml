@@ -75,7 +75,7 @@ signals:
     high_proximity: 0.20
     short_term_reversal: 0.10
     vol_contraction: 0.10
-    volume_momentum: 0.10
+    trend_persistence: 0.10
     quality: 0.00
     volatility: 0.00
     value: 0.00
@@ -130,3 +130,4 @@ backtest:
   initial_capital: 1000000
   slippage_bps: 5
   market_impact_coeff: 2.5
+  risk_free_rate: 0.04  # annual; same convention as config.yaml

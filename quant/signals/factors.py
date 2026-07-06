@@ -191,23 +191,19 @@ def short_term_reversal_factor(returns: pd.DataFrame, window: int = 5) -> pd.Dat
     return -zs
 
 
-def volume_momentum_factor(prices: pd.DataFrame, returns: pd.DataFrame,
-                           window: int = 21) -> pd.DataFrame:
-    """Volume-weighted momentum: price moves on high volume are more meaningful.
+def trend_persistence_factor(prices: pd.DataFrame, returns: pd.DataFrame,
+                             window: int = 21) -> pd.DataFrame:
+    """Trend persistence: rolling autocorrelation of daily returns.
 
-    Stocks rising on increasing volume score higher than those rising on
-    declining volume (which may be false breakouts).
-
-    Uses price * volume correlation as a proxy when volume data is in the
-    price DataFrame, otherwise falls back to return autocorrelation.
+    Stocks with positively autocorrelated returns (smooth, persistent moves)
+    score higher than choppy/mean-reverting ones.  Formerly misnamed
+    "volume_momentum" — the pipeline has no volume data, and this factor
+    never used any.
     """
-    # Use absolute returns weighted by return sign as proxy
-    # Positive: strong consistent moves. Negative: choppy/reverting.
     autocorr = returns.rolling(window).apply(
         lambda x: np.corrcoef(x[:-1], x[1:])[0, 1] if len(x) > 1 else 0,
         raw=True
     )
-    # Stocks with positive autocorrelation (trending) score higher
     zs = autocorr.sub(autocorr.mean(axis=1), axis=0).div(
         autocorr.std(axis=1).replace(0, 1), axis=0)
     return zs
@@ -244,40 +240,6 @@ def volatility_contraction_factor(returns: pd.DataFrame,
     zs = ratio.sub(ratio.mean(axis=1), axis=0).div(
         ratio.std(axis=1).replace(0, 1), axis=0)
     return -zs
-
-
-def earnings_revision_factor(prices: pd.DataFrame, window: int = 63) -> pd.DataFrame:
-    """Earnings revision proxy: use medium-term price acceleration as a proxy
-    for earnings surprise/revision when point-in-time EPS data is unavailable.
-
-    Stocks whose recent returns accelerate relative to their trailing returns
-    are likely experiencing positive earnings revisions.
-
-    acceleration = (return over recent window) - (return over prior window)
-    Cross-sectionally z-scored.
-    """
-    recent_ret = prices.pct_change(window)
-    prior_ret = prices.shift(window).pct_change(window)
-    acceleration = recent_ret - prior_ret
-    zs = acceleration.sub(acceleration.mean(axis=1), axis=0).div(
-        acceleration.std(axis=1).replace(0, 1), axis=0)
-    return zs
-
-
-def low_proximity_factor(prices: pd.DataFrame, window: int = 252) -> pd.DataFrame:
-    """52-week low proximity: stocks far from their 52-week low
-    may be in strong uptrends, while stocks near their low may represent
-    deep value reversal opportunities.
-
-    Inverted: closer to 52-week low = higher score (contrarian value signal).
-    """
-    rolling_low = prices.rolling(window).min()
-    proximity = prices / rolling_low  # 1.0 = at 52-week low, higher = far from low
-    # Invert: stocks closer to low get higher score
-    inv_proximity = 1.0 / proximity
-    zs = inv_proximity.sub(inv_proximity.mean(axis=1), axis=0).div(
-        inv_proximity.std(axis=1).replace(0, 1), axis=0)
-    return zs
 
 
 def volatility_factor(returns: pd.DataFrame, window: int = 63) -> pd.DataFrame:
@@ -358,6 +320,15 @@ def _apply_filter_safe(composite: pd.DataFrame,
 # Composite signal
 # ======================================================================
 
+# Factors the ML feature engine consumes as inputs (see ml_features.py).
+# These are computed even when their composite weight is 0, so that the
+# LightGBM pipeline always has its full input set.
+ML_INPUT_FACTORS = (
+    "momentum", "high_proximity", "short_term_reversal",
+    "vol_contraction", "trend_persistence",
+)
+
+
 class SignalGenerator:
     """Combines multiple alpha factors into a composite signal."""
 
@@ -373,16 +344,26 @@ class SignalGenerator:
         self.industry_neutral = sig_cfg.get("industry_neutral", False)
         self.winsorize_clip = sig_cfg.get("winsorize_clip", 3.0)
 
-        # Factor weights — configurable from config.yaml, with defaults
-        default_weights = {
-            "momentum": 0.30,
-            "mean_reversion": 0.15,
-            "trend": 0.20,
-            "volatility": 0.10,
-            "value": 0.15,
-            "quality": 0.10,
-        }
-        self.weights = {**default_weights, **sig_cfg.get("factor_weights", {})}
+        # Factor weights: config.yaml is the single source of truth.  Factors
+        # not listed there default to 0 — a factor must never silently revive
+        # because someone deleted its config line.
+        self.weights = dict(sig_cfg.get("factor_weights", {}))
+
+        # Legacy key: "volume_momentum" was renamed to "trend_persistence"
+        # (the factor is return autocorrelation and never used volume data).
+        if "volume_momentum" in self.weights:
+            legacy = self.weights.pop("volume_momentum")
+            self.weights.setdefault("trend_persistence", legacy)
+            logger.warning(
+                "factor_weights key 'volume_momentum' is deprecated; "
+                "interpreting it as 'trend_persistence' (%.2f)", legacy,
+            )
+
+        if not any(w > 0 for w in self.weights.values()):
+            raise ValueError(
+                "No positive factor_weights configured under signals.factor_weights — "
+                "the composite signal would be empty. Configure at least one factor."
+            )
 
     def generate(self, prices: pd.DataFrame, returns: pd.DataFrame,
                  fundamentals: pd.DataFrame = None) -> pd.DataFrame:
@@ -401,29 +382,38 @@ class SignalGenerator:
         px = prices[symbols]
         ret = returns[[c for c in symbols if c in returns.columns]]
 
-        factors = {}
+        # Compute only the factors that are actually consumed: positive
+        # composite weight, or an ML feature input.  Zero-weight factors that
+        # feed nothing are skipped entirely (they used to burn CPU every run).
+        price_factor_builders = {
+            "momentum": lambda: momentum_factor(px, self.momentum_windows),
+            "mean_reversion": lambda: mean_reversion_factor(px, self.mr_window, self.mr_threshold),
+            "trend": lambda: trend_factor(px, self.sma_short, self.sma_long),
+            "volatility": lambda: volatility_factor(ret, self.vol_window),
+            "short_term_reversal": lambda: short_term_reversal_factor(ret, window=5),
+            "trend_persistence": lambda: trend_persistence_factor(px, ret, window=21),
+            "high_proximity": lambda: high_proximity_factor(px, window=252),
+            "vol_contraction": lambda: volatility_contraction_factor(ret, short_window=10, long_window=63),
+        }
+        needed = {name for name, w in self.weights.items() if w > 0}
+        needed.update(ML_INPUT_FACTORS)
 
-        # Price-based (time-series)
-        factors["momentum"] = momentum_factor(px, self.momentum_windows)
-        factors["mean_reversion"] = mean_reversion_factor(px, self.mr_window, self.mr_threshold)
-        factors["trend"] = trend_factor(px, self.sma_short, self.sma_long)
-        factors["volatility"] = volatility_factor(ret, self.vol_window)
-
-        # New price-based factors (no fundamental data needed)
-        factors["short_term_reversal"] = short_term_reversal_factor(ret, window=5)
-        factors["volume_momentum"] = volume_momentum_factor(px, ret, window=21)
-        factors["high_proximity"] = high_proximity_factor(px, window=252)
-        factors["vol_contraction"] = volatility_contraction_factor(ret, short_window=10, long_window=63)
-        factors["earnings_revision"] = earnings_revision_factor(px, window=63)
-        factors["low_proximity"] = low_proximity_factor(px, window=252)
+        factors = {
+            name: build() for name, build in price_factor_builders.items()
+            if name in needed
+        }
 
         # Fundamental (cross-sectional, static per rebalance)
         if fundamentals is not None and not fundamentals.empty:
-            val = value_factor(fundamentals)
-            qual = quality_factor(fundamentals)
-
-            # Broadcast static scores to every date
-            for name, series in [("value", val), ("quality", qual)]:
+            fundamental_builders = {
+                "value": lambda: value_factor(fundamentals),
+                "quality": lambda: quality_factor(fundamentals),
+            }
+            for name, build in fundamental_builders.items():
+                if name not in needed:
+                    continue
+                series = build()
+                # Broadcast static scores to every date
                 df = pd.DataFrame(
                     np.tile(series.values, (len(px), 1)),
                     index=px.index,

@@ -24,6 +24,16 @@ def config():
             "sma_long": 200,
             "industry_neutral": True,
             "winsorize_clip": 3.0,
+            # Explicit weights: SignalGenerator no longer carries nonzero
+            # defaults — config is the single source of truth.
+            "factor_weights": {
+                "momentum": 0.30,
+                "mean_reversion": 0.15,
+                "trend": 0.20,
+                "volatility": 0.10,
+                "value": 0.15,
+                "quality": 0.10,
+            },
         },
         "portfolio": {
             "max_positions": 5,

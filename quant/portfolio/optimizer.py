@@ -382,6 +382,58 @@ class PortfolioOptimizer:
 
         return weights
 
+    def enforce_turnover_cap(
+        self,
+        weights: pd.Series,
+        prev_weights: Optional[pd.Series],
+        min_stub_weight: float = 0.0025,
+    ) -> pd.Series:
+        """Cap TOTAL two-sided turnover vs the previous portfolio.
+
+        The in-optimizer turnover constraint only sees the selected symbols,
+        so exit legs (held last period, not selected now) and the post-hoc
+        vol/leverage scaling both escape it.  This projection runs on the
+        FINAL weights (after vol scaling) over the union of old and new
+        holdings, so the configured max_turnover is the real total cap.
+
+        When the cap binds, the portfolio is blended toward the previous one:
+        w = prev + lam * (target - prev), which moves max_turnover of L1
+        distance toward the target each rebalance.  Exiting positions are
+        then sold down over successive rebalances instead of all at once;
+        transitional stubs below min_stub_weight are liquidated outright to
+        avoid dust orders (the tiny cap overshoot is logged).
+        """
+        if prev_weights is None or self.max_turnover >= 1.0 or weights.empty:
+            return weights
+
+        prev = prev_weights[prev_weights.abs() > 1e-12]
+        if prev.empty:
+            return weights
+
+        union = weights.index.union(prev.index)
+        w_new = weights.reindex(union).fillna(0.0)
+        w_old = prev.reindex(union).fillna(0.0)
+        turnover = float((w_new - w_old).abs().sum())
+        if turnover <= self.max_turnover:
+            return weights
+
+        lam = self.max_turnover / turnover
+        blended = w_old + lam * (w_new - w_old)
+
+        stubs = blended[(blended > 0) & (blended < min_stub_weight)].index
+        if len(stubs) > 0:
+            blended.loc[stubs] = 0.0
+        blended = blended[blended.abs() > 1e-12]
+
+        logger.info(
+            "Turnover cap engaged: target turnover %.1f%% > cap %.1f%%, "
+            "blending toward previous portfolio (lam=%.2f, %d transitional "
+            "position(s), %d stub(s) liquidated)",
+            turnover * 100, self.max_turnover * 100, lam,
+            int((~blended.index.isin(weights.index)).sum()), len(stubs),
+        )
+        return blended
+
     def check_stop_losses(self, current_weights: pd.Series,
                           entry_prices: pd.Series,
                           current_prices: pd.Series) -> pd.Series:

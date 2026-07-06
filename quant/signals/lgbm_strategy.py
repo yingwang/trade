@@ -9,7 +9,9 @@ MultiFactorStrategy.  Key differences from the TFT version:
   - Trains in seconds, not 40 minutes per window
   - Turnover penalty: penalizes signal changes vs. previous rebalance
   - Feature importance output for interpretability
-  - Graceful fallback to equal-weight if model fails or lightgbm not installed
+  - Backtest falls back to equal-weight if the model fails; the LIVE path
+    hard-fails instead (constant fallback scores would otherwise buy the
+    first 12 symbols in alphabetical order)
 """
 
 import logging
@@ -23,11 +25,17 @@ from quant.data.market_data import MarketData
 from quant.data.quality import (
     DataQualityChecker,
     PointInTimeDataManager,
+    enforce_live_data_quality,
     warn_survivorship_bias,
 )
 from quant.signals.factors import SignalGenerator
 from quant.signals.ml_features import MLFeatureEngine
-from quant.signals.lgbm_model import LGBMRankingModel, LGBM_AVAILABLE, SKLEARN_FALLBACK
+from quant.signals.lgbm_model import (
+    LGBMRankingModel,
+    LGBM_AVAILABLE,
+    SKLEARN_FALLBACK,
+    purged_train_val_split,
+)
 ML_BACKEND_AVAILABLE = LGBM_AVAILABLE or SKLEARN_FALLBACK
 from quant.portfolio.optimizer import (
     PortfolioOptimizer,
@@ -62,6 +70,8 @@ class LGBMStrategy:
         Forward prediction horizon in trading days (default 21 = 1 month).
     retrain_every : int
         Retrain the model every N rebalances (default 3 = ~63 trading days).
+        BACKTEST ONLY: the live path runs in a fresh process each day and
+        always trains from scratch on all available data.
     turnover_penalty : float
         Coefficient for penalizing score changes vs. previous rebalance.
         Applied as: score_final = score - penalty * |score - prev_score|.
@@ -115,6 +125,9 @@ class LGBMStrategy:
         self._rebalance_count = 0
         self._prev_scores: Optional[pd.Series] = None
         self._feature_names: Optional[list[str]] = None
+        # Live-path outputs, exposed for persistence / site generation
+        self.last_scores_: Optional[pd.Series] = None
+        self.last_prices_: Optional[pd.DataFrame] = None
 
     def _should_retrain(self) -> bool:
         """Decide whether to retrain the model at this rebalance."""
@@ -153,22 +166,18 @@ class LGBMStrategy:
         if not ML_BACKEND_AVAILABLE:
             return False
 
-        val_start = max(0, date_idx - self.val_window)
-        train_start = max(0, val_start - self.train_window)
-
-        # Minimum viable data check
-        min_train_days = 63  # at least 3 months
-        if val_start - train_start < min_train_days:
-            logger.warning(
-                "Insufficient training data: %d days (need >= %d). Skipping.",
-                val_start - train_start, min_train_days,
-            )
+        # Purged & embargoed split: targets are pred_horizon-day forward
+        # returns, so both the train/val boundary and the val end must back
+        # off by pred_horizon rows or early stopping sees the future.
+        split = purged_train_val_split(
+            X, y, date_idx,
+            train_window=self.train_window,
+            val_window=self.val_window,
+            pred_horizon=self.pred_horizon,
+        )
+        if split is None:
             return False
-
-        X_train = X[train_start:val_start]
-        y_train = y[train_start:val_start]
-        X_val = X[val_start:date_idx]
-        y_val = y[val_start:date_idx]
+        X_train, y_train, X_val, y_val = split
 
         info = self.model.train(X_train, y_train, X_val, y_val, feature_names)
 
@@ -222,9 +231,41 @@ class LGBMStrategy:
         return adjusted
 
     def _fallback_scores(self, symbols: list[str]) -> pd.Series:
-        """Equal-weight fallback scores when LightGBM model is unavailable."""
+        """Equal-weight fallback scores when LightGBM model is unavailable.
+
+        BACKTEST ONLY.  Constant scores + stable sort would make the live
+        path silently buy the first max_positions symbols in column order
+        (roughly alphabetical); the live path raises instead — see
+        _require_model().
+        """
         logger.info("Using equal-weight fallback for %d symbols", len(symbols))
         return pd.Series(1.0 / len(symbols), index=symbols)
+
+    def _live_scores(self, X, symbols: list[str]) -> pd.Series:
+        """Model scores for the live path — hard-fails instead of falling back.
+
+        A missing backend or failed training must abort the run: the fallback
+        scores are a constant, and trading them means replacing the portfolio
+        with the first 12 symbols in alphabetical order.
+        """
+        if not ML_BACKEND_AVAILABLE:
+            raise RuntimeError(
+                "LightGBM/sklearn backend unavailable — refusing to trade on "
+                "equal-weight fallback scores. Install lightgbm and retry."
+            )
+        if self.model.model is None:
+            raise RuntimeError(
+                "LightGBM model unavailable (training failed or skipped) — "
+                "refusing to trade on fallback scores."
+            )
+        try:
+            ranks = self.model.predict_ranking(X)
+        except Exception as e:
+            raise RuntimeError(
+                f"LightGBM prediction failed ({e}) — refusing to trade on "
+                "fallback scores."
+            ) from e
+        return pd.Series(ranks, index=symbols)
 
     def run_backtest(self, start: str = None, end: str = None) -> BacktestResult:
         """Full backtest pipeline using LightGBM strategy.
@@ -386,6 +427,11 @@ class LGBMStrategy:
             regime = self.optimizer.detect_regime(spy_ret)
             weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
 
+            # Real turnover cap on final weights: includes exit legs and the
+            # turnover created by vol scaling, which the in-optimizer
+            # constraint cannot see.
+            weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
+
             target_weights[str(date.date())] = weights
             prev_weights = weights
 
@@ -414,8 +460,14 @@ class LGBMStrategy:
         return result
 
     def get_current_signal(self) -> pd.Series:
-        """Get the latest LightGBM-based stock scores for live/paper trading."""
-        prices = self.data.fetch_prices()
+        """Get the latest LightGBM-based stock scores for live/paper trading.
+
+        Hard-fails (RuntimeError) on bad data or an unusable model instead of
+        silently degrading to constant fallback scores.
+        """
+        prices = enforce_live_data_quality(
+            self.data.fetch_prices(), benchmark=self.data.benchmark
+        )
         returns = MarketData.compute_returns(prices)
 
         try:
@@ -430,9 +482,6 @@ class LGBMStrategy:
             prices, returns, factor_scores
         )
 
-        if not ML_BACKEND_AVAILABLE:
-            return self._fallback_scores(symbols)
-
         cs_targets = self.feature_engine.get_cross_sectional_target(
             returns, self.pred_horizon
         )
@@ -443,34 +492,44 @@ class LGBMStrategy:
         date_idx = len(dates) - 1
         self._train_model(X, y, date_idx, feature_names)
 
-        if self.model.model is not None:
-            try:
-                ranks = self.model.predict_ranking(X)
-                scores = pd.Series(ranks, index=symbols)
-            except Exception as e:
-                logger.error("Prediction failed: %s", e)
-                scores = self._fallback_scores(symbols)
-        else:
-            scores = self._fallback_scores(symbols)
-
+        scores = self._live_scores(X, symbols)
         return scores.sort_values(ascending=False)
 
-    def get_current_portfolio(self, capital: float = None) -> pd.DataFrame:
+    def get_current_portfolio(
+        self,
+        capital: float = None,
+        prev_weights: Optional[pd.Series] = None,
+        prev_scores: Optional[pd.Series] = None,
+    ) -> pd.DataFrame:
         """Get optimized target portfolio with weights and dollar amounts.
 
         Parameters
         ----------
         capital : float, optional
             Total capital to allocate.  Defaults to config initial_capital.
+        prev_weights : Series, optional
+            The account's ACTUAL current weights.  When provided, both the
+            optimizer's turnover penalty/constraint and the final total
+            turnover cap (including exit legs) are enforced against it —
+            same semantics as the backtest loop.
+        prev_scores : Series, optional
+            Scores persisted from the previous rebalance.  Activates the
+            score-level turnover penalty that the backtest loop applies;
+            without it the live path churns more than the backtest assumes.
 
         Returns
         -------
         DataFrame with columns: score, weight, dollars, shares, price.
+        The full adjusted score cross-section is exposed as
+        ``self.last_scores_`` so callers can persist it for the next run.
         """
         if capital is None:
             capital = self.config["backtest"]["initial_capital"]
 
-        prices = self.data.fetch_prices()
+        prices = enforce_live_data_quality(
+            self.data.fetch_prices(), benchmark=self.data.benchmark
+        )
+        self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)
         try:
             fundamentals = self.data.fetch_fundamentals()
@@ -488,26 +547,20 @@ class LGBMStrategy:
             prices, returns, factor_scores
         )
 
-        if not ML_BACKEND_AVAILABLE:
-            scores = self._fallback_scores(symbols)
-        else:
-            cs_targets = self.feature_engine.get_cross_sectional_target(
-                returns, self.pred_horizon
-            )
-            y = cs_targets.reindex(index=dates, columns=symbols).values
-            # Keep NaN — _flatten() filters them via np.isfinite()
+        cs_targets = self.feature_engine.get_cross_sectional_target(
+            returns, self.pred_horizon
+        )
+        y = cs_targets.reindex(index=dates, columns=symbols).values
+        # Keep NaN — _flatten() filters them via np.isfinite()
 
-            date_idx = len(dates) - 1
-            self._train_model(X, y, date_idx, feature_names)
+        date_idx = len(dates) - 1
+        self._train_model(X, y, date_idx, feature_names)
 
-            if self.model.model is not None:
-                try:
-                    ranks = self.model.predict_ranking(X)
-                    scores = pd.Series(ranks, index=symbols)
-                except Exception:
-                    scores = self._fallback_scores(symbols)
-            else:
-                scores = self._fallback_scores(symbols)
+        scores = self._live_scores(X, symbols)
+
+        # Same score-level turnover damping as the backtest loop
+        scores = self._apply_turnover_penalty(scores, prev_scores)
+        self.last_scores_ = scores.copy()
 
         selected = self.optimizer.select_top_stocks(scores)
         selected_list = selected.tolist()
@@ -522,14 +575,17 @@ class LGBMStrategy:
             )
 
         weights = self.optimizer.optimize_weights(
-            selected_list, scores, cov, sector_map=sector_map,
+            selected_list, scores, cov,
+            prev_weights=prev_weights,
+            sector_map=sector_map,
         )
         spy_col = self.data.benchmark
         spy_ret = returns[spy_col] if spy_col in returns.columns else None
         regime = self.optimizer.detect_regime(spy_ret)
         weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+        weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
 
-        latest_prices = prices[selected_list].iloc[-1]
+        latest_prices = prices.reindex(columns=weights.index).iloc[-1]
         dollars = weights * capital
         shares = (dollars / latest_prices).apply(np.floor).fillna(0).astype(int)
 
