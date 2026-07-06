@@ -14,47 +14,46 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 >
 > **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10%），12只集中持仓，22%目标波动率，3周再平衡+40%总换手上限（含退出腿与杠杆变化），快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。Sharpe/Sortino 按 4% 无风险利率计算。基本面因子因yfinance前视偏差已禁用。
 
-### 5-Year Backtest (2021-06 → 2026-06)
+### 5-Year Backtest (2021-07 → 2026-07)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+128.6%** | +86.2% | **+42.4pp** |
-| **CAGR / 年化收益** | **18.0%** | — | — |
-| **Sharpe Ratio** | **0.83** | — | — |
-| **Sortino Ratio** | **1.21** | — | — |
-| **Max Drawdown / 最大回撤** | -33.4% | — | — |
-| **Information Ratio** | **+0.39** | — | — |
-| **Avg Turnover / 平均换手** | 79% | — | — |
+| **Total Return / 总收益** | **+193.6%** | +84.1% | **+109.6pp** |
+| **CAGR / 年化收益** | **24.2%** | — | — |
+| **Sharpe Ratio** | **0.87** | — | — |
+| **Sortino Ratio** | **1.20** | — | — |
+| **Max Drawdown / 最大回撤** | -28.9% | — | — |
+| **Information Ratio** | **+0.86** | — | — |
 
-> Note: Market impact coefficient lowered from 10.0 to 2.5, more realistic for small accounts where participation rate is negligible. Almgren-Chriss model still applied. Stop-loss (15%) now enforced daily.
+> Note: Tables recomputed 2026-07-06 by the `readme-backtest` workflow (Actions run 28829367568) after the July 2026 review fixes: Sharpe/Sortino now use a 4% risk-free rate, the 40% turnover cap is enforced on total turnover (exit legs and leverage changes included), and the LightGBM validation split is purged/embargoed. Market impact coefficient 2.5 (Almgren-Chriss), stop-loss (15%) enforced daily.
 >
-> 注：市场冲击系数从 10.0 降至 2.5，更符合小账户实际（参与率可忽略不计）。仍使用 Almgren-Chriss 模型。止损（15%）现已每日执行。
+> 注：表格由 readme-backtest workflow 于 2026-07-06 重算（Actions run 28829367568），包含 7 月 review 修复：Sharpe/Sortino 按 4% 无风险利率计算，40% 换手上限按含退出腿与杠杆变化的总换手执行，LightGBM 验证窗做了 purge/embargo。市场冲击系数 2.5（Almgren-Chriss），止损（15%）每日执行。
 
-### 3-Year Backtest (2023-06 → 2026-06)
+### 3-Year Backtest (2023-07 → 2026-07)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+136.1%** | +78.3% | **+57.8pp** |
-| **CAGR / 年化收益** | **33.2%** | — | — |
+| **Total Return / 总收益** | **+158.8%** | +75.8% | **+82.9pp** |
+| **CAGR / 年化收益** | **37.6%** | — | — |
 | **Sharpe Ratio** | **1.33** | — | — |
-| **Sortino Ratio** | **1.95** | — | — |
-| **Max Drawdown / 最大回撤** | -30.4% | — | — |
-| **Information Ratio** | **+0.77** | — | — |
+| **Sortino Ratio** | **1.97** | — | — |
+| **Max Drawdown / 最大回撤** | -27.6% | — | — |
+| **Information Ratio** | **+1.14** | — | — |
 
-### 1-Year Backtest (2025-06 → 2026-06)
+### 1-Year Backtest (2025-07 → 2026-07)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+56.2%** | +25.0% | **+31.2pp** |
-| **CAGR / 年化收益** | **56.2%** | — | — |
-| **Sharpe Ratio** | **2.53** | — | — |
-| **Sortino Ratio** | **4.70** | — | — |
-| **Max Drawdown / 最大回撤** | -10.7% | — | — |
-| **Information Ratio** | **+1.72** | — | — |
+| **Total Return / 总收益** | **+48.7%** | +21.3% | **+27.4pp** |
+| **CAGR / 年化收益** | **49.4%** | — | — |
+| **Sharpe Ratio** | **1.82** | — | — |
+| **Sortino Ratio** | **3.35** | — | — |
+| **Max Drawdown / 最大回撤** | -11.6% | — | — |
+| **Information Ratio** | **+1.64** | — | — |
 
 ### Performance Chart / 净值曲线 (5-Year)
 
-![5-Year Backtest](backtest_5yr_v6.png)
+![5-Year Backtest](backtest_5yr.png)
 
 > **Note / 注意**: 回测结果仍存在幸存者偏差（静态100股票池排除了历史退市股）。真实样本外表现预计会略低。详见 `docs/audit/CONFIDENCE_ASSESSMENT.md`。
 
