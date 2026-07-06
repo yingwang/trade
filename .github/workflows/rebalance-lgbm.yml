@@ -18,6 +18,7 @@ on:
         options:
           - live
           - dry-run
+          - dry-run-force
           - status
 
 permissions:
@@ -58,9 +59,12 @@ jobs:
             MODE="live"
           fi
           case "$MODE" in
-            dry-run) echo "args=--dry-run" >> "$GITHUB_OUTPUT" ;;
-            status)  echo "args=--status"  >> "$GITHUB_OUTPUT" ;;
-            *)       echo "args="          >> "$GITHUB_OUTPUT" ;;
+            dry-run)       echo "args=--dry-run"         >> "$GITHUB_OUTPUT" ;;
+            # Full pipeline smoke test: computes the target portfolio and
+            # previews trades even when a rebalance is not due; never submits.
+            dry-run-force) echo "args=--dry-run --force" >> "$GITHUB_OUTPUT" ;;
+            status)        echo "args=--status"          >> "$GITHUB_OUTPUT" ;;
+            *)             echo "args="                  >> "$GITHUB_OUTPUT" ;;
           esac
 
       - name: Run paper_trade_lgbm.py
@@ -80,7 +84,7 @@ jobs:
 
       # Commit updated trade logs and state back to repo
       - name: Commit trade logs
-        if: github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'status'
+        if: github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
