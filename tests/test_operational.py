@@ -155,6 +155,49 @@ class TestRebalanceSafety:
         assert target is not None
         broker.submit_order.assert_not_called()
 
+    def test_market_closed_aborts_rebalance(self, config, quiet_exec_log):
+        """Holiday runs must not queue market orders for the next open —
+        a failed cancel plus the next day's rerun meant double buying."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 1_000_000
+        broker.is_market_open.return_value = False
+
+        strategy = MagicMock()
+
+        filled, target = run_rebalance(
+            strategy, broker, self._config_with_safety(config), dry_run=False
+        )
+        assert filled is None and target is None
+        strategy.get_current_portfolio.assert_not_called()
+        broker.submit_order.assert_not_called()
+
+    def test_actual_weights_passed_to_strategy(self, config, quiet_exec_log):
+        """The account's real weights must reach the strategy so the
+        turnover machinery binds against reality."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 1_000_000
+        broker.get_daily_pnl.return_value = 0.0
+        broker.get_positions.return_value = pd.Series({"AAAA": 500.0})
+        broker.get_current_prices.return_value = {"AAAA": 100.0}
+        broker.is_market_open.return_value = True
+
+        strategy = MagicMock()
+        portfolio = pd.DataFrame({
+            "score": [1.0], "weight": [0.05], "weight_pct": [5.0],
+            "dollars": [50_000.0], "shares": [500], "price": [100.0],
+        }, index=["AAAA"])
+        strategy.get_current_portfolio.return_value = portfolio
+
+        run_rebalance(strategy, broker, self._config_with_safety(config), dry_run=False)
+
+        _, kwargs = strategy.get_current_portfolio.call_args
+        prev_w = kwargs["prev_weights"]
+        assert prev_w["AAAA"] == pytest.approx(0.05)  # 500 * $100 / $1M
+
     def test_adv_passed_to_broker(self, config, quiet_exec_log):
         """ADV reaches submit_order so liquidity checks / TWAP can engage."""
         from paper_trade import run_rebalance
@@ -340,3 +383,137 @@ class TestPaperTradeStopLoss:
         broker.submit_order.assert_called_once()
         # Entry price should be cleared
         assert "AAAA" not in state["entry_prices"]
+
+
+# ── Entry price semantics ───────────────────────────────────────────────────
+
+class TestEntryPriceSemantics:
+    """Entry prices back the stop-loss; semantics must match the backtest
+    engine: record on 0 -> positive only, never reset on adds."""
+
+    def test_add_does_not_reset_entry(self):
+        from paper_trade_common import update_entry_prices
+
+        broker = MagicMock()
+        broker.get_positions.return_value = pd.Series({"AAAA": 300.0})
+        state = {"entry_prices": {"AAAA": 100.0}}
+        filled = [
+            {"symbol": "AAAA", "side": "buy", "status": "filled", "price": 150.0},
+            {"symbol": "BBBB", "side": "buy", "status": "filled", "price": 50.0},
+        ]
+        update_entry_prices(state, filled, broker, {})
+        assert state["entry_prices"]["AAAA"] == 100.0  # add kept original base
+        assert state["entry_prices"]["BBBB"] == 50.0   # new position recorded
+
+    def test_full_sell_clears_entry(self):
+        from paper_trade_common import update_entry_prices
+
+        broker = MagicMock()
+        broker.get_positions.return_value = pd.Series(dtype=float)
+        state = {"entry_prices": {"AAAA": 100.0}}
+        filled = [
+            {"symbol": "AAAA", "side": "sell", "status": "filled", "price": 120.0},
+        ]
+        update_entry_prices(state, filled, broker, {})
+        assert "AAAA" not in state["entry_prices"]
+
+    def test_partial_sell_keeps_entry(self):
+        from paper_trade_common import update_entry_prices
+
+        broker = MagicMock()
+        broker.get_positions.return_value = pd.Series({"AAAA": 50.0})
+        state = {"entry_prices": {"AAAA": 100.0}}
+        filled = [
+            {"symbol": "AAAA", "side": "sell", "status": "filled", "price": 120.0},
+        ]
+        update_entry_prices(state, filled, broker, {})
+        assert state["entry_prices"]["AAAA"] == 100.0
+
+
+# ── Daily safety counter persistence ────────────────────────────────────────
+
+class TestDailyTrackerPersistence:
+    def test_same_day_roundtrip(self):
+        from quant.execution.safety import DailyTracker
+
+        t = DailyTracker()
+        t.total_value_traded = 12_345.0
+        t.orders_filled = 3
+        snapshot = t.to_dict()
+
+        t2 = DailyTracker()
+        assert t2.restore(snapshot) is True
+        assert t2.total_value_traded == 12_345.0
+        assert t2.orders_filled == 3
+
+    def test_stale_snapshot_ignored(self):
+        from quant.execution.safety import DailyTracker
+
+        t = DailyTracker()
+        snapshot = t.to_dict()
+        snapshot["trade_date"] = "2020-01-01"
+        snapshot["total_value_traded"] = 99_999.0
+
+        t2 = DailyTracker()
+        assert t2.restore(snapshot) is False
+        assert t2.total_value_traded == 0.0
+
+    def test_garbage_snapshot_ignored(self):
+        from quant.execution.safety import DailyTracker
+
+        t = DailyTracker()
+        assert t.restore({}) is False
+        assert t.restore({"trade_date": "not-a-date"}) is False
+
+
+# ── Live data quality gate ──────────────────────────────────────────────────
+
+class TestLiveQualityGate:
+    def _prices(self, n_days=250, n_syms=10):
+        dates = pd.bdate_range("2024-01-01", periods=n_days)
+        data = {
+            f"S{i}": np.linspace(100, 130, n_days) + i * 3
+            for i in range(n_syms)
+        }
+        data["BENCH"] = np.linspace(100, 115, n_days)
+        return pd.DataFrame(data, index=dates)
+
+    def test_clean_data_passes_untouched(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices()
+        out = enforce_live_data_quality(prices, benchmark="BENCH")
+        assert set(out.columns) == set(prices.columns)
+
+    def test_dead_symbol_dropped_not_fatal(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices()
+        prices["S0"] = np.nan  # one dead ticker must not brick the run
+        out = enforce_live_data_quality(prices, benchmark="BENCH")
+        assert "S0" not in out.columns
+        assert "S1" in out.columns
+
+    def test_breadth_collapse_aborts(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices()
+        for i in range(5):  # half the universe dead -> broken feed
+            prices[f"S{i}"] = np.nan
+        with pytest.raises(RuntimeError, match="quality gate"):
+            enforce_live_data_quality(prices, benchmark="BENCH")
+
+    def test_dead_benchmark_aborts(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices()
+        prices["BENCH"] = np.nan
+        with pytest.raises(RuntimeError, match="benchmark"):
+            enforce_live_data_quality(prices, benchmark="BENCH")
+
+    def test_short_history_aborts(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices(n_days=60)  # a half-fetched window
+        with pytest.raises(RuntimeError, match="quality gate"):
+            enforce_live_data_quality(prices, benchmark="BENCH")
