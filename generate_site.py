@@ -8,8 +8,10 @@ update-site.yml workflow — do not run locally against the live account).
 
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -25,9 +27,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = Path("site/data")
+MARKET_TZ = ZoneInfo("America/New_York")
 
 
-def generate_portfolio_data(strategy, portfolio):
+def generate_portfolio_data(strategy, portfolio, account_equity=None):
     """Section 1: Current portfolio recommendation."""
     # Reuse the prices already fetched by get_current_portfolio
     prices = strategy.last_prices_ if strategy.last_prices_ is not None else strategy.data.fetch_prices()
@@ -38,10 +41,13 @@ def generate_portfolio_data(strategy, portfolio):
     total_invested = float(portfolio["weight"].sum())
 
     data = {
-        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updated_at": datetime.now(MARKET_TZ).strftime("%Y-%m-%d %H:%M %Z"),
         "regime": regime,
         "total_invested_pct": round(total_invested * 100, 1),
         "cash_pct": round(max(0, (1 - total_invested)) * 100, 1),
+        "account_equity_basis": (
+            round(float(account_equity), 2) if account_equity is not None else None
+        ),
         "positions": [],
     }
     for symbol, row in portfolio.iterrows():
@@ -106,7 +112,7 @@ def generate_backtest_data(strategy):
     }
     for k, v in result.metrics.items():
         if isinstance(v, (float, np.floating)):
-            data["metrics"][k] = round(float(v), 4)
+            data["metrics"][k] = round(float(v), 4) if np.isfinite(v) else None
         elif isinstance(v, (int, np.integer)):
             data["metrics"][k] = int(v)
         else:
@@ -119,24 +125,53 @@ def main():
     config = load_config()
     strategy = MultiFactorStrategy(config)
 
-    # Compute the current portfolio ONCE (it fetches prices, fundamentals and
-    # runs the optimizer) and share it between the sections that need it.
+    # Pull the account first: target dollars and turnover must be based on the
+    # actual paper equity/holdings, not the backtest's configured $1m seed.
+    logger.info("Fetching trade history and current account...")
+    trades = fetch_trade_history(
+        "ALPACA_API_KEY", "ALPACA_SECRET_KEY", "logs/paper_trade_state.json"
+    )
+    trades["annual_risk_free_rate"] = float(
+        config.get("backtest", {}).get("risk_free_rate", 0.0)
+    )
+    account_equity = trades.get("account", {}).get("equity")
+    if os.environ.get("ALPACA_API_KEY") and account_equity is None:
+        raise RuntimeError(
+            "Alpaca account fetch failed; refusing to publish a fictional $1m target"
+        )
+    capital = float(
+        config["backtest"]["initial_capital"]
+        if account_equity is None else account_equity
+    )
+    if capital <= 0:
+        raise RuntimeError("Paper account equity is non-positive; refusing to publish a target")
+    current_positions = trades.get("positions", [])
+    prev_weights = pd.Series(
+        {
+            p["symbol"]: float(p.get("market_value", 0)) / capital
+            for p in current_positions
+            if capital > 0 and float(p.get("market_value", 0)) != 0
+        },
+        dtype=float,
+    )
+
+    # Compute the recommendation once and share it between sections.
     logger.info("Computing current portfolio...")
-    current_portfolio = strategy.get_current_portfolio()
+    current_portfolio = strategy.get_current_portfolio(
+        capital=capital,
+        prev_weights=prev_weights,
+    )
 
     logger.info("Generating portfolio data...")
-    portfolio = generate_portfolio_data(strategy, current_portfolio)
+    portfolio = generate_portfolio_data(
+        strategy, current_portfolio, account_equity=capital
+    )
 
     logger.info("Generating factor data...")
     factors = generate_factor_data(strategy, current_portfolio)
 
     logger.info("Generating backtest data...")
     backtest = generate_backtest_data(strategy)
-
-    logger.info("Generating trade history...")
-    trades = fetch_trade_history(
-        "ALPACA_API_KEY", "ALPACA_SECRET_KEY", "logs/paper_trade_state.json"
-    )
 
     # Write JSON files
     for name, data in [("portfolio", portfolio), ("backtest", backtest),

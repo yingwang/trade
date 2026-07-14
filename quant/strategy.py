@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 from quant.data.market_data import MarketData
+from quant.data.point_in_time import load_point_in_time_bundle
 from quant.data.quality import (
     DataQualityChecker,
-    PointInTimeDataManager,
     enforce_live_data_quality,
     warn_survivorship_bias,
 )
@@ -19,6 +19,7 @@ from quant.portfolio.optimizer import (
     _ledoit_wolf_shrinkage,
 )
 from quant.backtest.engine import BacktestEngine, BacktestResult
+from quant.backtest.calendar import fixed_rebalance_dates
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class MultiFactorStrategy:
         self.optimizer = PortfolioOptimizer(config)
         self.risk_monitor = RiskMonitor(config)
         self.backtest_engine = BacktestEngine(config)
+        self.pit_universe, self.delisting_returns = load_point_in_time_bundle(config)
         # Live-path price snapshot, exposed for site generation reuse
         self.last_prices_ = None
 
@@ -50,7 +52,8 @@ class MultiFactorStrategy:
         end = end or bt_cfg.get("end_date")
 
         # --- Survivorship bias warning ---
-        warn_survivorship_bias(self.data.symbols, start)
+        if self.pit_universe is None:
+            warn_survivorship_bias(self.data.symbols, start)
 
         # 1. Fetch data — pull extra history for signal warm-up
         logger.info("Fetching price data...")
@@ -77,17 +80,15 @@ class MultiFactorStrategy:
                 DataQualityChecker.format_report(quality_report),
             )
 
-        logger.info("Fetching fundamentals...")
-        try:
-            fundamentals = self.data.fetch_fundamentals(is_backtest=True)
-            # Wrap in point-in-time manager to document limitation
-            pit = PointInTimeDataManager(
-                fundamentals, is_backtest=True, reporting_lag_days=90
-            )
-            fundamentals = pit.get_fundamentals()
-        except Exception as e:
-            logger.warning("Could not fetch fundamentals: %s", e)
-            fundamentals = pd.DataFrame()
+        # yfinance exposes only today's snapshot.  Applying it to every
+        # historical row is look-ahead, so backtests disable fundamentals
+        # unless a true point-in-time feed is integrated.
+        fundamentals = pd.DataFrame()
+        logger.warning(
+            "Backtest fundamentals disabled: no point-in-time fundamental "
+            "dataset configured; value/quality and historical sector limits "
+            "will not use today's snapshot"
+        )
 
         # Extract sector map for sector constraints (if available)
         sector_map = None
@@ -101,13 +102,15 @@ class MultiFactorStrategy:
         # 3. Build target weights on rebalance dates
         logger.info("Computing target weights...")
         rebalance_freq = self.config["portfolio"]["rebalance_frequency_days"]
-        symbols = [c for c in prices.columns if c != self.data.benchmark]
-
-        rebalance_dates = prices.index[::rebalance_freq]
         # Need enough history for signals
         min_history = max(self.config["signals"]["momentum_windows"]) + 42
-        rebalance_dates = [d for d in rebalance_dates
-                           if (d - prices.index[0]).days > min_history]
+        not_before = prices.index[0] + pd.Timedelta(days=int(min_history * 1.5))
+        rebalance_dates = fixed_rebalance_dates(
+            prices.index,
+            rebalance_freq,
+            anchor=bt_cfg.get("rebalance_anchor_date", "2000-01-03"),
+            not_before=not_before,
+        )
 
         target_weights = {}
         prev_weights = None  # Track previous weights for turnover penalty
@@ -117,6 +120,9 @@ class MultiFactorStrategy:
                 continue
 
             day_scores = signals.loc[date].dropna()
+            if self.pit_universe is not None:
+                members = self.pit_universe.members_as_of(date)
+                day_scores = day_scores[day_scores.index.isin(members)]
             if day_scores.empty:
                 continue
 
@@ -142,13 +148,19 @@ class MultiFactorStrategy:
             spy_ret = returns[spy_col].loc[:date] if spy_col in returns.columns else None
             regime = self.optimizer.detect_regime(spy_ret)
             weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+            regime_cap = min(
+                self.optimizer.regime_caps.get(regime, 1.0),
+                self.optimizer.max_leverage,
+            )
             # Do NOT renormalize after vol scaling -- the remainder is held as cash.
             # This preserves the vol-targeting effect.
 
             # Real turnover cap on final weights: includes exit legs and the
             # turnover created by vol scaling, which the in-optimizer
             # constraint cannot see.
-            weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
+            weights = self.optimizer.enforce_turnover_cap(
+                weights, prev_weights, gross_exposure_cap=regime_cap
+            )
 
             target_weights[str(date.date())] = weights
             prev_weights = weights  # Save for next rebalance turnover penalty
@@ -158,7 +170,22 @@ class MultiFactorStrategy:
         # 4. Run backtest — trim prices to requested start date so the
         #    equity curve doesn't show a flat warm-up period
         backtest_prices = prices.loc[start:] if start else prices
-        result = self.backtest_engine.run(backtest_prices, target_weights, self.data.benchmark)
+        execution_prices = self.data.last_open_prices_
+        if execution_prices is not None and start:
+            execution_prices = execution_prices.loc[start:]
+        result = self.backtest_engine.run(
+            backtest_prices,
+            target_weights,
+            self.data.benchmark,
+            execution_prices=execution_prices,
+            delisting_returns=(
+                self.delisting_returns.events
+                if self.delisting_returns is not None else None
+            ),
+        )
+        result.metrics["Point-in-Time Universe"] = self.pit_universe is not None
+        result.metrics["Point-in-Time Fundamentals"] = False
+        result.metrics["Survivorship Bias Warning"] = self.pit_universe is None
 
         # 5. Post-backtest risk check: drawdown monitoring
         if not result.equity_curve.empty:
@@ -247,7 +274,13 @@ class MultiFactorStrategy:
         regime = self.optimizer.detect_regime(spy_ret)
         weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
         # Do NOT renormalize -- remainder is cash buffer for vol targeting.
-        weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
+        regime_cap = min(
+            self.optimizer.regime_caps.get(regime, 1.0),
+            self.optimizer.max_leverage,
+        )
+        weights = self.optimizer.enforce_turnover_cap(
+            weights, prev_weights, gross_exposure_cap=regime_cap
+        )
 
         # Build output table
         latest_prices = prices.reindex(columns=weights.index).iloc[-1]

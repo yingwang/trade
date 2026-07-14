@@ -19,9 +19,9 @@ import numpy as np
 import pandas as pd
 
 from quant.data.market_data import MarketData
+from quant.data.point_in_time import load_point_in_time_bundle
 from quant.data.quality import (
     DataQualityChecker,
-    PointInTimeDataManager,
     warn_survivorship_bias,
 )
 from quant.signals.factors import SignalGenerator
@@ -32,6 +32,7 @@ from quant.portfolio.optimizer import (
     _ledoit_wolf_shrinkage,
 )
 from quant.backtest.engine import BacktestEngine, BacktestResult
+from quant.backtest.calendar import fixed_rebalance_dates
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,7 @@ class StrategyEnsemble:
         self.optimizer = PortfolioOptimizer(config)
         self.risk_monitor = RiskMonitor(config)
         self.backtest_engine = BacktestEngine(config)
+        self.pit_universe, self.delisting_returns = load_point_in_time_bundle(config)
 
         # Override max_positions for the ensemble's optimizer
         self.optimizer.max_positions = self.max_positions
@@ -166,7 +168,8 @@ class StrategyEnsemble:
         start = start or bt_cfg["start_date"]
         end = end or bt_cfg.get("end_date")
 
-        warn_survivorship_bias(self.data.symbols, start)
+        if self.pit_universe is None:
+            warn_survivorship_bias(self.data.symbols, start)
 
         # 1. Fetch data with warm-up for both strategies
         warmup_days = self._get_warmup_days()
@@ -189,17 +192,11 @@ class StrategyEnsemble:
             logger.error("Data quality check FAILED:\n%s",
                          DataQualityChecker.format_report(quality_report))
 
-        # Fundamentals
-        logger.info("Fetching fundamentals...")
-        try:
-            fundamentals = self.data.fetch_fundamentals(is_backtest=True)
-            pit = PointInTimeDataManager(
-                fundamentals, is_backtest=True, reporting_lag_days=90
-            )
-            fundamentals = pit.get_fundamentals()
-        except Exception as e:
-            logger.warning("Could not fetch fundamentals: %s", e)
-            fundamentals = pd.DataFrame()
+        fundamentals = pd.DataFrame()
+        logger.warning(
+            "Backtest fundamentals disabled because no point-in-time feed is "
+            "configured"
+        )
 
         sector_map = None
         if not fundamentals.empty and "sector" in fundamentals.columns:
@@ -255,14 +252,20 @@ class StrategyEnsemble:
         min_history_ml = 504 + 63  # train + val
         min_history = max(min_history_factor, min_history_ml) if ml_available else min_history_factor
 
-        rebalance_dates = prices.index[::rebalance_freq]
-        rebalance_dates = [d for d in rebalance_dates
-                           if (d - prices.index[0]).days > min_history]
+        not_before = prices.index[0] + pd.Timedelta(days=int(min_history * 1.5))
+        rebalance_dates = fixed_rebalance_dates(
+            prices.index,
+            rebalance_freq,
+            anchor=bt_cfg.get("rebalance_anchor_date", "2000-01-03"),
+            not_before=not_before,
+        )
 
         target_weights = {}
         prev_weights = None
         ml_rebalance_count = 0
-        ml_retrain_every = 3
+        # Live jobs start in a fresh process and retrain every rebalance; use
+        # the same cadence here so research and operations are comparable.
+        ml_retrain_every = 1
 
         for date in rebalance_dates:
             # --- Strategy A: factor scores ---
@@ -315,6 +318,11 @@ class StrategyEnsemble:
 
             # --- Combine scores ---
             combined = self._combine_scores(scores_a, scores_b)
+            if self.pit_universe is not None:
+                members = self.pit_universe.members_as_of(date)
+                combined = combined[combined.index.isin(members)]
+                if combined.empty:
+                    continue
 
             # --- Select and optimize ---
             selected = self.optimizer.select_top_stocks(combined)
@@ -345,6 +353,13 @@ class StrategyEnsemble:
             spy_ret = returns[spy_col].loc[:date] if spy_col in returns.columns else None
             regime = self.optimizer.detect_regime(spy_ret)
             weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+            regime_cap = min(
+                self.optimizer.regime_caps.get(regime, 1.0),
+                self.optimizer.max_leverage,
+            )
+            weights = self.optimizer.enforce_turnover_cap(
+                weights, prev_weights, gross_exposure_cap=regime_cap
+            )
 
             target_weights[str(date.date())] = weights
             prev_weights = weights
@@ -353,9 +368,22 @@ class StrategyEnsemble:
 
         # 5. Run backtest
         backtest_prices = prices.loc[start:] if start else prices
+        execution_prices = self.data.last_open_prices_
+        if execution_prices is not None and start:
+            execution_prices = execution_prices.loc[start:]
         result = self.backtest_engine.run(
-            backtest_prices, target_weights, self.data.benchmark
+            backtest_prices,
+            target_weights,
+            self.data.benchmark,
+            execution_prices=execution_prices,
+            delisting_returns=(
+                self.delisting_returns.events
+                if self.delisting_returns is not None else None
+            ),
         )
+        result.metrics["Point-in-Time Universe"] = self.pit_universe is not None
+        result.metrics["Point-in-Time Fundamentals"] = False
+        result.metrics["Survivorship Bias Warning"] = self.pit_universe is None
 
         # 6. Post-backtest risk check
         if not result.equity_curve.empty:

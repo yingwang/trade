@@ -10,8 +10,11 @@ import json
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from quant.data.corporate_actions import KNOWN_STOCK_SPLITS, looks_presplit
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +22,15 @@ logger = logging.getLogger(__name__)
 # Stock splits not yet reflected in Alpaca paper trading (paper accounts do
 # not process corporate actions). Map symbol -> ratio and split date.
 STOCK_SPLITS = {
-    "BKNG": {"ratio": 25, "date": "2026-04-06"},  # 1:25 split
+    split.symbol: {
+        "ratio": split.ratio,
+        "effective_date": split.effective_date.isoformat(),
+        "first_adjusted_session": split.first_adjusted_session.isoformat(),
+        # Backward-compatible alias: order/equity corrections begin when the
+        # market first trades on the adjusted basis, not on the legal date.
+        "date": split.first_adjusted_session.isoformat(),
+    }
+    for split in KNOWN_STOCK_SPLITS.values()
 }
 
 
@@ -33,9 +44,31 @@ def _looks_presplit(avg_entry_price: float, current_price: float, ratio: float) 
     Without this guard, a re-bought position would be multiplied by the
     split ratio again, silently inflating dashboard equity.
     """
-    if avg_entry_price <= 0 or current_price <= 0:
-        return False
-    return avg_entry_price / current_price > ratio / 3.0
+    return looks_presplit(avg_entry_price, current_price, ratio)
+
+
+def _enum_value(value):
+    """Return stable text for alpaca-py enum fields and test doubles."""
+    return getattr(value, "value", value)
+
+
+def _eastern_date(value) -> str:
+    """Convert an Alpaca timestamp to the US market's calendar date."""
+    if value is None:
+        return ""
+    if isinstance(value, (int, float)):
+        dt = datetime.fromtimestamp(value, tz=timezone.utc)
+    elif isinstance(value, datetime):
+        dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    else:
+        text = str(value).replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError:
+            return str(value)[:10]
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(ZoneInfo("America/New_York")).date().isoformat()
 
 
 def adjust_position_for_split(symbol, qty, avg_entry_price, cost_basis, current_price):
@@ -73,12 +106,12 @@ def _split_sold_credit(filled_orders) -> float:
         for o in filled_orders:
             if o.symbol != sym:
                 continue
-            fill_dt = str(o.filled_at)[:10] if o.filled_at else str(o.submitted_at)[:10]
+            fill_dt = _eastern_date(o.filled_at or o.submitted_at)
             if fill_dt < split_date:
                 continue
             qty = float(o.filled_qty)
             price = float(o.filled_avg_price) if o.filled_avg_price else 0.0
-            events.append((fill_dt, o.side, qty, price))
+            events.append((fill_dt, _enum_value(o.side), qty, price))
 
         events.sort(key=lambda e: e[0])
         post_split_bought = 0.0
@@ -97,6 +130,129 @@ def _split_sold_credit(filled_orders) -> float:
                         (ratio - 1) * presplit_qty * price,
                     )
     return credit
+
+
+def _split_history_adjustments(portfolio_history, raw_positions, filled_orders) -> dict:
+    """Build date-specific equity corrections for stale paper-account splits.
+
+    Held-share corrections vary with the adjusted market price, while missing
+    sale proceeds accumulate only from each sale date onward.  Applying the
+    current correction as a constant to the whole history (the old behavior)
+    rewrote past returns and drawdowns incorrectly.
+    """
+    if not portfolio_history:
+        return {}
+
+    try:
+        import pandas as pd
+        import yfinance as yf
+    except ImportError:
+        return {}
+
+    history_dates = pd.DatetimeIndex(
+        pd.to_datetime([row["date"] for row in portfolio_history])
+    ).normalize().unique().sort_values()
+    adjustments = pd.Series(0.0, index=history_dates)
+    raw_by_symbol = {p.symbol: p for p in raw_positions}
+
+    for symbol, split in STOCK_SPLITS.items():
+        ratio = float(split["ratio"])
+        start = pd.Timestamp(split["first_adjusted_session"])
+        if history_dates.max() < start:
+            continue
+
+        current = raw_by_symbol.get(symbol)
+        current_presplit_qty = 0.0
+        if current is not None and _looks_presplit(
+            float(current.avg_entry_price), float(current.current_price), ratio
+        ):
+            current_presplit_qty = float(current.qty)
+
+        events = []
+        for order in filled_orders:
+            if order.symbol != symbol:
+                continue
+            event_date = _eastern_date(order.filled_at or order.submitted_at)
+            if not event_date or event_date < split["first_adjusted_session"]:
+                continue
+            events.append(
+                (
+                    pd.Timestamp(event_date),
+                    _enum_value(order.side),
+                    float(order.filled_qty or 0),
+                    float(order.filled_avg_price or 0),
+                )
+            )
+        events.sort(key=lambda event: event[0])
+
+        post_split_bought = 0.0
+        presplit_sales = []
+        for event_date, side, qty, price in events:
+            if side == "buy":
+                post_split_bought += qty
+            elif side == "sell":
+                covered = min(qty, post_split_bought)
+                post_split_bought -= covered
+                presplit_qty = max(0.0, qty - covered)
+                if presplit_qty:
+                    presplit_sales.append((event_date, presplit_qty, price))
+
+        initial_presplit_qty = current_presplit_qty + sum(
+            qty for _, qty, _ in presplit_sales
+        )
+        if initial_presplit_qty <= 0 and not presplit_sales:
+            continue
+
+        end = history_dates.max() + pd.Timedelta(days=2)
+        try:
+            downloaded = yf.download(
+                symbol,
+                start=start.strftime("%Y-%m-%d"),
+                end=end.strftime("%Y-%m-%d"),
+                auto_adjust=True,
+                progress=False,
+            )
+            close = downloaded["Close"]
+            if isinstance(close, pd.DataFrame):
+                close = close.iloc[:, 0]
+            close.index = pd.to_datetime(close.index).tz_localize(None).normalize()
+            close = close.reindex(history_dates.union(close.index)).sort_index().ffill()
+            close = close.reindex(history_dates)
+        except Exception as exc:
+            logger.warning(
+                "Could not build date-specific %s split history correction: %s",
+                symbol,
+                exc,
+            )
+            continue
+
+        remaining = initial_presplit_qty
+        cumulative_credit = 0.0
+        sale_index = 0
+        for history_date in history_dates:
+            if history_date < start:
+                continue
+            while (
+                sale_index < len(presplit_sales)
+                and presplit_sales[sale_index][0] <= history_date
+            ):
+                _, sold_qty, sold_price = presplit_sales[sale_index]
+                remaining = max(0.0, remaining - sold_qty)
+                cumulative_credit += (ratio - 1.0) * sold_qty * sold_price
+                sale_index += 1
+            market_price = close.get(history_date)
+            if pd.isna(market_price):
+                continue
+            adjustments.loc[history_date] += (
+                (ratio - 1.0) * remaining * float(market_price)
+                + cumulative_credit
+            )
+
+    return {
+        date.strftime("%Y-%m-%d"): float(value)
+        for date, value in adjustments.items()
+        if value != 0
+    }
 
 
 def fetch_trade_history(api_key_env: str, secret_key_env: str, state_file: str) -> dict:
@@ -118,14 +274,16 @@ def fetch_trade_history(api_key_env: str, secret_key_env: str, state_file: str) 
 def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
     """Pull trade history and current positions from the Alpaca API."""
     try:
-        import alpaca_trade_api as tradeapi
+        from alpaca.trading.client import TradingClient
+        from alpaca.common.enums import Sort
+        from alpaca.trading.enums import QueryOrderStatus
+        from alpaca.trading.requests import GetOrdersRequest, GetPortfolioHistoryRequest
     except ImportError:
-        logger.warning("alpaca-trade-api not installed, falling back to local logs")
+        logger.warning("alpaca-py not installed, falling back to local logs")
         return parse_local_trade_logs(state_file)
 
     try:
-        api = tradeapi.REST(api_key, secret_key,
-                            "https://paper-api.alpaca.markets", api_version="v2")
+        api = TradingClient(api_key, secret_key, paper=True)
 
         # Current account info
         account = api.get_account()
@@ -138,15 +296,16 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
         # Portfolio equity history (daily) for actual P&L tracking
         portfolio_history = []
         try:
-            ph = api.get_portfolio_history(period="all", timeframe="1D")
+            ph = api.get_portfolio_history(
+                GetPortfolioHistoryRequest(period="all", timeframe="1D")
+            )
             if ph and hasattr(ph, 'equity') and ph.equity:
-                import datetime as dt
                 for ts, eq, pl in zip(ph.timestamp, ph.equity, ph.profit_loss):
-                    d = dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                    d = _eastern_date(ts)
                     portfolio_history.append({
                         "date": d,
-                        "equity": float(eq) if eq else None,
-                        "profit_loss": float(pl) if pl else None,
+                        "equity": float(eq) if eq is not None else None,
+                        "profit_loss": float(pl) if pl is not None else None,
                     })
                 logger.info("Fetched %d days of portfolio history from Alpaca",
                             len(portfolio_history))
@@ -154,7 +313,7 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
             logger.warning("Could not fetch portfolio history: %s", e)
 
         # Current positions (split-corrected where needed)
-        raw_positions = api.list_positions()
+        raw_positions = api.get_all_positions()
         positions = []
         for p in raw_positions:
             qty = float(p.qty)
@@ -173,32 +332,40 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
             positions.append({
                 "symbol": p.symbol,
                 "qty": qty,
-                "side": p.side,
+                "side": _enum_value(p.side),
                 "current_price": current,
                 "market_value": round(market_value, 2),
                 "avg_entry_price": round(avg_entry, 2),
                 "cost_basis": round(cost, 2),
-                "today_pl_pct": float(p.unrealized_intraday_plpc) * 100 if hasattr(p, 'unrealized_intraday_plpc') and p.unrealized_intraday_plpc else 0,
-                "today_pl": float(p.unrealized_intraday_pl) if hasattr(p, 'unrealized_intraday_pl') and p.unrealized_intraday_pl else 0,
+                "today_pl_pct": float(p.unrealized_intraday_plpc) * 100 if getattr(p, 'unrealized_intraday_plpc', None) is not None else 0,
+                "today_pl": float(p.unrealized_intraday_pl) if getattr(p, 'unrealized_intraday_pl', None) is not None else 0,
                 "total_pl_pct": round(total_pl_pct, 3),
                 "total_pl": round(total_pl, 2),
             })
 
         # Recent orders (last ~200 closed orders)
-        orders = api.list_orders(status="closed", limit=200, direction="desc")
-        filled_orders = [o for o in orders if o.status == "filled"]
+        orders = api.get_orders(
+            GetOrdersRequest(
+                status=QueryOrderStatus.CLOSED,
+                limit=500,
+                direction=Sort.DESC,
+            )
+        )
+        # Include partially filled and later-cancelled orders: actual shares
+        # changed hands even when the terminal status is not "filled".
+        filled_orders = [o for o in orders if float(o.filled_qty or 0) > 0]
 
         # Group orders by date into "rebalances"
         by_date = defaultdict(list)
         for o in filled_orders:
-            filled = str(o.filled_at) if o.filled_at else str(o.submitted_at)
-            date = filled[:10]
+            date = _eastern_date(o.filled_at or o.submitted_at)
             by_date[date].append({
                 "symbol": o.symbol,
-                "side": o.side,
+                "side": _enum_value(o.side),
                 "quantity": float(o.filled_qty),
                 "price": float(o.filled_avg_price) if o.filled_avg_price else 0,
                 "slippage_bps": 0,
+                "status": str(_enum_value(o.status)),
             })
 
         rebalances = []
@@ -242,33 +409,36 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
                 "(held=%.2f, sold=%.2f)",
                 equity_adjustment, held_adjustment, sold_credit,
             )
-            # Correction start date = max(split_date, first buy date) per symbol
-            cutoff_date = None
-            for sym, split in STOCK_SPLITS.items():
-                split_date = split["date"]
-                buy_date = None
-                for reb in rebalances:
-                    for t in reb.get("trades", []):
-                        if t["symbol"] == sym and t["side"] == "buy":
-                            if buy_date is None or reb["date"] < buy_date:
-                                buy_date = reb["date"]
-                effective = max(split_date, buy_date) if buy_date else split_date
-                if cutoff_date is None or effective < cutoff_date:
-                    cutoff_date = effective
-            if cutoff_date:
-                for h in portfolio_history:
-                    if h["equity"] is not None and h["date"] > cutoff_date:
-                        h["equity"] = round(h["equity"] + equity_adjustment, 2)
+
+        history_adjustments = _split_history_adjustments(
+            portfolio_history, raw_positions, filled_orders
+        )
+        for row in portfolio_history:
+            adjustment = history_adjustments.get(row["date"], 0.0)
+            if row["equity"] is not None and adjustment:
+                row["equity"] = round(row["equity"] + adjustment, 2)
+
+        equity_by_date = {
+            row["date"]: row["equity"]
+            for row in portfolio_history
+            if row["equity"] is not None
+        }
+        for rebalance in rebalances:
+            rebalance["portfolio_value"] = equity_by_date.get(
+                rebalance["date"], account_info["equity"]
+            )
 
         # Fetch SPY benchmark aligned to portfolio history dates
         spy_history = _fetch_spy_benchmark(portfolio_history)
 
         return {
+            "source": "alpaca",
             "account": account_info,
             "positions": positions,
             "portfolio_history": portfolio_history,
             "spy_history": spy_history,
             "rebalances": rebalances,
+            "corporate_action_adjustments": history_adjustments,
         }
 
     except Exception as e:
@@ -279,7 +449,7 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
 def _fetch_spy_benchmark(portfolio_history) -> list:
     """SPY equity curve normalized to the account's starting equity."""
     spy_history = []
-    valid_hist = [h for h in portfolio_history if h["equity"]]
+    valid_hist = [h for h in portfolio_history if h.get("equity") is not None]
     if not valid_hist:
         return spy_history
     try:
@@ -366,4 +536,4 @@ def parse_local_trade_logs(state_file: str) -> dict:
             if reb["trades"]:
                 rebalances.append(reb)
 
-    return {"rebalances": rebalances}
+    return {"source": "local", "rebalances": rebalances}

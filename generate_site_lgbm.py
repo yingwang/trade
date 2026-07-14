@@ -16,8 +16,10 @@ Outputs 6 JSON files:
 
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -33,9 +35,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = Path("site/lgbm/data")
+MARKET_TZ = ZoneInfo("America/New_York")
 
 
-def generate_portfolio_data(strategy, portfolio):
+def generate_portfolio_data(strategy, portfolio, account_equity=None):
     """Section 1: Current LightGBM portfolio recommendation."""
     # Reuse the prices already fetched by get_current_portfolio
     prices = strategy.last_prices_ if strategy.last_prices_ is not None else strategy.data.fetch_prices()
@@ -46,11 +49,14 @@ def generate_portfolio_data(strategy, portfolio):
     total_invested = float(portfolio["weight"].sum())
 
     data = {
-        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updated_at": datetime.now(MARKET_TZ).strftime("%Y-%m-%d %H:%M %Z"),
         "regime": regime,
         "strategy": "LightGBM",
         "total_invested_pct": round(total_invested * 100, 1),
         "cash_pct": round(max(0, (1 - total_invested)) * 100, 1),
+        "account_equity_basis": (
+            round(float(account_equity), 2) if account_equity is not None else None
+        ),
         "positions": [],
     }
     for symbol, row in portfolio.iterrows():
@@ -115,7 +121,7 @@ def generate_backtest_data(strategy):
     }
     for k, v in result.metrics.items():
         if isinstance(v, (float, np.floating)):
-            data["metrics"][k] = round(float(v), 4)
+            data["metrics"][k] = round(float(v), 4) if np.isfinite(v) else None
         elif isinstance(v, (int, np.integer)):
             data["metrics"][k] = int(v)
         else:
@@ -134,7 +140,7 @@ def generate_feature_importance(strategy):
 
     if model.feature_importance_ is None or feature_names is None:
         logger.warning("No feature importance available (model not trained yet)")
-        return {"features": [], "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M")}
+        return {"features": [], "updated_at": datetime.now(MARKET_TZ).strftime("%Y-%m-%d %H:%M %Z")}
 
     imp_df = model.get_feature_importance(feature_names)
 
@@ -148,7 +154,7 @@ def generate_feature_importance(strategy):
 
     return {
         "features": features,
-        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updated_at": datetime.now(MARKET_TZ).strftime("%Y-%m-%d %H:%M %Z"),
     }
 
 
@@ -158,7 +164,7 @@ def generate_training_history(strategy):
 
     model = strategy.model
     data = {
-        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updated_at": datetime.now(MARKET_TZ).strftime("%Y-%m-%d %H:%M %Z"),
         "backend": "lightgbm" if LGBM_AVAILABLE else ("sklearn" if SKLEARN_FALLBACK else "none"),
         "train_window": strategy.train_window,
         "val_window": strategy.val_window,
@@ -181,9 +187,14 @@ def generate_training_history(strategy):
         entry = {}
         for k, v in run.items():
             if isinstance(v, (np.floating, np.integer)):
-                entry[k] = float(v) if isinstance(v, np.floating) else int(v)
+                if isinstance(v, np.floating):
+                    entry[k] = float(v) if np.isfinite(v) else None
+                else:
+                    entry[k] = int(v)
             elif isinstance(v, (int, float, str, bool)):
-                entry[k] = v
+                entry[k] = (
+                    v if not isinstance(v, float) or np.isfinite(v) else None
+                )
         data["training_runs"].append(entry)
 
     # Number of features
@@ -198,14 +209,55 @@ def main():
     config = load_config()
     strategy = LGBMStrategy(config)
 
-    # Compute the current portfolio ONCE — it fetches prices/fundamentals and
-    # trains the model, so the duplicate call the old script made doubled the
-    # slowest part of the whole site build.
+    logger.info("Fetching trade history and current account...")
+    trades = fetch_trade_history(
+        "ALPACA_LGBM_API_KEY", "ALPACA_LGBM_SECRET_KEY",
+        "logs/paper_trade_lgbm_state.json",
+    )
+    trades["annual_risk_free_rate"] = float(
+        config.get("backtest", {}).get("risk_free_rate", 0.0)
+    )
+    account_equity = trades.get("account", {}).get("equity")
+    if os.environ.get("ALPACA_LGBM_API_KEY") and account_equity is None:
+        raise RuntimeError(
+            "Alpaca account fetch failed; refusing to publish a fictional $1m target"
+        )
+    capital = float(
+        config["backtest"]["initial_capital"]
+        if account_equity is None else account_equity
+    )
+    if capital <= 0:
+        raise RuntimeError("Paper account equity is non-positive; refusing to publish a target")
+    prev_weights = pd.Series(
+        {
+            p["symbol"]: float(p.get("market_value", 0)) / capital
+            for p in trades.get("positions", [])
+            if capital > 0 and float(p.get("market_value", 0)) != 0
+        },
+        dtype=float,
+    )
+    prev_scores = None
+    state_path = Path("logs/paper_trade_lgbm_state.json")
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text())
+            if state.get("prev_scores"):
+                prev_scores = pd.Series(state["prev_scores"], dtype=float)
+        except (OSError, ValueError, TypeError):
+            logger.warning("Could not load persisted LightGBM scores")
+
+    # Compute the current portfolio once; model training is the expensive step.
     logger.info("Computing current LightGBM portfolio...")
-    current_portfolio = strategy.get_current_portfolio()
+    current_portfolio = strategy.get_current_portfolio(
+        capital=capital,
+        prev_weights=prev_weights,
+        prev_scores=prev_scores,
+    )
 
     logger.info("Generating LightGBM portfolio data...")
-    portfolio = generate_portfolio_data(strategy, current_portfolio)
+    portfolio = generate_portfolio_data(
+        strategy, current_portfolio, account_equity=capital
+    )
 
     logger.info("Generating factor data...")
     factors = generate_factor_data(strategy, current_portfolio)
@@ -220,12 +272,6 @@ def main():
 
     logger.info("Generating training history...")
     training_history = generate_training_history(strategy)
-
-    logger.info("Generating trade history...")
-    trades = fetch_trade_history(
-        "ALPACA_LGBM_API_KEY", "ALPACA_LGBM_SECRET_KEY",
-        "logs/paper_trade_lgbm_state.json",
-    )
 
     # Write JSON files
     for name, data in [

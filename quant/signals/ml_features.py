@@ -196,7 +196,12 @@ class MLFeatureEngine:
         )
         # Rank versions of every feature
         ranked = [f"{f}_rank" for f in base]
-        return base + ranked
+        modeled = base + ranked
+        # A numeric zero is a legitimate observation.  Explicit missingness
+        # flags let the model distinguish it from the zero used to make the
+        # sklearn fallback matrix finite.
+        missing = [f"{f}_missing" for f in modeled]
+        return modeled + missing
 
     @property
     def num_features(self) -> int:
@@ -280,6 +285,10 @@ class MLFeatureEngine:
         for name in base_names:
             features[f"{name}_rank"] = cross_sectional_rank(features[name])
 
+        modeled_names = list(features.keys())
+        for name in modeled_names:
+            features[f"{name}_missing"] = features[name].isna().astype(float)
+
         logger.info(
             "Built %d features for %d symbols x %d dates",
             len(features), len(symbols), len(px),
@@ -297,7 +306,8 @@ class MLFeatureEngine:
         Returns
         -------
         X : ndarray of shape (T, N, F)
-            Feature tensor.  NaN values are replaced with 0.
+            Feature tensor.  NaN values are replaced with 0 and accompanied
+            by explicit ``*_missing`` indicator columns.
         feature_names : list of str
         dates : DatetimeIndex
         symbols : list of str

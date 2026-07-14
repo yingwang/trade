@@ -123,6 +123,13 @@ class PortfolioOptimizer:
         # portfolio silently drifts from the target.
         self.max_position_pct_safety = config.get("safety", {}).get(
             "max_position_pct_of_portfolio")
+        # Scores are ordinal signals, not percentage returns.  Convert their
+        # cross-sectional z-scores to a documented annual return scale before
+        # comparing them with an annualized covariance matrix.  Previously an
+        # alpha value around 1.0 dominated daily variance around 1e-4, making
+        # the nominal mean-variance optimizer effectively a score sorter.
+        self.alpha_scale = pcfg.get("alpha_scale", 0.05)
+        self.risk_aversion = pcfg.get("risk_aversion", 1.0)
 
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
@@ -161,8 +168,22 @@ class PortfolioOptimizer:
         if n == 0:
             return pd.Series(dtype=float)
 
-        alpha = scores.reindex(selected).fillna(0).values
-        cov = cov_matrix.reindex(index=selected, columns=selected).fillna(0).values
+        raw_alpha = scores.reindex(selected).astype(float).fillna(0).values
+        alpha_std = float(np.std(raw_alpha))
+        if alpha_std > 1e-12:
+            alpha = (raw_alpha - float(np.mean(raw_alpha))) / alpha_std
+        else:
+            alpha = np.zeros_like(raw_alpha)
+        alpha = alpha * self.alpha_scale
+
+        # Input covariance is daily.  Keep alpha and risk on the same annual
+        # horizon so both terms materially influence the solution.
+        cov = (
+            cov_matrix.reindex(index=selected, columns=selected)
+            .fillna(0)
+            .values
+            * 252.0
+        )
 
         # Regularize covariance: add small ridge to diagonal for numerical stability
         ridge = 1e-6 * np.trace(cov) / n if np.trace(cov) > 0 else 1e-8
@@ -183,7 +204,7 @@ class PortfolioOptimizer:
             w_prev = np.full(n, 1.0 / n)
 
         # Objective: maximize alpha'w - lambda * w'Cov*w - gamma * |w - w_prev|
-        risk_aversion = 1.0
+        risk_aversion = self.risk_aversion
         turnover_penalty = self.turnover_penalty
 
         def neg_utility(w):
@@ -387,6 +408,7 @@ class PortfolioOptimizer:
         weights: pd.Series,
         prev_weights: Optional[pd.Series],
         min_stub_weight: float = 0.0025,
+        gross_exposure_cap: Optional[float] = None,
     ) -> pd.Series:
         """Cap TOTAL two-sided turnover vs the previous portfolio.
 
@@ -403,11 +425,35 @@ class PortfolioOptimizer:
         transitional stubs below min_stub_weight are liquidated outright to
         avoid dust orders (the tiny cap overshoot is logged).
         """
-        if prev_weights is None or self.max_turnover >= 1.0 or weights.empty:
+        weights = self.apply_hard_exposure_limits(
+            weights, gross_exposure_cap=gross_exposure_cap
+        )
+        if prev_weights is None or weights.empty:
             return weights
 
         prev = prev_weights[prev_weights.abs() > 1e-12]
         if prev.empty:
+            return weights
+
+        # A normal turnover budget must never obstruct an emergency reduction
+        # in leverage.  If the account starts above today's regime cap, move
+        # directly to the risk-compliant target; blending would leave the
+        # portfolio overexposed for several rebalance cycles.
+        if (
+            gross_exposure_cap is not None
+            and float(prev.abs().sum()) > gross_exposure_cap + 1e-9
+            and float(weights.abs().sum()) <= gross_exposure_cap + 1e-9
+        ):
+            logger.warning(
+                "Bypassing turnover cap to reduce gross exposure from %.1f%% "
+                "to %.1f%% (risk cap %.1f%%)",
+                float(prev.abs().sum()) * 100,
+                float(weights.abs().sum()) * 100,
+                gross_exposure_cap * 100,
+            )
+            return weights
+
+        if self.max_turnover >= 1.0:
             return weights
 
         union = weights.index.union(prev.index)
@@ -432,7 +478,38 @@ class PortfolioOptimizer:
             turnover * 100, self.max_turnover * 100, lam,
             int((~blended.index.isin(weights.index)).sum()), len(stubs),
         )
-        return blended
+        return self.apply_hard_exposure_limits(
+            blended, gross_exposure_cap=gross_exposure_cap
+        )
+
+    def apply_hard_exposure_limits(
+        self,
+        weights: pd.Series,
+        gross_exposure_cap: Optional[float] = None,
+    ) -> pd.Series:
+        """Enforce final broker-compatible position and gross limits.
+
+        This is deliberately applied after volatility scaling and turnover
+        blending: either post-processing step can otherwise recreate a breach
+        that the optimizer itself never sees.  Excess remains in cash.
+        """
+        if weights is None or weights.empty:
+            return weights
+
+        limited = weights.astype(float).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        limited = limited.clip(lower=0.0)
+
+        if self.max_position_pct_safety is not None:
+            limited = limited.clip(upper=float(self.max_position_pct_safety))
+
+        if gross_exposure_cap is None:
+            gross_exposure_cap = self.max_leverage
+        gross_exposure_cap = max(0.0, min(float(gross_exposure_cap), self.max_leverage))
+        gross = float(limited.abs().sum())
+        if gross > gross_exposure_cap + 1e-12 and gross > 0:
+            limited *= gross_exposure_cap / gross
+
+        return limited[limited.abs() > 1e-12]
 
     def check_stop_losses(self, current_weights: pd.Series,
                           entry_prices: pd.Series,

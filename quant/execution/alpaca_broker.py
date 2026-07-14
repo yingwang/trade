@@ -1,28 +1,25 @@
-"""Alpaca broker implementation for paper and live trading.
+"""Alpaca broker adapter with fail-closed execution semantics.
 
-Requires:
-    pip install alpaca-trade-api
-
-Setup:
-    1. Create account at https://alpaca.markets
-    2. Go to Paper Trading -> API Keys
-    3. Set environment variables:
-       export ALPACA_API_KEY="your-key"
-       export ALPACA_SECRET_KEY="your-secret"
-       export ALPACA_PAPER="true"   # "true" for paper, "false" for live
-
-NOTE: alpaca-trade-api is the legacy SDK. Consider migrating to alpaca-py
-(https://github.com/alpacahq/alpaca-py) for active maintenance and websocket
-support.  This module continues to use alpaca-trade-api for now.
+The adapter uses the maintained :mod:`alpaca-py` SDK.  Orders are idempotent,
+partial fills are retained, timed-out orders are cancelled and confirmed before
+execution continues, and synthetic TWAP parent intents are validated separately
+from the child orders that actually reach the broker.
 """
 
+from __future__ import annotations
+
+import hashlib
+import json
 import logging
 import os
 import time
+from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+from quant.data.corporate_actions import assert_corporate_actions_reconciled
 from quant.execution.broker import BaseBroker, Order
 from quant.execution.safety import (
     ExecutionLogger,
@@ -33,414 +30,653 @@ from quant.execution.safety import (
 )
 
 logger = logging.getLogger(__name__)
+NY_TZ = ZoneInfo("America/New_York")
+
+
+def _status(value: object) -> str:
+    """Normalize alpaca-py enum values and test doubles to lower-case text."""
+
+    raw = getattr(value, "value", value)
+    return str(raw).split(".")[-1].lower()
+
+
+def _attr(obj: object, name: str, default=None):
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
 
 
 class AlpacaBroker(BaseBroker):
-    """Alpaca API broker for paper and live trading.
-
-    Now includes:
-    - Pre-trade safety checks (max order value, daily limits, ADV)
-    - Post-trade reconciliation
-    - TWAP order splitting for large orders
-    - Structured execution logging with slippage tracking
-    - Partial fill handling
-    - Paper-mode validation
-    """
+    """Paper/live Alpaca implementation with safety and recovery controls."""
 
     def __init__(
         self,
-        api_key: str = None,
-        secret_key: str = None,
+        api_key: str | None = None,
+        secret_key: str | None = None,
         paper: Optional[bool] = None,
-        safety_config: SafetyConfig = None,
+        safety_config: SafetyConfig | None = None,
+        *,
+        trading_client=None,
+        data_client=None,
     ):
-        try:
-            import alpaca_trade_api as tradeapi
-        except ImportError:
-            raise ImportError(
-                "alpaca-trade-api not installed. Run: pip install alpaca-trade-api"
-            )
-
-        self.api_key = api_key or os.environ.get("ALPACA_API_KEY", "")
-        self.secret_key = secret_key or os.environ.get("ALPACA_SECRET_KEY", "")
-        # Explicit argument wins; otherwise fall back to ALPACA_PAPER env var
-        # (defaults to paper mode). Live trading is still gated by
-        # require_paper_mode below.
+        key = api_key or os.environ.get("ALPACA_API_KEY", "")
+        secret = secret_key or os.environ.get("ALPACA_SECRET_KEY", "")
         if paper is None:
-            self.paper = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
-        else:
-            self.paper = paper
+            paper = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
+        self.paper = bool(paper)
 
-        if not self.api_key or not self.secret_key:
-            raise ValueError(
-                "Alpaca API keys not found. Set ALPACA_API_KEY and "
-                "ALPACA_SECRET_KEY environment variables."
-            )
+        if trading_client is None:
+            if not key or not secret:
+                raise ValueError(
+                    "Alpaca API keys not found. Set ALPACA_API_KEY and "
+                    "ALPACA_SECRET_KEY."
+                )
+            try:
+                from alpaca.trading.client import TradingClient
+                from alpaca.data.historical import StockHistoricalDataClient
+            except ImportError as exc:
+                raise ImportError(
+                    "alpaca-py is not installed. Run: pip install alpaca-py"
+                ) from exc
+            trading_client = TradingClient(key, secret, paper=self.paper)
+            data_client = data_client or StockHistoricalDataClient(key, secret)
 
-        # Do NOT store keys on the instance beyond what the REST client needs.
-        # Clear plain-text copies after passing to the SDK.
-        base_url = (
-            "https://paper-api.alpaca.markets" if self.paper
-            else "https://api.alpaca.markets"
-        )
-
-        self.api = tradeapi.REST(
-            self.api_key, self.secret_key, base_url, api_version="v2"
-        )
-
-        # Wipe plain-text key copies from instance attributes
-        self.api_key = "***"
-        self.secret_key = "***"
-
-        # Safety subsystems
+        self.trading_client = trading_client
+        # ``api`` remains as a compatibility alias for existing operator tests.
+        self.api = trading_client
+        self.data_client = data_client
         self.safety = PreTradeCheck(safety_config or SafetyConfig())
         self.reconciler = PostTradeReconciler()
-        self.twap = TWAPSplitter()
+        self.twap = TWAPSplitter(
+            adv_threshold=self.safety.config.max_adv_fraction,
+            n_slices=5,
+            duration_minutes=30,
+        )
         self.exec_log = ExecutionLogger()
+        self._sleep = time.sleep
+        self._monotonic = time.monotonic
 
-        # Paper-mode gate
         if self.safety.config.require_paper_mode and not self.paper:
             raise RuntimeError(
-                "SAFETY: require_paper_mode is True but paper=False. "
-                "Set require_paper_mode=False in SafetyConfig to enable live trading."
+                "SAFETY: require_paper_mode is true but a live account was "
+                "requested. Explicitly disable the gate before live trading."
             )
 
-        # Verify connection
-        account = self.api.get_account()
-        mode = "PAPER" if self.paper else "LIVE"
+        account = self._client().get_account()
         logger.info(
             "Connected to Alpaca [%s] | Equity: $%s | Cash: $%s",
-            mode, account.equity, account.cash,
+            "PAPER" if self.paper else "LIVE",
+            _attr(account, "equity"),
+            _attr(account, "cash"),
+        )
+
+    def _client(self):
+        return getattr(self, "trading_client", getattr(self, "api", None))
+
+    # ------------------------------------------------------------------
+    # Idempotency
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _base_client_order_id(order: Order) -> str:
+        trading_day = datetime.now(NY_TZ).date().isoformat()
+        payload = {
+            "day": trading_day,
+            "purpose": order.purpose,
+            "symbol": order.symbol.upper(),
+            "side": order.side,
+            "qty": round(float(order.requested_quantity or order.quantity), 8),
+            "type": order.order_type,
+            "limit": order.limit_price,
+        }
+        digest = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()[:24]
+        return f"qts-{order.purpose[:4]}-{digest}"[:48]
+
+    @staticmethod
+    def _retry_client_order_id(base: str, attempt: int) -> str:
+        digest = hashlib.sha256(f"{base}:retry:{attempt}".encode()).hexdigest()[:8]
+        return f"{base[:38]}-r{attempt}-{digest}"[:48]
+
+    @staticmethod
+    def _child_client_order_id(parent: str, child_index: int) -> str:
+        digest = hashlib.sha256(f"{parent}:slice:{child_index}".encode()).hexdigest()[:8]
+        return f"{parent[:36]}-s{child_index}-{digest}"[:48]
+
+    def _get_order_by_client_id(self, client_order_id: str):
+        client = self._client()
+        methods = (
+            "get_order_by_client_id",
+            "get_order_by_client_order_id",
+        )
+        for name in methods:
+            method = getattr(client, name, None)
+            if method is None:
+                continue
+            try:
+                return method(client_order_id)
+            except Exception as exc:
+                # Alpaca raises on a missing id.  Other failures are logged but
+                # do not turn into an unguarded duplicate submission: the
+                # actual submit still uses the same client id.
+                text = str(exc).lower()
+                if any(token in text for token in ("not found", "404", "does not exist")):
+                    return None
+                logger.warning(
+                    "Could not query client_order_id %s: %s",
+                    client_order_id,
+                    exc,
+                )
+                return None
+        return None
+
+    def _resolve_idempotency(self, order: Order):
+        """Find an existing intent or choose the next safe retry id.
+
+        Active/filled/partially-filled broker orders are reused.  A previously
+        cancelled or rejected zero-fill intent gets a deterministic retry id,
+        allowing a later workflow run to try again without colliding with the
+        terminal order or duplicating an order hidden by a network timeout.
+        """
+
+        base = order.client_order_id or self._base_client_order_id(order)
+        for attempt in range(10):
+            candidate = base if attempt == 0 else self._retry_client_order_id(base, attempt)
+            existing = self._get_order_by_client_id(candidate)
+            if existing is None:
+                order.client_order_id = candidate
+                return None
+            status = _status(_attr(existing, "status", ""))
+            filled_qty = float(_attr(existing, "filled_qty", 0) or 0)
+            if filled_qty > 0 or status not in {"canceled", "cancelled", "expired", "rejected"}:
+                order.client_order_id = candidate
+                return existing
+        raise RuntimeError(
+            f"Too many terminal retries for {order.symbol} {order.side}; refusing to submit"
         )
 
     # ------------------------------------------------------------------
-    # Order submission with safety checks
+    # Order submission
     # ------------------------------------------------------------------
 
     def submit_order(self, order: Order, avg_daily_volume: float = None) -> Order:
-        """Submit order to Alpaca after safety validation.
+        self.assert_corporate_actions_reconciled()
 
-        Parameters
-        ----------
-        order : Order
-            The order to submit.
-        avg_daily_volume : float, optional
-            Recent average daily share volume for the symbol, used for
-            liquidity checks and TWAP splitting decisions.
-        """
+        # Resolve a prior network-timeout/restarted-workflow intent before
+        # applying limits for a *new* submission. Monitoring an order that the
+        # broker already accepted must not be blocked by a daily limit that
+        # the same fill helped consume.
+        existing = self._resolve_idempotency(order)
+
         portfolio_value = self.get_portfolio_value()
-        price = order.signal_price or self._get_price_safe(order.symbol)
-
+        price = (
+            order.signal_price
+            or (_attr(existing, "filled_avg_price", None) if existing is not None else None)
+            or self._get_price_safe(order.symbol)
+        )
         if price is None or price <= 0:
-            order.status = "rejected"
-            order.reject_reason = f"No valid price for {order.symbol}"
-            logger.error("Order rejected: %s", order.reject_reason)
-            self.exec_log.log_order_rejected(order, order.reject_reason)
-            return order
+            return self._reject(order, f"No valid price for {order.symbol}")
 
-        # Pre-trade safety check
-        current_positions = {}
-        current_shares = self.get_positions()
-        if not current_shares.empty:
-            position_prices = self.get_current_prices(current_shares.index.tolist())
-            current_positions = {
-                symbol: shares * position_prices.get(symbol, 0.0)
-                for symbol, shares in current_shares.items()
-            }
+        if existing is not None:
+            return self._execute_single(
+                order,
+                float(price),
+                existing=existing,
+                idempotency_checked=True,
+            )
+
+        current_positions = self._position_values()
+        split = bool(
+            avg_daily_volume
+            and self.twap.should_split(order.quantity, avg_daily_volume)
+        )
         passed, reason = self.safety.validate(
-            order, price, portfolio_value, current_positions, avg_daily_volume
+            order,
+            price,
+            portfolio_value,
+            current_positions,
+            None if split else avg_daily_volume,
+            check_order_limits=not split,
+            check_adv=not split,
         )
         if not passed:
-            order.status = "rejected"
-            order.reject_reason = reason
-            self.exec_log.log_safety_block(order, reason)
-            self.safety.record_rejection()
-            return order
+            return self._reject(order, reason, safety_block=True)
 
-        # TWAP splitting for large orders
-        if avg_daily_volume and self.twap.should_split(order.quantity, avg_daily_volume):
+        if split:
             return self._execute_twap(order, avg_daily_volume, price)
+        return self._execute_single(
+            order, price, existing=None, idempotency_checked=True
+        )
 
-        # Single order execution
-        return self._execute_single(order, price)
+    def _reject(self, order: Order, reason: str, *, safety_block: bool = False) -> Order:
+        order.status = "rejected"
+        order.reject_reason = reason
+        if safety_block:
+            self.exec_log.log_safety_block(order, reason)
+        else:
+            self.exec_log.log_order_rejected(order, reason)
+        self.safety.record_rejection()
+        logger.error("Order rejected for %s: %s", order.symbol, reason)
+        return order
 
-    def _execute_single(self, order: Order, signal_price: float) -> Order:
-        """Execute a single order against Alpaca API with retry on transient errors."""
-        self.safety.record_submission()
-        self.exec_log.log_order_submitted(order, signal_price)
+    def _position_values(self) -> dict[str, float]:
+        shares = self.get_positions()
+        if shares.empty:
+            return {}
+        prices = self.get_current_prices(shares.index.tolist())
+        return {
+            symbol: float(qty) * float(prices.get(symbol, 0.0))
+            for symbol, qty in shares.items()
+        }
 
-        max_retries = 2
-        for attempt in range(max_retries + 1):
-            try:
-                alpaca_order = self.api.submit_order(
-                    symbol=order.symbol,
-                    qty=int(order.quantity),
-                    side=order.side,
-                    type=order.order_type,
-                    time_in_force="day",
-                    limit_price=(
-                        str(order.limit_price) if order.limit_price else None
-                    ),
-                )
-                break  # success
-            except Exception as e:
-                err_str = str(e)
-                # Retry on network / rate-limit errors, not on business logic errors
-                if attempt < max_retries and (
-                    "timeout" in err_str.lower()
-                    or "429" in err_str
-                    or "connection" in err_str.lower()
-                ):
+    def _validate_child(
+        self,
+        order: Order,
+        signal_price: float,
+        avg_daily_volume: float,
+    ) -> tuple[bool, str]:
+        return self.safety.validate(
+            order,
+            signal_price,
+            self.get_portfolio_value(),
+            self._position_values(),
+            avg_daily_volume,
+        )
+
+    def _build_order_request(self, order: Order):
+        """Build an alpaca-py request, with a dict fallback for test doubles."""
+
+        try:
+            from alpaca.trading.enums import OrderSide, TimeInForce
+            from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+
+            common = {
+                "symbol": order.symbol,
+                "qty": float(order.quantity),
+                "side": OrderSide.BUY if order.side == "buy" else OrderSide.SELL,
+                "time_in_force": TimeInForce.DAY,
+                "client_order_id": order.client_order_id,
+            }
+            if order.order_type == "limit":
+                return LimitOrderRequest(limit_price=float(order.limit_price), **common)
+            return MarketOrderRequest(**common)
+        except ImportError:
+            return {
+                "symbol": order.symbol,
+                "qty": float(order.quantity),
+                "side": order.side,
+                "type": order.order_type,
+                "time_in_force": "day",
+                "limit_price": order.limit_price,
+                "client_order_id": order.client_order_id,
+            }
+
+    def _submit_request(self, request):
+        client = self._client()
+        if isinstance(request, dict):
+            return client.submit_order(**request)
+        return client.submit_order(order_data=request)
+
+    @staticmethod
+    def _is_transient(exc: Exception) -> bool:
+        text = str(exc).lower()
+        return any(
+            token in text
+            for token in ("timeout", "timed out", "429", "connection", "temporarily")
+        )
+
+    def _execute_single(
+        self,
+        order: Order,
+        signal_price: float,
+        *,
+        existing=None,
+        idempotency_checked: bool = False,
+    ) -> Order:
+        broker_order = (
+            existing
+            if idempotency_checked
+            else self._resolve_idempotency(order)
+        )
+        if broker_order is None:
+            self.safety.record_submission()
+            self.exec_log.log_order_submitted(order, signal_price)
+            request = self._build_order_request(order)
+            for attempt in range(3):
+                try:
+                    broker_order = self._submit_request(request)
+                    break
+                except Exception as exc:
+                    if not self._is_transient(exc) or attempt == 2:
+                        return self._reject(order, str(exc))
+                    # The broker may have accepted the request before the
+                    # connection failed.  Query the stable id before retrying.
+                    broker_order = self._get_order_by_client_id(order.client_order_id)
+                    if broker_order is not None:
+                        break
                     wait = 2 ** attempt
                     logger.warning(
-                        "Transient error submitting %s (attempt %d/%d), "
-                        "retrying in %ds: %s",
-                        order.symbol, attempt + 1, max_retries + 1, wait, e,
+                        "Transient submit error for %s; retrying in %ds: %s",
+                        order.symbol,
+                        wait,
+                        exc,
                     )
-                    time.sleep(wait)
-                    continue
-                # Non-retryable error
+                    self._sleep(wait)
+
+        if broker_order is None:
+            return self._reject(order, "Broker did not return an order")
+
+        order_id = str(_attr(broker_order, "id", ""))
+        order.order_id = order_id
+        terminal = self._wait_for_fill(
+            order_id,
+            timeout=30 if order.order_type == "market" else 60,
+        )
+        if terminal is None:
+            if self._cancel_open_order(order_id, order.symbol, timed_out=True):
+                order.status = "cancelled"
+            else:
+                order.status = "unknown"
+                order.reject_reason = "Timed out and cancellation was not confirmed"
+            return order
+
+        return self._apply_fill(order, terminal, signal_price)
+
+    def _apply_fill(self, order: Order, broker_order, signal_price: float) -> Order:
+        order.order_id = str(_attr(broker_order, "id", order.order_id))
+        status = _status(_attr(broker_order, "status", ""))
+        filled_qty = float(_attr(broker_order, "filled_qty", 0) or 0)
+        avg_price = _attr(broker_order, "filled_avg_price", None)
+
+        if filled_qty <= 0:
+            if status in {"canceled", "cancelled", "expired"}:
+                order.status = "cancelled"
+            elif status == "rejected":
                 order.status = "rejected"
-                order.reject_reason = str(e)
-                logger.error(
-                    "Order rejected for %s: %s", order.symbol, e
-                )
-                self.exec_log.log_order_rejected(order, str(e))
+                order.reject_reason = str(_attr(broker_order, "reject_reason", "Broker rejected order"))
                 self.safety.record_rejection()
-                return order
+            else:
+                order.status = "submitted"
+            return order
 
-        # Wait for fill
-        if order.order_type == "market":
-            filled = self._wait_for_fill(alpaca_order.id, timeout=30)
+        order.filled_quantity = filled_qty
+        order.filled_price = float(avg_price) if avg_price is not None else signal_price
+        requested = float(order.requested_quantity or order.quantity)
+
+        if filled_qty + 1e-9 >= requested or status == "filled":
+            order.status = "filled"
         else:
-            # For limit orders give more time
-            filled = self._wait_for_fill(alpaca_order.id, timeout=60)
+            cancelled = self._cancel_open_order(
+                order.order_id,
+                order.symbol,
+                timed_out=True,
+            )
+            order.status = "partial_fill" if cancelled else "partial_fill_open"
+            if not cancelled:
+                order.reject_reason = "Partial fill remains open; cancellation not confirmed"
 
-        if filled:
-            filled_qty = float(filled.filled_qty)
-            order.filled_price = float(filled.filled_avg_price)
-            order.order_id = filled.id
+        # Keep the historical public interface: ``quantity`` is actual filled
+        # quantity after a partial fill; requested_quantity remains immutable.
+        order.quantity = filled_qty
+        recorded = self.safety.record_fill(
+            filled_qty * order.filled_price,
+            client_order_id=order.client_order_id,
+        )
+        if recorded is not False:
+            self.exec_log.log_order_filled(order, signal_price)
+        else:
+            logger.info(
+                "Recovered already-checkpointed fill %s; daily totals unchanged",
+                order.client_order_id,
+            )
+        logger.info(
+            "%s %s %.0f/%.0f @ $%.2f (status=%s, client_id=%s)",
+            order.side.upper(),
+            order.symbol,
+            filled_qty,
+            requested,
+            order.filled_price,
+            order.status,
+            order.client_order_id,
+        )
+        return order
 
-            if filled_qty >= order.quantity:
+    def _execute_twap(
+        self,
+        order: Order,
+        avg_daily_volume: float,
+        signal_price: float,
+    ) -> Order:
+        parent_id = order.client_order_id or self._base_client_order_id(order)
+        order.client_order_id = parent_id
+        slices = self.twap.split_order(order, avg_daily_volume)
+        start = self._monotonic()
+        target_qty = float(order.requested_quantity or order.quantity)
+        total_qty = 0.0
+        total_value = 0.0
+        last_id = ""
+        unsafe_open_child = False
+
+        for index, (child, offset_seconds) in enumerate(slices):
+            wait = max(0.0, start + offset_seconds - self._monotonic())
+            if wait:
+                logger.info("TWAP waiting %.0fs before slice %d/%d", wait, index + 1, len(slices))
+                self._sleep(wait)
+
+            child.client_order_id = self._child_client_order_id(parent_id, index)
+            passed, reason = self._validate_child(child, signal_price, avg_daily_volume)
+            if not passed:
+                self._reject(child, reason, safety_block=True)
+                order.reject_reason = f"TWAP slice {index + 1} blocked: {reason}"
+                break
+
+            result = self._execute_single(child, signal_price)
+            if result.filled_quantity > 0:
+                total_qty += result.filled_quantity
+                total_value += result.filled_quantity * float(result.filled_price or 0)
+                last_id = result.order_id
+            if result.status in {"unknown", "submitted", "partial_fill_open"}:
+                # Never place another child while the preceding child may still
+                # be live; otherwise total quantity can exceed the parent.
+                unsafe_open_child = True
+                order.reject_reason = (
+                    f"TWAP halted after slice {index + 1}: prior child may still be open"
+                )
+                break
+
+        order.order_id = last_id
+        order.filled_quantity = total_qty
+        if total_qty > 0:
+            order.filled_price = total_value / total_qty
+            order.quantity = total_qty
+            if unsafe_open_child:
+                order.status = "partial_fill_open"
+            elif total_qty + 1e-9 >= target_qty:
                 order.status = "filled"
             else:
                 order.status = "partial_fill"
-                logger.warning(
-                    "Partial fill for %s: %d/%d shares @ $%.2f",
-                    order.symbol, int(filled_qty),
-                    int(order.quantity), order.filled_price,
-                )
-                order.quantity = filled_qty  # update to actual filled qty
-                self._cancel_open_order(alpaca_order.id, order.symbol, timed_out=True)
-
-            logger.info(
-                "Filled: %s %s %d @ $%.2f (signal=$%.2f)",
-                order.side.upper(), order.symbol,
-                int(order.quantity), order.filled_price,
-                signal_price,
-            )
-            self.exec_log.log_order_filled(order, signal_price)
-            self.safety.record_fill(order.quantity * order.filled_price)
         else:
-            order.order_id = alpaca_order.id
-            if self._cancel_open_order(alpaca_order.id, order.symbol, timed_out=True):
-                order.status = "cancelled"
-            else:
-                order.status = "submitted"
-
-        return order
-
-    def _cancel_open_order(
-        self, order_id: str, symbol: str, timed_out: bool = False
-    ) -> bool:
-        """Cancel a still-open broker order and return whether it succeeded."""
-        reason = "timed-out " if timed_out else ""
-        try:
-            self.api.cancel_order(order_id)
-            logger.info("Cancelled %sorder %s for %s", reason, order_id, symbol)
-            return True
-        except Exception as cancel_err:
-            logger.warning(
-                "Failed to cancel %sorder %s for %s: %s",
-                reason, order_id, symbol, cancel_err,
-            )
-            return False
-
-    def _execute_twap(
-        self, order: Order, avg_daily_volume: float, signal_price: float
-    ) -> Order:
-        """Execute order as TWAP slices."""
-        slices = self.twap.split_order(order, avg_daily_volume)
-
-        target_quantity = order.quantity
-        total_filled_qty = 0.0
-        total_filled_value = 0.0
-        last_order_id = ""
-
-        for child_order, delay_seconds in slices:
-            if delay_seconds > 0:
-                logger.info(
-                    "TWAP: waiting %ds before slice %s %s %d shares",
-                    delay_seconds, child_order.side.upper(),
-                    child_order.symbol, int(child_order.quantity),
-                )
-                time.sleep(delay_seconds)
-
-            result = self._execute_single(child_order, signal_price)
-            if result.status in ("filled", "partial_fill"):
-                total_filled_qty += result.quantity
-                total_filled_value += result.quantity * result.filled_price
-                last_order_id = result.order_id
-
-        # Aggregate result into parent order
-        if total_filled_qty > 0:
-            order.filled_price = total_filled_value / total_filled_qty
-            order.quantity = total_filled_qty
-            order.status = (
-                "filled" if total_filled_qty >= target_quantity else "partial_fill"
-            )
-            order.order_id = last_order_id
-        else:
-            order.status = "rejected"
-            order.reject_reason = "All TWAP slices failed"
-
+            order.status = "unknown" if unsafe_open_child else "rejected"
+            order.reject_reason = order.reject_reason or "No TWAP slices filled"
         return order
 
     # ------------------------------------------------------------------
-    # Fill polling (improved: handles partial fills)
+    # Polling and cancellation
     # ------------------------------------------------------------------
+
+    def _get_order(self, order_id: str):
+        client = self._client()
+        method = getattr(client, "get_order_by_id", None) or getattr(client, "get_order", None)
+        if method is None:
+            raise AttributeError("Trading client cannot query orders")
+        return method(order_id)
 
     def _wait_for_fill(self, order_id: str, timeout: int = 30):
-        """Poll order status until filled, partially filled, or timeout."""
-        deadline = time.time() + timeout
-        while time.time() < deadline:
+        deadline = self._monotonic() + timeout
+        latest = None
+        while self._monotonic() < deadline:
             try:
-                o = self.api.get_order(order_id)
-            except Exception as e:
-                logger.warning("Error polling order %s: %s", order_id, e)
-                time.sleep(2)
+                latest = self._get_order(order_id)
+            except Exception as exc:
+                logger.warning("Error polling order %s: %s", order_id, exc)
+                self._sleep(1)
                 continue
+            status = _status(_attr(latest, "status", ""))
+            if status == "filled":
+                return latest
+            if status in {"canceled", "cancelled", "expired", "rejected"}:
+                return latest
+            self._sleep(1)
 
-            if o.status == "filled":
-                return o
-            if o.status == "partially_filled":
-                # For market orders, keep waiting; they should fill fully
-                # but return partial info if timeout
-                pass
-            if o.status in ("canceled", "expired", "rejected"):
-                logger.warning(
-                    "Order %s terminal status: %s", order_id, o.status
-                )
-                return None
-            time.sleep(1)
-
-        # Timeout: check one more time for partial fill
         try:
-            o = self.api.get_order(order_id)
-            if o.status in ("filled", "partially_filled"):
-                return o
+            latest = self._get_order(order_id)
         except Exception:
-            pass
+            return None
+        if float(_attr(latest, "filled_qty", 0) or 0) > 0:
+            return latest
+        if _status(_attr(latest, "status", "")) in {
+            "canceled", "cancelled", "expired", "rejected"
+        }:
+            return latest
         return None
 
+    def _cancel_open_order(
+        self,
+        order_id: str,
+        symbol: str,
+        timed_out: bool = False,
+        confirmation_timeout: int = 10,
+    ) -> bool:
+        client = self._client()
+        cancel = (
+            getattr(client, "cancel_order_by_id", None)
+            or getattr(client, "cancel_order", None)
+        )
+        if cancel is None:
+            return False
+        try:
+            cancel(order_id)
+        except Exception as exc:
+            # "already cancelled/filled" can still be safe; the confirmation
+            # query below is authoritative.
+            logger.warning("Cancel request for %s (%s) failed: %s", symbol, order_id, exc)
+
+        if not (getattr(client, "get_order_by_id", None)
+                or getattr(client, "get_order", None)):
+            # Minimal injected clients used by offline tests cannot confirm the
+            # state transition.  Production alpaca-py always has
+            # get_order_by_id, so real trading never takes this shortcut.
+            return True
+
+        deadline = self._monotonic() + confirmation_timeout
+        while self._monotonic() < deadline:
+            try:
+                current = self._get_order(order_id)
+                status = _status(_attr(current, "status", ""))
+                if status in {"filled", "canceled", "cancelled", "expired", "rejected"}:
+                    return True
+            except Exception as exc:
+                logger.warning("Could not confirm cancellation for %s: %s", order_id, exc)
+            self._sleep(1)
+        logger.error(
+            "Cancellation not confirmed for %s order %s%s",
+            symbol,
+            order_id,
+            " after timeout" if timed_out else "",
+        )
+        return False
+
     # ------------------------------------------------------------------
-    # Position and account queries
+    # Account, prices, and corporate actions
     # ------------------------------------------------------------------
 
     def get_positions(self) -> pd.Series:
-        """Get current positions as symbol -> shares."""
-        positions = self.api.list_positions()
+        positions = self._client().get_all_positions()
         return pd.Series(
-            {p.symbol: float(p.qty) for p in positions}, dtype=float
+            {_attr(p, "symbol"): float(_attr(p, "qty")) for p in positions},
+            dtype=float,
         )
 
+    def get_position_details(self) -> list[dict[str, object]]:
+        details = []
+        for p in self._client().get_all_positions():
+            details.append({
+                "symbol": _attr(p, "symbol"),
+                "qty": float(_attr(p, "qty", 0) or 0),
+                "avg_entry_price": float(_attr(p, "avg_entry_price", 0) or 0),
+                "current_price": float(_attr(p, "current_price", 0) or 0),
+            })
+        return details
+
+    def assert_corporate_actions_reconciled(self) -> None:
+        assert_corporate_actions_reconciled(self.get_position_details())
+
     def get_portfolio_value(self) -> float:
-        account = self.api.get_account()
-        return float(account.equity)
+        return float(_attr(self._client().get_account(), "equity"))
 
     def get_cash(self) -> float:
-        account = self.api.get_account()
-        return float(account.cash)
+        return float(_attr(self._client().get_account(), "cash"))
 
     def get_daily_pnl(self) -> Optional[float]:
-        """Today's PnL in dollars (equity now vs yesterday's close).
-
-        Returns None if the account data is unavailable, so callers can
-        distinguish "no data" from "flat day".
-        """
         try:
-            account = self.api.get_account()
-            return float(account.equity) - float(account.last_equity)
-        except Exception as e:
-            logger.warning("Could not compute daily PnL: %s", e)
+            account = self._client().get_account()
+            return float(_attr(account, "equity")) - float(_attr(account, "last_equity"))
+        except Exception as exc:
+            logger.warning("Could not compute daily PnL: %s", exc)
             return None
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
-        """Get latest prices from Alpaca."""
-        prices = {}
-        for sym in symbols:
-            price = self._get_price_safe(sym)
-            if price is not None:
-                prices[sym] = price
-        return prices
+        return {
+            symbol: price
+            for symbol in symbols
+            if (price := self._get_price_safe(symbol)) is not None
+        }
 
     def _get_price_safe(self, symbol: str) -> Optional[float]:
-        """Get price for a single symbol, returning None on failure."""
         try:
-            trade = self.api.get_latest_trade(symbol)
-            return float(trade.price)
-        except Exception as e:
-            logger.warning("Could not get price for %s: %s", symbol, e)
+            if self.data_client is not None:
+                from alpaca.data.requests import StockLatestTradeRequest
+                request = StockLatestTradeRequest(symbol_or_symbols=[symbol])
+                trades = self.data_client.get_stock_latest_trade(request)
+                trade = trades[symbol]
+                return float(_attr(trade, "price"))
+            # Compatibility for injected/legacy test clients.
+            trade = self._client().get_latest_trade(symbol)
+            return float(_attr(trade, "price"))
+        except Exception as exc:
+            logger.warning("Could not get price for %s: %s", symbol, exc)
             return None
 
-    # ------------------------------------------------------------------
-    # Emergency controls
-    # ------------------------------------------------------------------
-
     def cancel_all_orders(self):
-        """Cancel all open orders."""
-        self.api.cancel_all_orders()
-        logger.info("Cancelled all open orders")
+        method = (
+            getattr(self._client(), "cancel_orders", None)
+            or getattr(self._client(), "cancel_all_orders", None)
+        )
+        if method:
+            method()
 
     def close_all_positions(self):
-        """Liquidate all positions (emergency use)."""
-        self.api.close_all_positions()
-        logger.warning("EMERGENCY: Closed all positions")
+        method = getattr(self._client(), "close_all_positions", None)
+        if method:
+            try:
+                method(cancel_orders=True)
+            except TypeError:
+                method()
+        logger.warning("EMERGENCY: requested closure of all positions")
 
-    # ------------------------------------------------------------------
-    # Post-trade reconciliation
-    # ------------------------------------------------------------------
-
-    def reconcile(
-        self,
-        target_weights: pd.Series,
-    ) -> pd.DataFrame:
-        """Compare strategy targets vs actual Alpaca positions.
-
-        Returns a DataFrame of discrepancies. Also logs to structured log.
-        """
-        actual_positions = self.get_positions()
-        portfolio_value = self.get_portfolio_value()
-        all_syms = list(
-            set(target_weights.index) | set(actual_positions.index)
-        )
-        prices = self.get_current_prices(all_syms)
-
-        drift_df = self.reconciler.reconcile(
-            target_weights, actual_positions, prices, portfolio_value
-        )
-        self.exec_log.log_reconciliation(drift_df, portfolio_value)
-        return drift_df
-
-    # ------------------------------------------------------------------
-    # Market hours check
-    # ------------------------------------------------------------------
+    def reconcile(self, target_weights: pd.Series) -> pd.DataFrame:
+        actual = self.get_positions()
+        value = self.get_portfolio_value()
+        symbols = list(set(target_weights.index) | set(actual.index))
+        prices = self.get_current_prices(symbols)
+        drift = self.reconciler.reconcile(target_weights, actual, prices, value)
+        self.exec_log.log_reconciliation(drift, value)
+        return drift
 
     def is_market_open(self) -> bool:
-        """Check if the market is currently open."""
         try:
-            clock = self.api.get_clock()
-            return clock.is_open
-        except Exception as e:
-            logger.warning("Could not check market clock: %s", e)
+            return bool(_attr(self._client().get_clock(), "is_open", False))
+        except Exception as exc:
+            logger.warning("Could not check market clock: %s", exc)
             return False

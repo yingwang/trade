@@ -22,6 +22,10 @@ class MarketData:
 
         self._price_cache: dict[str, pd.DataFrame] = {}
         self._info_cache: dict[str, dict] = {}
+        # Populated by fetch_prices from the exact same adjusted download.
+        # Backtests use it to execute a close-generated signal at the next
+        # session's open without performing an inconsistent second fetch.
+        self.last_open_prices_: pd.DataFrame | None = None
 
     # ------------------------------------------------------------------
     # Price data
@@ -48,10 +52,21 @@ class MarketData:
 
         if isinstance(data.columns, pd.MultiIndex):
             prices = data["Close"]
+            opens = data["Open"] if "Open" in data.columns.get_level_values(0) else None
         else:
             prices = data[["Close"]].rename(columns={"Close": all_symbols[0]})
+            opens = (
+                data[["Open"]].rename(columns={"Open": all_symbols[0]})
+                if "Open" in data.columns
+                else None
+            )
 
         prices = prices.dropna(how="all")
+        self.last_open_prices_ = (
+            opens.reindex(index=prices.index, columns=prices.columns)
+            if opens is not None
+            else None
+        )
         return prices
 
     def fetch_adv(self, symbols: list[str], window: int = 30) -> dict[str, float]:

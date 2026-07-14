@@ -9,9 +9,8 @@ MultiFactorStrategy.  Key differences from the TFT version:
   - Trains in seconds, not 40 minutes per window
   - Turnover penalty: penalizes signal changes vs. previous rebalance
   - Feature importance output for interpretability
-  - Backtest falls back to equal-weight if the model fails; the LIVE path
-    hard-fails instead (constant fallback scores would otherwise buy the
-    first 12 symbols in alphabetical order)
+  - Both backtest and live paths fail closed when the model is unavailable;
+    constant scores would otherwise select symbols by column order
 """
 
 import logging
@@ -22,9 +21,9 @@ import numpy as np
 import pandas as pd
 
 from quant.data.market_data import MarketData
+from quant.data.point_in_time import load_point_in_time_bundle
 from quant.data.quality import (
     DataQualityChecker,
-    PointInTimeDataManager,
     enforce_live_data_quality,
     warn_survivorship_bias,
 )
@@ -36,13 +35,15 @@ from quant.signals.lgbm_model import (
     SKLEARN_FALLBACK,
     purged_train_val_split,
 )
-ML_BACKEND_AVAILABLE = LGBM_AVAILABLE or SKLEARN_FALLBACK
 from quant.portfolio.optimizer import (
     PortfolioOptimizer,
     RiskMonitor,
     _ledoit_wolf_shrinkage,
 )
 from quant.backtest.engine import BacktestEngine, BacktestResult
+from quant.backtest.calendar import fixed_rebalance_dates
+
+ML_BACKEND_AVAILABLE = LGBM_AVAILABLE or SKLEARN_FALLBACK
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class LGBMStrategy:
 
     Pipeline:
       1. Fetch price data and compute existing factor scores
-      2. Build ML feature matrix (46 features: factors + technicals + rolling + ranks)
+      2. Build price-derived features, ranks, and explicit missingness indicators
       3. Train LightGBM on rolling 504-day windows with 63-day validation
       4. Generate cross-sectional stock rankings from model predictions
       5. Apply turnover penalty to stabilize signal changes
@@ -69,9 +70,9 @@ class LGBMStrategy:
     pred_horizon : int
         Forward prediction horizon in trading days (default 21 = 1 month).
     retrain_every : int
-        Retrain the model every N rebalances (default 3 = ~63 trading days).
-        BACKTEST ONLY: the live path runs in a fresh process each day and
-        always trains from scratch on all available data.
+        Retrain the model every N rebalances (default 1).  The live path runs
+        in a fresh process and retrains each rebalance, so the research path
+        uses the same cadence by default.
     turnover_penalty : float
         Coefficient for penalizing score changes vs. previous rebalance.
         Applied as: score_final = score - penalty * |score - prev_score|.
@@ -86,7 +87,7 @@ class LGBMStrategy:
         train_window: int = 504,
         val_window: int = 63,
         pred_horizon: int = 21,
-        retrain_every: int = 3,
+        retrain_every: int = 1,
         turnover_penalty: float = 0.1,
         lgbm_params: Optional[dict] = None,
     ):
@@ -104,6 +105,7 @@ class LGBMStrategy:
         self.optimizer = PortfolioOptimizer(config)
         self.risk_monitor = RiskMonitor(config)
         self.backtest_engine = BacktestEngine(config)
+        self.pit_universe, self.delisting_returns = load_point_in_time_bundle(config)
 
         # LightGBM model
         default_lgbm = {
@@ -141,6 +143,7 @@ class LGBMStrategy:
         y: np.ndarray,
         date_idx: int,
         feature_names: Optional[list[str]] = None,
+        forward_returns: Optional[np.ndarray] = None,
     ) -> bool:
         """Train the LightGBM model on a rolling window ending at date_idx.
 
@@ -174,12 +177,24 @@ class LGBMStrategy:
             train_window=self.train_window,
             val_window=self.val_window,
             pred_horizon=self.pred_horizon,
+            auxiliary=forward_returns,
         )
         if split is None:
             return False
-        X_train, y_train, X_val, y_val = split
+        if forward_returns is not None:
+            X_train, y_train, X_val, y_val, y_val_returns = split
+        else:
+            X_train, y_train, X_val, y_val = split
+            y_val_returns = None
 
-        info = self.model.train(X_train, y_train, X_val, y_val, feature_names)
+        info = self.model.train(
+            X_train,
+            y_train,
+            X_val,
+            y_val,
+            feature_names,
+            y_val_returns=y_val_returns,
+        )
 
         if info.get("status") == "ok":
             # Log feature importance on retrain
@@ -230,17 +245,6 @@ class LGBMStrategy:
 
         return adjusted
 
-    def _fallback_scores(self, symbols: list[str]) -> pd.Series:
-        """Equal-weight fallback scores when LightGBM model is unavailable.
-
-        BACKTEST ONLY.  Constant scores + stable sort would make the live
-        path silently buy the first max_positions symbols in column order
-        (roughly alphabetical); the live path raises instead — see
-        _require_model().
-        """
-        logger.info("Using equal-weight fallback for %d symbols", len(symbols))
-        return pd.Series(1.0 / len(symbols), index=symbols)
-
     def _live_scores(self, X, symbols: list[str]) -> pd.Series:
         """Model scores for the live path — hard-fails instead of falling back.
 
@@ -277,7 +281,8 @@ class LGBMStrategy:
         start = start or bt_cfg["start_date"]
         end = end or bt_cfg.get("end_date")
 
-        warn_survivorship_bias(self.data.symbols, start)
+        if self.pit_universe is None:
+            warn_survivorship_bias(self.data.symbols, start)
 
         # 1. Fetch data with extra history for ML training warm-up
         logger.info("Fetching price data for LightGBM backtest...")
@@ -310,17 +315,11 @@ class LGBMStrategy:
                 DataQualityChecker.format_report(quality_report),
             )
 
-        # Fundamentals (for factor scores used as input features)
-        logger.info("Fetching fundamentals...")
-        try:
-            fundamentals = self.data.fetch_fundamentals(is_backtest=True)
-            pit = PointInTimeDataManager(
-                fundamentals, is_backtest=True, reporting_lag_days=90
-            )
-            fundamentals = pit.get_fundamentals()
-        except Exception as e:
-            logger.warning("Could not fetch fundamentals: %s", e)
-            fundamentals = pd.DataFrame()
+        fundamentals = pd.DataFrame()
+        logger.warning(
+            "Backtest fundamentals disabled because no point-in-time feed is "
+            "configured"
+        )
 
         sector_map = None
         if not fundamentals.empty and "sector" in fundamentals.columns:
@@ -328,7 +327,7 @@ class LGBMStrategy:
 
         # 2. Generate factor signals (used as input features for LightGBM)
         logger.info("Generating factor signals for ML features...")
-        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        self.signal_gen.generate(prices, returns, fundamentals)
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
         # 3. Build feature matrix once for the full period
@@ -341,6 +340,9 @@ class LGBMStrategy:
             returns, self.pred_horizon
         )
         y = cs_targets.reindex(index=dates, columns=symbols).values
+        forward_returns = self.feature_engine.get_target(
+            returns, self.pred_horizon
+        ).reindex(index=dates, columns=symbols).values
         # Keep NaN — _flatten() filters them via np.isfinite()
 
         if not ML_BACKEND_AVAILABLE:
@@ -355,8 +357,14 @@ class LGBMStrategy:
         rebalance_freq = self.config["portfolio"]["rebalance_frequency_days"]
         min_history = self.train_window + self.val_window
 
-        rebalance_date_indices = list(range(0, len(dates), rebalance_freq))
-        rebalance_date_indices = [i for i in rebalance_date_indices if i >= min_history]
+        not_before = dates[0] + pd.Timedelta(days=int(min_history * 1.5))
+        rebalance_dates = fixed_rebalance_dates(
+            dates,
+            rebalance_freq,
+            anchor=bt_cfg.get("rebalance_anchor_date", "2000-01-03"),
+            not_before=not_before,
+        )
+        rebalance_date_indices = [int(dates.get_loc(date)) for date in rebalance_dates]
 
         target_weights = {}
         prev_weights = None
@@ -372,7 +380,13 @@ class LGBMStrategy:
                     "Training LightGBM at %s (rebalance #%d)",
                     date.date(), self._rebalance_count,
                 )
-                self._train_model(X, y, date_idx, feature_names)
+                self._train_model(
+                    X,
+                    y,
+                    date_idx,
+                    feature_names,
+                    forward_returns=forward_returns,
+                )
 
             self._rebalance_count += 1
 
@@ -384,14 +398,28 @@ class LGBMStrategy:
                     scores = pd.Series(ranks, index=symbols)
                 except Exception as e:
                     logger.error(
-                        "LightGBM prediction failed: %s; using fallback", e
+                        "LightGBM prediction failed at %s; skipping this "
+                        "rebalance instead of trading constant scores: %s",
+                        date.date(),
+                        e,
                     )
-                    scores = self._fallback_scores(symbols)
+                    continue
             else:
-                scores = self._fallback_scores(symbols)
+                logger.error(
+                    "LightGBM model unavailable at %s; skipping this rebalance "
+                    "instead of selecting symbols by column order",
+                    date.date(),
+                )
+                continue
 
             if scores.empty:
                 continue
+
+            if self.pit_universe is not None:
+                members = self.pit_universe.members_as_of(date)
+                scores = scores[scores.index.isin(members)]
+                if scores.empty:
+                    continue
 
             # Apply turnover penalty to stabilize scores across rebalances
             scores = self._apply_turnover_penalty(scores, self._prev_scores)
@@ -426,11 +454,17 @@ class LGBMStrategy:
             spy_ret = returns[spy_col].loc[:date] if spy_col in returns.columns else None
             regime = self.optimizer.detect_regime(spy_ret)
             weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+            regime_cap = min(
+                self.optimizer.regime_caps.get(regime, 1.0),
+                self.optimizer.max_leverage,
+            )
 
             # Real turnover cap on final weights: includes exit legs and the
             # turnover created by vol scaling, which the in-optimizer
             # constraint cannot see.
-            weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
+            weights = self.optimizer.enforce_turnover_cap(
+                weights, prev_weights, gross_exposure_cap=regime_cap
+            )
 
             target_weights[str(date.date())] = weights
             prev_weights = weights
@@ -439,9 +473,22 @@ class LGBMStrategy:
 
         # 5. Run backtest -- trim prices to requested start date
         backtest_prices = prices.loc[start:] if start else prices
+        execution_prices = self.data.last_open_prices_
+        if execution_prices is not None and start:
+            execution_prices = execution_prices.loc[start:]
         result = self.backtest_engine.run(
-            backtest_prices, target_weights, self.data.benchmark
+            backtest_prices,
+            target_weights,
+            self.data.benchmark,
+            execution_prices=execution_prices,
+            delisting_returns=(
+                self.delisting_returns.events
+                if self.delisting_returns is not None else None
+            ),
         )
+        result.metrics["Point-in-Time Universe"] = self.pit_universe is not None
+        result.metrics["Point-in-Time Fundamentals"] = False
+        result.metrics["Survivorship Bias Warning"] = self.pit_universe is None
 
         # 6. Risk check
         if not result.equity_curve.empty:
@@ -475,7 +522,7 @@ class LGBMStrategy:
         except Exception:
             fundamentals = pd.DataFrame()
 
-        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        self.signal_gen.generate(prices, returns, fundamentals)
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
         X, feature_names, dates, symbols = self.feature_engine.build_feature_matrix(
@@ -540,7 +587,7 @@ class LGBMStrategy:
         if not fundamentals.empty and "sector" in fundamentals.columns:
             sector_map = fundamentals["sector"]
 
-        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        self.signal_gen.generate(prices, returns, fundamentals)
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
         X, feature_names, dates, symbols = self.feature_engine.build_feature_matrix(
@@ -583,7 +630,13 @@ class LGBMStrategy:
         spy_ret = returns[spy_col] if spy_col in returns.columns else None
         regime = self.optimizer.detect_regime(spy_ret)
         weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
-        weights = self.optimizer.enforce_turnover_cap(weights, prev_weights)
+        regime_cap = min(
+            self.optimizer.regime_caps.get(regime, 1.0),
+            self.optimizer.max_leverage,
+        )
+        weights = self.optimizer.enforce_turnover_cap(
+            weights, prev_weights, gross_exposure_cap=regime_cap
+        )
 
         latest_prices = prices.reindex(columns=weights.index).iloc[-1]
         dollars = weights * capital

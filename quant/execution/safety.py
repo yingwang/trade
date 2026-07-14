@@ -6,14 +6,19 @@ Every order must pass all safety checks before submission to any broker.
 
 import json
 import logging
-import time
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+MARKET_TZ = ZoneInfo("America/New_York")
+
+
+def _market_date() -> date:
+    return datetime.now(MARKET_TZ).date()
 
 
 @dataclass
@@ -58,15 +63,16 @@ class SafetyConfig:
 @dataclass
 class DailyTracker:
     """Tracks cumulative trading activity for the current day."""
-    trade_date: date = field(default_factory=date.today)
+    trade_date: date = field(default_factory=_market_date)
     total_value_traded: float = 0.0
     total_realised_pnl: float = 0.0
     orders_submitted: int = 0
     orders_filled: int = 0
     orders_rejected: int = 0
+    processed_client_order_ids: set[str] = field(default_factory=set)
 
     def reset_if_new_day(self):
-        today = date.today()
+        today = _market_date()
         if self.trade_date != today:
             self.trade_date = today
             self.total_value_traded = 0.0
@@ -74,6 +80,7 @@ class DailyTracker:
             self.orders_submitted = 0
             self.orders_filled = 0
             self.orders_rejected = 0
+            self.processed_client_order_ids.clear()
 
     def to_dict(self) -> dict:
         """Serialize for cross-process persistence (each Actions run is a
@@ -86,6 +93,7 @@ class DailyTracker:
             "orders_submitted": self.orders_submitted,
             "orders_filled": self.orders_filled,
             "orders_rejected": self.orders_rejected,
+            "processed_client_order_ids": sorted(self.processed_client_order_ids),
         }
 
     def restore(self, data: dict) -> bool:
@@ -99,7 +107,7 @@ class DailyTracker:
             snap_date = date.fromisoformat(data["trade_date"])
         except (KeyError, TypeError, ValueError):
             return False
-        if snap_date != date.today():
+        if snap_date != _market_date():
             return False
         self.trade_date = snap_date
         self.total_value_traded = float(data.get("total_value_traded", 0.0))
@@ -107,6 +115,11 @@ class DailyTracker:
         self.orders_submitted = int(data.get("orders_submitted", 0))
         self.orders_filled = int(data.get("orders_filled", 0))
         self.orders_rejected = int(data.get("orders_rejected", 0))
+        self.processed_client_order_ids = {
+            str(value)
+            for value in data.get("processed_client_order_ids", [])
+            if value
+        }
         return True
 
 
@@ -131,12 +144,27 @@ class PreTradeCheck:
         portfolio_value: float,
         current_positions: Optional[dict[str, float]] = None,
         avg_daily_volume: Optional[float] = None,
+        *,
+        check_order_limits: bool = True,
+        check_adv: bool = True,
     ) -> tuple[bool, str]:
-        """Run all pre-trade checks. Returns (passed, reason)."""
+        """Run pre-trade checks and return ``(passed, reason)``.
+
+        ``check_order_limits=False`` is used only for a synthetic TWAP parent
+        intent.  The parent is checked for total daily/concentration risk, then
+        every submitted child is checked again with the per-order and ADV
+        limits enabled.
+        """
         self.daily.reset_if_new_day()
 
         order_value = abs(order.quantity * price)
         current_position_value = (current_positions or {}).get(order.symbol, 0.0)
+        projected_position = (
+            max(0.0, current_position_value - order_value)
+            if order.side == "sell"
+            else current_position_value + order_value
+        )
+        risk_reducing = projected_position < current_position_value
 
         # 1. Min price check
         if price < self.config.min_price:
@@ -148,7 +176,7 @@ class PreTradeCheck:
             return False, reason
 
         # 2. Single order value limit
-        if order_value > self.config.max_single_order_value:
+        if check_order_limits and order_value > self.config.max_single_order_value:
             reason = (
                 f"Order value ${order_value:,.0f} exceeds max "
                 f"${self.config.max_single_order_value:,.0f} for {order.symbol}"
@@ -157,7 +185,7 @@ class PreTradeCheck:
             return False, reason
 
         # 3. Single order share limit
-        if abs(order.quantity) > self.config.max_single_order_shares:
+        if check_order_limits and abs(order.quantity) > self.config.max_single_order_shares:
             reason = (
                 f"Order quantity {abs(order.quantity):.0f} exceeds max "
                 f"{self.config.max_single_order_shares} shares for {order.symbol}"
@@ -177,12 +205,12 @@ class PreTradeCheck:
 
         # 5. Position concentration check
         if portfolio_value > 0:
-            if order.side == "sell":
-                projected_position = max(0, current_position_value - order_value)
-            else:
-                projected_position = current_position_value + order_value
             position_pct = projected_position / portfolio_value
-            if position_pct > self.config.max_position_pct_of_portfolio:
+            # A concentration rule must never block a position from moving
+            # toward the limit.  It still blocks buys (and any sell that is not
+            # actually reducing the broker-reported position).
+            if (not risk_reducing
+                    and position_pct > self.config.max_position_pct_of_portfolio):
                 reason = (
                     f"Position in {order.symbol} would be {position_pct:.1%} of portfolio, "
                     f"exceeding max {self.config.max_position_pct_of_portfolio:.1%}"
@@ -191,7 +219,7 @@ class PreTradeCheck:
                 return False, reason
 
         # 6. Liquidity / ADV check
-        if avg_daily_volume is not None and avg_daily_volume > 0:
+        if check_adv and avg_daily_volume is not None and avg_daily_volume > 0:
             adv_fraction = abs(order.quantity) / avg_daily_volume
             if adv_fraction > self.config.max_adv_fraction:
                 reason = (
@@ -204,12 +232,29 @@ class PreTradeCheck:
 
         return True, "passed"
 
-    def record_fill(self, order_value: float, realised_pnl: float = 0.0):
-        """Update daily tracker after a fill."""
+    def record_fill(
+        self,
+        order_value: float,
+        realised_pnl: float = 0.0,
+        client_order_id: str | None = None,
+    ) -> bool:
+        """Update daily totals once per stable broker intent.
+
+        Returns ``False`` when a recovered idempotent order was already
+        checkpointed by an earlier process.
+        """
         self.daily.reset_if_new_day()
+        if (
+            client_order_id
+            and client_order_id in self.daily.processed_client_order_ids
+        ):
+            return False
         self.daily.total_value_traded += abs(order_value)
         self.daily.total_realised_pnl += realised_pnl
         self.daily.orders_filled += 1
+        if client_order_id:
+            self.daily.processed_client_order_ids.add(client_order_id)
+        return True
 
     def record_submission(self):
         self.daily.reset_if_new_day()
@@ -356,7 +401,14 @@ class TWAPSplitter:
         total_qty = order.quantity
         slice_qty = int(total_qty / self.n_slices)
         remainder = int(total_qty - slice_qty * self.n_slices)
-        delay_per_slice = (self.duration_minutes * 60) / self.n_slices
+        # Offsets are measured from the start of the parent order.  The old
+        # executor slept each cumulative offset (0+6+12+18+24 minutes), turning
+        # a nominal 30-minute TWAP into a 60-minute run.  With N slices the last
+        # one is now scheduled exactly at ``duration_minutes``.
+        delay_per_slice = (
+            (self.duration_minutes * 60) / (self.n_slices - 1)
+            if self.n_slices > 1 else 0
+        )
 
         slices = []
         for i in range(self.n_slices):
@@ -369,6 +421,8 @@ class TWAPSplitter:
                 quantity=qty,
                 order_type=order.order_type,
                 limit_price=order.limit_price,
+                signal_price=order.signal_price,
+                purpose=order.purpose,
             )
             delay = int(i * delay_per_slice)
             slices.append((child, delay))
@@ -401,7 +455,7 @@ class ExecutionLogger:
         self.log_path = log_path
 
     def _write(self, event: dict):
-        event["timestamp"] = datetime.utcnow().isoformat() + "Z"
+        event["timestamp"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
         with open(self.log_path, "a") as f:
             f.write(json.dumps(event) + "\n")
 
@@ -411,9 +465,11 @@ class ExecutionLogger:
             "symbol": order.symbol,
             "side": order.side,
             "quantity": order.quantity,
+            "requested_quantity": order.requested_quantity,
             "order_type": order.order_type,
             "limit_price": order.limit_price,
             "signal_price": signal_price,
+            "client_order_id": order.client_order_id,
         })
 
     def log_order_filled(self, order, signal_price: float = None):
@@ -432,11 +488,13 @@ class ExecutionLogger:
             "event": "order_filled",
             "symbol": order.symbol,
             "side": order.side,
-            "quantity": order.quantity,
+            "quantity": order.filled_quantity or order.quantity,
+            "requested_quantity": order.requested_quantity,
             "filled_price": order.filled_price,
             "signal_price": signal_price,
             "slippage_bps": round(slippage_bps, 2) if slippage_bps is not None else None,
             "order_id": order.order_id,
+            "client_order_id": order.client_order_id,
         })
 
     def log_order_rejected(self, order, reason: str = ""):

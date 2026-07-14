@@ -1,10 +1,7 @@
 """Tests for operational code paths: config, paper_trade helpers, stop-loss integration."""
 
-import json
 import os
-import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -41,7 +38,7 @@ class TestConfigLoading:
 class TestPaperTradeHelpers:
     def test_load_state_empty(self, tmp_path):
         """load_state returns default dict when file doesn't exist."""
-        from paper_trade import load_state, STATE_FILE
+        from paper_trade import load_state
         # Patch STATE_FILE to a temp location
         fake_state = tmp_path / "state.json"
         with patch("paper_trade.STATE_FILE", fake_state):
@@ -367,10 +364,14 @@ class TestPaperTradeStopLoss:
         from paper_trade import check_stop_losses
 
         broker = MagicMock()
-        broker.get_positions.return_value = pd.Series({"AAAA": 100})
+        broker.get_positions.side_effect = [
+            pd.Series({"AAAA": 100}),
+            pd.Series(dtype=float),
+        ]
         broker.get_current_prices.return_value = {"AAAA": 80.0}
         mock_result = MagicMock()
         mock_result.status = "filled"
+        mock_result.filled_quantity = 100
         broker.submit_order.return_value = mock_result
 
         optimizer = MagicMock()

@@ -7,10 +7,10 @@ Safety integration: all orders pass through PreTradeCheck before submission.
 """
 
 import logging
+import math
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import pandas as pd
 
@@ -30,6 +30,22 @@ class Order:
     order_id: str = ""
     signal_price: float = None     # price at signal time (for slippage tracking)
     reject_reason: str = ""        # reason if rejected by safety or broker
+    client_order_id: str = ""      # stable idempotency key sent to the broker
+    purpose: str = "rebalance"     # rebalance / stop_loss / emergency
+    requested_quantity: float = None
+    filled_quantity: float = 0.0
+
+    def __post_init__(self):
+        self.side = str(self.side).lower()
+        self.order_type = str(self.order_type).lower()
+        if self.side not in {"buy", "sell"}:
+            raise ValueError(f"Unsupported order side: {self.side}")
+        if self.order_type not in {"market", "limit"}:
+            raise ValueError(f"Unsupported order type: {self.order_type}")
+        if not math.isfinite(float(self.quantity)) or float(self.quantity) <= 0:
+            raise ValueError("Order quantity must be a finite positive number")
+        if self.requested_quantity is None:
+            self.requested_quantity = float(self.quantity)
 
 
 class BaseBroker(ABC):
@@ -123,6 +139,7 @@ class PaperBroker(BaseBroker):
         order.status = "filled"
         order.filled_price = fill_price
         order.filled_at = datetime.now()
+        order.filled_quantity = float(order.quantity)
         self._order_counter += 1
         order.order_id = f"PAPER-{self._order_counter:06d}"
         self.order_log.append(order)
