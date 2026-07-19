@@ -32,6 +32,12 @@ class TestConfigLoading:
         config = load_config()
         assert isinstance(config, dict)
 
+    def test_default_lgbm_dashboard_keeps_bkng_sold_credit(self):
+        """The dashboard correction is the only BKNG cash compensation."""
+        config = load_config()
+        compensations = config["dashboard"]["split_cash_compensations"]
+        assert compensations["lgbm"] == {}
+
     def test_duplicate_universe_symbols_are_rejected(self, tmp_path):
         source = load_config()
         source["universe"]["symbols"] = ["AAAA", "AAAA"]
