@@ -9,6 +9,17 @@ import pandas as pd
 
 
 class TestPaperBroker:
+    @pytest.mark.parametrize("limit_price", [None, float("nan"), 0.0])
+    def test_limit_order_requires_valid_limit_price(self, limit_price):
+        with pytest.raises(ValueError, match="limit price"):
+            Order(
+                symbol="AAAA",
+                side="buy",
+                quantity=10,
+                order_type="limit",
+                limit_price=limit_price,
+            )
+
     def test_buy_order(self):
         broker = PaperBroker(initial_capital=100_000)
         broker.update_prices({"AAAA": 50.0})
@@ -151,3 +162,48 @@ class TestAlpacaBroker:
         assert result.status == "partial_fill"
         assert result.quantity == 40.0
         assert broker.api.cancelled == ["abc"]
+
+    def test_fill_during_cancel_uses_final_broker_quantity(self):
+        broker = self._make_broker()
+
+        class RaceAPI:
+            def __init__(self):
+                self.current = SimpleNamespace(
+                    id="abc",
+                    filled_qty="40",
+                    filled_avg_price="10",
+                    status="partially_filled",
+                )
+
+            def submit_order(self, **kwargs):
+                return SimpleNamespace(id="abc")
+
+            def cancel_order(self, order_id):
+                # The remaining shares fill while Alpaca processes the cancel.
+                self.current = SimpleNamespace(
+                    id=order_id,
+                    filled_qty="100",
+                    filled_avg_price="10.05",
+                    status="filled",
+                )
+
+            def get_order(self, order_id):
+                return self.current
+
+        broker.api = RaceAPI()
+        broker._monotonic = lambda: 0.0
+        broker._sleep = lambda _: None
+        broker._wait_for_fill = lambda order_id, timeout=30: SimpleNamespace(
+            id="abc",
+            filled_qty="40",
+            filled_avg_price="10",
+            status="partially_filled",
+        )
+
+        order = Order(symbol="AAPL", side="buy", quantity=100, order_type="market")
+        result = broker._execute_single(order, signal_price=10.0)
+
+        assert result.status == "filled"
+        assert result.filled_quantity == 100.0
+        assert result.quantity == 100.0
+        assert result.filled_price == pytest.approx(10.05)

@@ -52,6 +52,27 @@ class TestPreTradeCheck:
         assert not ok
         assert "below minimum" in reason
 
+    @pytest.mark.parametrize("bad_price", [float("nan"), float("inf"), -1.0])
+    def test_nonfinite_or_negative_price_rejected(self, bad_price):
+        order = Order(symbol="AAPL", side="buy", quantity=100, order_type="market")
+        ok, reason = self.checker.validate(
+            order,
+            price=bad_price,
+            portfolio_value=1_000_000,
+        )
+        assert not ok
+        assert "price" in reason.lower()
+
+    def test_nonfinite_portfolio_value_blocks_new_risk(self):
+        order = Order(symbol="AAPL", side="buy", quantity=100, order_type="market")
+        ok, reason = self.checker.validate(
+            order,
+            price=150,
+            portfolio_value=float("nan"),
+        )
+        assert not ok
+        assert "portfolio value" in reason.lower()
+
     def test_position_concentration_rejected(self):
         order = Order(symbol="AAPL", side="buy", quantity=2000, order_type="market")
         # 2000 * 100 = 200_000, which is 20% of 1M portfolio
@@ -101,6 +122,15 @@ class TestPreTradeCheck:
         ok, _ = checker.check_daily_loss_limit(unrealised_pnl=-3_000)
         # total = -3000 + -3000 = -6000 > -5000
         assert not ok
+
+    def test_nonfinite_daily_pnl_fails_closed(self):
+        ok, reason = self.checker.check_daily_loss_limit(float("nan"))
+        assert not ok
+        assert "not finite" in reason
+
+    def test_invalid_safety_limit_is_rejected(self):
+        with pytest.raises(ValueError, match="positive and finite"):
+            SafetyConfig(max_daily_trade_value=float("nan"))
 
 
 class TestPostTradeReconciler:

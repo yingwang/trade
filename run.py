@@ -166,7 +166,7 @@ def main():
     bt_lgbm.add_argument("--train-window", type=int, default=504, help="Training window days")
     bt_lgbm.add_argument("--val-window", type=int, default=63, help="Validation window days")
     bt_lgbm.add_argument("--pred-horizon", type=int, default=21, help="Prediction horizon days")
-    bt_lgbm.add_argument("--retrain-every", type=int, default=3, help="Retrain every N rebalances")
+    bt_lgbm.add_argument("--retrain-every", type=int, default=1, help="Retrain every N rebalances")
     bt_lgbm.add_argument("--turnover-penalty", type=float, default=0.1, help="Turnover penalty weight")
     bt_lgbm.add_argument("--num-leaves", type=int, default=31)
     bt_lgbm.add_argument("--learning-rate", type=float, default=0.05)

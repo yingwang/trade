@@ -66,11 +66,13 @@ class TestPortfolioOptimizer:
 
     def test_vol_scaling_levers_up_in_low_vol(self, config):
         opt = PortfolioOptimizer(config)
-        weights = pd.Series({"A": 0.5, "B": 0.5})
+        symbols = list("ABCDE")
+        weights = pd.Series(0.2, index=symbols)
         # Very low vol covariance -> scale should exceed 1.0
         cov = pd.DataFrame(
-            [[0.0001, 0.0], [0.0, 0.0001]],
-            index=["A", "B"], columns=["A", "B"],
+            np.eye(len(symbols)) * 0.0001,
+            index=symbols,
+            columns=symbols,
         )
         scaled = opt.apply_vol_scaling(weights, cov, regime="low_vol")
         assert scaled.sum() > 1.0  # leveraged
@@ -105,6 +107,29 @@ class TestPortfolioOptimizer:
         )
         scaled = opt.apply_vol_scaling(weights, cov, regime="low_vol")
         assert scaled.max() > 0.5  # levered above original weight, uncapped
+
+    def test_vol_scaling_does_not_recreate_sector_breach(self, config):
+        opt = PortfolioOptimizer(config)
+        symbols = list("ABCDE")
+        weights = pd.Series(0.2, index=symbols)
+        cov = pd.DataFrame(
+            np.eye(len(symbols)) * 0.0001,
+            index=symbols,
+            columns=symbols,
+        )
+        sectors = pd.Series(
+            {"A": "Tech", "B": "Tech", "C": "Health", "D": "Finance", "E": "Energy"}
+        )
+
+        scaled = opt.apply_vol_scaling(
+            weights,
+            cov,
+            regime="low_vol",
+            sector_map=sectors,
+        )
+
+        assert scaled[["A", "B"]].sum() <= config["risk"]["max_sector_weight"] + 1e-9
+        assert scaled.max() <= config["portfolio"]["max_position_weight"] + 1e-9
 
     def test_detect_regime_low_vol(self, config):
         np.random.seed(0)
@@ -287,6 +312,39 @@ class TestSectorConstraints:
         weights = opt.optimize_weights(selected, scores, cov, sector_map=None)
         assert abs(weights.sum() - 1.0) < 1e-6
 
+    def test_infeasible_single_sector_cap_leaves_cash(self, config):
+        """Normalization must not recreate a documented sector-cap breach."""
+        opt = PortfolioOptimizer(config)
+        selected = ["A", "B", "C", "D", "E"]
+        scores = pd.Series({symbol: 1.0 for symbol in selected})
+        cov = pd.DataFrame(np.eye(5) * 0.04 / 252, index=selected, columns=selected)
+        sector_map = pd.Series({symbol: "Tech" for symbol in selected})
+
+        weights = opt.optimize_weights(
+            selected, scores, cov, sector_map=sector_map
+        )
+
+        assert weights.sum() == pytest.approx(config["risk"]["max_sector_weight"])
+        assert weights.sum() < 1.0
+
+    def test_missing_sector_classifications_share_unknown_cap(self, config):
+        opt = PortfolioOptimizer(config)
+        selected = ["A", "B", "C", "D", "E"]
+        scores = pd.Series({symbol: 1.0 for symbol in selected})
+        cov = pd.DataFrame(np.eye(5) * 0.04 / 252, index=selected, columns=selected)
+        sector_map = pd.Series({"A": "Tech"})
+
+        weights = opt.optimize_weights(
+            selected,
+            scores,
+            cov,
+            sector_map=sector_map,
+        )
+
+        assert weights[["B", "C", "D", "E"]].sum() <= (
+            config["risk"]["max_sector_weight"] + 1e-9
+        )
+
 
 class TestLedoitWolfShrinkage:
     """Tests for the Ledoit-Wolf covariance estimator."""
@@ -305,6 +363,26 @@ class TestLedoitWolfShrinkage:
         assert np.allclose(cov.values, cov.values.T, atol=1e-10)
 
         # Positive semi-definite (all eigenvalues >= 0)
+        eigenvalues = np.linalg.eigvalsh(cov.values)
+        assert np.all(eigenvalues >= -1e-10)
+
+    def test_sparse_returns_produce_finite_covariance(self):
+        returns = pd.DataFrame(
+            {
+                "A": [0.01, np.nan, 0.02, np.inf],
+                "B": [np.nan, -0.01, 0.01, 0.02],
+                "C": [0.00, 0.01, np.nan, -0.01],
+            }
+        )
+
+        cov = _ledoit_wolf_shrinkage(returns)
+
+        assert cov.index.tolist() == ["A", "B", "C"]
+        assert cov.columns.tolist() == ["A", "B", "C"]
+        assert np.isfinite(cov.to_numpy()).all()
+        assert np.allclose(cov.to_numpy(), cov.to_numpy().T, atol=1e-10)
+
+        # Sparse-data fallback must also remain positive semi-definite.
         eigenvalues = np.linalg.eigvalsh(cov.values)
         assert np.all(eigenvalues >= -1e-10)
 
@@ -427,6 +505,31 @@ class TestRiskMonitor:
 
         result = monitor.check_sector_concentration(weights, sector_map)
         assert len(result["breaches"]) == 0
+
+    def test_missing_sector_names_share_unknown_bucket(self, config):
+        monitor = RiskMonitor(config)
+        weights = pd.Series({"A": 0.2, "B": 0.2, "C": 0.2})
+        sector_map = pd.Series({"A": "Tech"})
+
+        result = monitor.check_sector_concentration(weights, sector_map)
+
+        assert result["sector_weights"]["__UNKNOWN__"] == pytest.approx(0.4)
+        assert "__UNKNOWN__" in result["breaches"]
+
+    def test_risk_report_drops_incomplete_rows_instead_of_zero_filling(self, config):
+        monitor = RiskMonitor(config)
+        weights = pd.Series({"A": 0.5, "B": 0.5})
+        returns = pd.DataFrame(
+            {
+                "A": [0.10, 0.10, 0.10],
+                "B": [0.10, np.nan, -0.10],
+            }
+        )
+
+        report = monitor.compute_risk_report(weights, returns)
+
+        expected = pd.Series([0.10, 0.0]).std() * np.sqrt(252)
+        assert report["annualized_vol"] == pytest.approx(expected)
 
     def test_comprehensive_risk_report(self, config):
         """Risk report should include all key metrics."""

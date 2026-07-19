@@ -121,6 +121,10 @@ universe:
 data:
   lookback_years: 5
   frequency: 1d  # daily bars
+  # Optional bias-reduced research inputs. Both are required together; the
+  # default static universe remains explicitly survivorship-biased.
+  # point_in_time_universe_file: data/pit_universe.csv
+  # delisting_returns_file: data/delisting_returns.csv
 
 signals:
   # Momentum — 3m/6m/12m; dropped 1m (too noisy)
@@ -158,6 +162,8 @@ portfolio:
   rebalance_frequency_days: 21  # 3-week cycle — reduces turnover while keeping signals fresh
   transaction_cost_bps: 10    # 10 basis points per trade
   max_turnover_per_rebalance: 0.40  # cap single-rebalance turnover at 40%
+  alpha_scale: 0.05             # one cross-sectional z-score = 5% annual alpha
+  risk_aversion: 1.0            # alpha and annualized covariance share a horizon
 
 risk:
   max_drawdown_limit: 0.25     # 25% — accept more drawdown for growth
@@ -176,6 +182,17 @@ leverage:
     high_vol: 0.8                # stressed → de-leverage to 0.8x (up from 0.7)
   margin_annual_rate: 0.06       # annual margin interest rate (for backtest)
 
+dashboard:
+  # Alpaca paper did not apply BKNG's 25-for-1 split. The LGBM account's
+  # missing 3 x 24 x $175.40 sale proceeds were added manually on 2026-04-29;
+  # offset the inferred dashboard credit from that date to avoid counting it twice.
+  split_cash_compensations:
+    multifactor: {}
+    lgbm:
+      BKNG:
+        date: "2026-04-29"
+        amount: 12628.80
+
 safety:
   max_single_order_value: 50000     # $50k max per order
   max_single_order_shares: 10000    # 10k shares max per order
@@ -187,6 +204,7 @@ safety:
   require_paper_mode: true          # block live trading unless explicitly overridden
 
 backtest:
+  rebalance_anchor_date: "2000-01-03"  # fixed phase shared by all report windows
   start_date: "2016-01-01"
   end_date: null  # null = today
   initial_capital: 1000000

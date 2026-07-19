@@ -14,48 +14,20 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 >
 > **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10%），12只集中持仓，22%目标波动率，3周再平衡+40%总换手上限（含退出腿与杠杆变化），快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。Sharpe/Sortino 按 4% 无风险利率计算。基本面因子因yfinance前视偏差已禁用。
 
-### 5-Year Backtest (2021-07 → 2026-07)
+### Results pending rerun / 结果待重跑
 
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+193.6%** | +84.1% | **+109.6pp** |
-| **CAGR / 年化收益** | **24.2%** | — | — |
-| **Sharpe Ratio** | **0.87** | — | — |
-| **Sortino Ratio** | **1.20** | — | — |
-| **Max Drawdown / 最大回撤** | -28.9% | — | — |
-| **Information Ratio** | **+0.86** | — | — |
+The previous tables and chart were generated before the next-session-open
+execution model, corrected Sortino definition, fixed rebalance calendar,
+continuous-window reporting, and final exposure limits were introduced. They
+have been removed rather than presented as current evidence. Run the manual
+`README Backtest Refresh` workflow to publish a new traceable set of results.
 
-> Note: Tables recomputed 2026-07-06 by the `readme-backtest` workflow (Actions run 28829367568) after the July 2026 review fixes: Sharpe/Sortino now use a 4% risk-free rate, the 40% turnover cap is enforced on total turnover (exit legs and leverage changes included), and the LightGBM validation split is purged/embargoed. Market impact coefficient 2.5 (Almgren-Chriss), stop-loss (15%) enforced daily.
->
-> 注：表格由 readme-backtest workflow 于 2026-07-06 重算（Actions run 28829367568），包含 7 月 review 修复：Sharpe/Sortino 按 4% 无风险利率计算，40% 换手上限按含退出腿与杠杆变化的总换手执行，LightGBM 验证窗做了 purge/embargo。市场冲击系数 2.5（Almgren-Chriss），止损（15%）每日执行。
+旧表格和净值图生成于本轮回测时序、Sortino、固定再平衡日历、连续窗口及最终风险上限修复之前，因此不再作为当前结果展示。请运行手动 `README Backtest Refresh` workflow 后再发布可追溯的新结果。
 
-### 3-Year Backtest (2023-07 → 2026-07)
-
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+158.8%** | +75.8% | **+82.9pp** |
-| **CAGR / 年化收益** | **37.6%** | — | — |
-| **Sharpe Ratio** | **1.33** | — | — |
-| **Sortino Ratio** | **1.97** | — | — |
-| **Max Drawdown / 最大回撤** | -27.6% | — | — |
-| **Information Ratio** | **+1.14** | — | — |
-
-### 1-Year Backtest (2025-07 → 2026-07)
-
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+48.7%** | +21.3% | **+27.4pp** |
-| **CAGR / 年化收益** | **49.4%** | — | — |
-| **Sharpe Ratio** | **1.82** | — | — |
-| **Sortino Ratio** | **3.35** | — | — |
-| **Max Drawdown / 最大回撤** | -11.6% | — | — |
-| **Information Ratio** | **+1.64** | — | — |
-
-### Performance Chart / 净值曲线 (5-Year)
-
-![5-Year Backtest](backtest_5yr.png)
-
-> **Note / 注意**: 回测结果仍存在幸存者偏差（静态100股票池排除了历史退市股）。真实样本外表现预计会略低。详见 `docs/audit/CONFIDENCE_ASSESSMENT.md`。
+Even after rerunning, the default static stock universe must be labelled as
+survivorship-biased. A bias-reduced run requires both the optional
+point-in-time universe file and delisting-return file described in
+`quant/data/point_in_time.py`.
 
 ---
 
@@ -102,7 +74,7 @@ Price Data (yfinance, live path behind a hard data-quality gate)
             including exit legs and leverage changes
             │
             ▼
-    Execution (Alpaca API with safety checks; T+1 close in backtest)
+    Execution (alpaca-py with safety checks; next-session open in backtest)
 ```
 
 ### Disabled Factors / 已禁用因子
@@ -118,10 +90,12 @@ Quality (质量) 和 Value (价值) 因子已禁用（权重=0），因为 `yfin
 ### Install / 安装
 
 ```bash
-pip install -r requirements.txt
+python3.12 -m pip install --require-hashes -r requirements.lock
 ```
 
-Dependencies / 依赖: `numpy`, `pandas`, `yfinance`, `scipy`, `scikit-learn`, `matplotlib`
+`requirements.lock` pins the complete dependency graph and hashes. Direct
+dependencies are declared in `requirements.in`; regenerate the lock only as an
+intentional dependency update.
 
 ### Run a Backtest / 运行回测
 
@@ -149,7 +123,6 @@ python run.py signal
 ### Setup / 设置
 
 ```bash
-pip install alpaca-trade-api
 export ALPACA_API_KEY="your-api-key"
 export ALPACA_SECRET_KEY="your-secret-key"
 ```
@@ -168,8 +141,11 @@ python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 
 - **Pre-trade checks**: 单笔订单上限 $50k，日内交易总额上限 $500k，日亏损上限 $25k
 - **TWAP splitting**: 大单自动拆分为时间加权分批执行
+- **Idempotent orders**: 稳定的 `client_order_id` 防止网络重试重复下单
 - **Position reconciliation**: 每次再平衡后自动对账
-- **Lock file**: 防止并发执行
+- **Cross-run concurrency**: GitHub Actions 并发组串行化两个账户的工作流
+- **Partial-fill recovery**: 部分成交或拒单不会把再平衡错误标记为完成
+- **Corporate-action fail closed**: 若 Alpaca 模拟账户仍以拆股前单位记录 BKNG，交易会暂停；这是防止数量被放大 25 倍，不影响代码提交或回测
 - **Paper mode gate**: 防止意外连接实盘账户
 
 ### Automate with Cron / 使用 Cron 自动化
@@ -204,8 +180,8 @@ trade/
 │   ├── signals/
 │   │   ├── factors.py          # Alpha 因子计算
 │   │   ├── factor_analysis.py  # IC/ICIR、因子衰减分析工具
-│   │   ├── ml_features.py      # LightGBM 特征工程（46 个价格派生特征）
-│   │   ├── lgbm_model.py       # LightGBM 排序模型 + purged split
+│   │   ├── ml_features.py      # 价格派生特征 + 显式缺失标记
+│   │   ├── lgbm_model.py       # 分组 LambdaRank + purged split + IC/ICIR
 │   │   └── lgbm_strategy.py    # LightGBM 策略调度器
 │   ├── portfolio/
 │   │   └── optimizer.py        # MVO优化 + Ledoit-Wolf + 换手上限 + 风控
@@ -233,7 +209,7 @@ trade/
 | Alpha Research / 因子研究员 | 修复3个因子bug，添加因子分析工具 |
 | Execution Engineer / 执行工程师 | 添加完整安全模块（限额、TWAP、对账） |
 | Portfolio & Risk / 组合风控 | Ledoit-Wolf协方差、换手率惩罚、行业约束执行 |
-| Backtest & QA / 回测质控 | 89测试全过，回测可信度评估 3/10 → 待接入时点数据 |
+| Backtest & QA / 回测质控 | 离线回归测试 + 时序/缺失行情/退市事件边界检查 |
 | Lead Orchestrator / 总指挥 | 跨模块集成、最终交付报告 |
 
 ---
@@ -266,20 +242,31 @@ risk:
   stop_loss_pct: 0.15
 
 backtest:
+  rebalance_anchor_date: "2000-01-03"  # 各报告窗口共用固定再平衡相位
   market_impact_coeff: 2.5   # Almgren-Chriss 市场冲击系数（小账户适配）
   risk_free_rate: 0.04       # Sharpe/Sortino 按超额收益计算
 ```
+
+可选的时点研究数据接口：
+
+```yaml
+data:
+  point_in_time_universe_file: data/pit_universe.csv
+  delisting_returns_file: data/delisting_returns.csv
+```
+
+二者必须同时提供并通过模式校验；仅提供历史成分股却遗漏退市收益仍会高估结果，因此系统会拒绝这种配置。
 
 ---
 
 ## Known Limitations / 已知局限
 
-1. **Survivorship bias / 幸存者偏差**: 静态100股票池排除历史退市股，回测收益偏高。定量对照见 honest-backtest workflow（同一策略跑在无幸存者偏差的 ETF 池上）
+1. **Survivorship bias / 幸存者偏差**: 静态100股票池排除历史退市股，回测收益偏高。ETF control workflow 只用于跨资产稳健性检查，不能量化这个偏差；偏差收敛需要时点成分股与退市收益文件
 2. **No point-in-time fundamentals / 无时点基本面**: yfinance只提供当前快照，quality/value因子已禁用
-3. **T+1 close execution / T+1收盘价执行**: 回测中信号在 T 日收盘计算，交易在 T+1 日收盘价成交；真实盘中成交价仍会有偏差
+3. **Next-open execution / 次日开盘执行**: 回测中信号在 T 日收盘计算，优先按下一可交易日开盘价成交；若开盘缺失才使用该日收盘，开盘和收盘都缺失则等待，不会沿用旧价格假成交
 4. **Paper-trading fills / 模拟盘成交**: Alpaca paper 账户的成交不含真实点差与市场冲击，实盘成本会更高
 
-（旧版此处写着"止损未激活"与"同日执行"，均已过时：回测引擎与实盘脚本都做每日止损检查，回测为 T+1 执行。）
+4. **Paper corporate actions / 模拟账户公司行动**: BKNG 25 拆 1 于 2026-04-02 生效、2026-04-06 起按拆股价交易。若模拟账户仍显示拆股前数量/成本，自动交易会安全停止，需先在 Alpaca 重置或修复该模拟持仓。已手工补入的拆股现金必须记录在 `dashboard.split_cash_compensations`，避免仪表盘再次自动补账
 
 详见 `docs/audit/CONFIDENCE_ASSESSMENT.md` 和 `docs/audit/FINAL_DELIVERY.md`。
 
