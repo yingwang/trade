@@ -183,15 +183,11 @@ leverage:
   margin_annual_rate: 0.06       # annual margin interest rate (for backtest)
 
 dashboard:
-  # Alpaca paper did not apply BKNG's 25-for-1 split. The LGBM account's
-  # missing 3 x 24 x $175.40 sale proceeds were added manually on 2026-04-29;
-  # offset the inferred dashboard credit from that date to avoid counting it twice.
+  # List only cash adjustments that were actually deposited into the Alpaca
+  # paper account. Dashboard-only split corrections do not belong here.
   split_cash_compensations:
     multifactor: {}
-    lgbm:
-      BKNG:
-        date: "2026-04-29"
-        amount: 12628.80
+    lgbm: {}
 
 safety:
   max_single_order_value: 50000     # $50k max per order
