@@ -37,24 +37,38 @@ jobs:
         id: bt
         env:
           PYTHONPATH: .
+          START_INPUT: ${{ github.event.inputs.start }}
+          END_INPUT: ${{ github.event.inputs.end }}
         run: |
-          END_ARG=""
-          if [ -n "${{ github.event.inputs.end }}" ]; then
-            END_ARG="--end ${{ github.event.inputs.end }}"
+          DATE_RE='^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+          if ! [[ "$START_INPUT" =~ $DATE_RE ]]; then
+            echo "Invalid start date: $START_INPUT" >&2
+            exit 2
+          fi
+          ARGS=(--start "$START_INPUT")
+          if [ -n "$END_INPUT" ]; then
+            if ! [[ "$END_INPUT" =~ $DATE_RE ]]; then
+              echo "Invalid end date: $END_INPUT" >&2
+              exit 2
+            fi
+            ARGS+=(--end "$END_INPUT")
           fi
           set -o pipefail
-          python run.py -c config_etf.yaml backtest \
-            --start "${{ github.event.inputs.start }}" $END_ARG \
+          python run.py -c config_etf.yaml backtest "${ARGS[@]}" \
             | tee backtest_output.txt
 
       - name: Publish result to job summary
         if: always()
+        env:
+          START_INPUT: ${{ github.event.inputs.start }}
+          END_INPUT: ${{ github.event.inputs.end }}
         run: |
+          DISPLAY_END="${END_INPUT:-today}"
           {
             echo "# ETF robustness-control backtest"
             echo ""
             echo "Same momentum engine as the main strategy, run on an ETF control universe"
-            echo "(\`config_etf.yaml\`). Window: **${{ github.event.inputs.start }} → ${{ github.event.inputs.end || 'today' }}**."
+            echo "(\`config_etf.yaml\`). Window: **$START_INPUT → $DISPLAY_END**."
             echo ""
             echo '```'
             cat backtest_output.txt 2>/dev/null || echo "(no output captured)"

@@ -204,6 +204,17 @@ class BacktestEngine:
                 })
             pending_stops.difference_update(executed_stops)
 
+            # Stop-loss exits take precedence over portfolio targets. A target
+            # computed at the same close can otherwise sell the position as a
+            # stop at the next bar and immediately buy it back in the rebalance
+            # loop. Pending unpriced stops also force their target weight to
+            # zero so unavailable exits block the buy phase.
+            blocked_reentries = set(pending_stops) | set(executed_stops)
+            if pending_target is not None and blocked_reentries:
+                pending_target = pending_target.copy()
+                blocked = pending_target.index.intersection(blocked_reentries)
+                pending_target.loc[blocked] = 0.0
+
             # Execute an earlier close's target.  Sells go first.  If a sell is
             # untradeable, buys are deferred to avoid temporary over-exposure.
             if pending_target is not None:
@@ -299,6 +310,8 @@ class BacktestEngine:
                 if pending_target is not None:
                     logger.warning("Superseding an unfinished rebalance target on %s", date.date())
                 pending_target = rebalance_targets[date].copy()
+                blocked = pending_target.index.intersection(blocked_reentries)
+                pending_target.loc[blocked] = 0.0
 
             portfolio_value = float(cash + (holdings * close_px).fillna(0).sum())
 
@@ -312,6 +325,9 @@ class BacktestEngine:
                     if newly_stopped:
                         logger.info("Stop-loss signal on %s for %s", date.date(), sorted(newly_stopped))
                         pending_stops.update(newly_stopped)
+                        if pending_target is not None:
+                            blocked = pending_target.index.intersection(newly_stopped)
+                            pending_target.loc[blocked] = 0.0
 
             if cash < 0 and self.margin_rate > 0:
                 interest = abs(cash) * self.margin_rate / 252.0

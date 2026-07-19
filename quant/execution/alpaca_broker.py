@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import time
 from datetime import datetime
@@ -215,7 +216,11 @@ class AlpacaBroker(BaseBroker):
             or (_attr(existing, "filled_avg_price", None) if existing is not None else None)
             or self._get_price_safe(order.symbol)
         )
-        if price is None or price <= 0:
+        if (
+            price is None
+            or not math.isfinite(float(price))
+            or float(price) <= 0
+        ):
             return self._reject(order, f"No valid price for {order.symbol}")
 
         if existing is not None:
@@ -374,12 +379,15 @@ class AlpacaBroker(BaseBroker):
             timeout=30 if order.order_type == "market" else 60,
         )
         if terminal is None:
-            if self._cancel_open_order(order_id, order.symbol, timed_out=True):
-                order.status = "cancelled"
-            else:
+            terminal = self._cancel_and_confirm_order(
+                order_id,
+                order.symbol,
+                timed_out=True,
+            )
+            if terminal is None:
                 order.status = "unknown"
                 order.reject_reason = "Timed out and cancellation was not confirmed"
-            return order
+                return order
 
         return self._apply_fill(order, terminal, signal_price)
 
@@ -388,6 +396,33 @@ class AlpacaBroker(BaseBroker):
         status = _status(_attr(broker_order, "status", ""))
         filled_qty = float(_attr(broker_order, "filled_qty", 0) or 0)
         avg_price = _attr(broker_order, "filled_avg_price", None)
+        requested = float(order.requested_quantity or order.quantity)
+        terminal_statuses = {"filled", "canceled", "cancelled", "expired", "rejected"}
+        cancellation_confirmed = status in terminal_statuses
+
+        # A partial fill can grow (or become fully filled) while the cancel
+        # request is in flight. Always use the broker's confirmed terminal
+        # snapshot; accounting from the stale pre-cancel poll can undercount the
+        # fill and let a following TWAP child overrun the parent quantity.
+        if (
+            filled_qty > 0
+            and filled_qty + 1e-9 < requested
+            and status not in terminal_statuses
+        ):
+            confirmed = self._cancel_and_confirm_order(
+                order.order_id,
+                order.symbol,
+                timed_out=True,
+                fallback_order=broker_order,
+            )
+            if confirmed is not None:
+                broker_order = confirmed
+                status = _status(_attr(broker_order, "status", status))
+                filled_qty = float(_attr(broker_order, "filled_qty", filled_qty) or 0)
+                avg_price = _attr(broker_order, "filled_avg_price", avg_price)
+                cancellation_confirmed = True
+            else:
+                cancellation_confirmed = False
 
         if filled_qty <= 0:
             if status in {"canceled", "cancelled", "expired"}:
@@ -402,19 +437,14 @@ class AlpacaBroker(BaseBroker):
 
         order.filled_quantity = filled_qty
         order.filled_price = float(avg_price) if avg_price is not None else signal_price
-        requested = float(order.requested_quantity or order.quantity)
 
         if filled_qty + 1e-9 >= requested or status == "filled":
             order.status = "filled"
+        elif cancellation_confirmed:
+            order.status = "partial_fill"
         else:
-            cancelled = self._cancel_open_order(
-                order.order_id,
-                order.symbol,
-                timed_out=True,
-            )
-            order.status = "partial_fill" if cancelled else "partial_fill_open"
-            if not cancelled:
-                order.reject_reason = "Partial fill remains open; cancellation not confirmed"
+            order.status = "partial_fill_open"
+            order.reject_reason = "Partial fill remains open; cancellation not confirmed"
 
         # Keep the historical public interface: ``quantity`` is actual filled
         # quantity after a partial fill; requested_quantity remains immutable.
@@ -541,22 +571,31 @@ class AlpacaBroker(BaseBroker):
             return latest
         return None
 
-    def _cancel_open_order(
+    def _cancel_and_confirm_order(
         self,
         order_id: str,
         symbol: str,
         timed_out: bool = False,
         confirmation_timeout: int = 10,
-    ) -> bool:
+        fallback_order=None,
+    ):
+        """Cancel an order and return its authoritative terminal snapshot.
+
+        Returning the final broker object (instead of a boolean) closes the
+        fill-during-cancel race: callers can account for the actual cumulative
+        fill before deciding whether it is safe to submit another order.
+        """
         client = self._client()
         cancel = (
             getattr(client, "cancel_order_by_id", None)
             or getattr(client, "cancel_order", None)
         )
         if cancel is None:
-            return False
+            return None
+        cancel_sent = False
         try:
             cancel(order_id)
+            cancel_sent = True
         except Exception as exc:
             # "already cancelled/filled" can still be safe; the confirmation
             # query below is authoritative.
@@ -567,7 +606,14 @@ class AlpacaBroker(BaseBroker):
             # Minimal injected clients used by offline tests cannot confirm the
             # state transition.  Production alpaca-py always has
             # get_order_by_id, so real trading never takes this shortcut.
-            return True
+            if not cancel_sent:
+                return None
+            return fallback_order or {
+                "id": order_id,
+                "status": "canceled",
+                "filled_qty": 0,
+                "filled_avg_price": None,
+            }
 
         deadline = self._monotonic() + confirmation_timeout
         while self._monotonic() < deadline:
@@ -575,7 +621,7 @@ class AlpacaBroker(BaseBroker):
                 current = self._get_order(order_id)
                 status = _status(_attr(current, "status", ""))
                 if status in {"filled", "canceled", "cancelled", "expired", "rejected"}:
-                    return True
+                    return current
             except Exception as exc:
                 logger.warning("Could not confirm cancellation for %s: %s", order_id, exc)
             self._sleep(1)
@@ -585,7 +631,23 @@ class AlpacaBroker(BaseBroker):
             order_id,
             " after timeout" if timed_out else "",
         )
-        return False
+        return None
+
+    def _cancel_open_order(
+        self,
+        order_id: str,
+        symbol: str,
+        timed_out: bool = False,
+        confirmation_timeout: int = 10,
+    ) -> bool:
+        """Compatibility wrapper for callers that only need confirmation."""
+
+        return self._cancel_and_confirm_order(
+            order_id,
+            symbol,
+            timed_out=timed_out,
+            confirmation_timeout=confirmation_timeout,
+        ) is not None
 
     # ------------------------------------------------------------------
     # Account, prices, and corporate actions

@@ -6,6 +6,7 @@ Every order must pass all safety checks before submission to any broker.
 
 import json
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Optional
@@ -42,6 +43,32 @@ class SafetyConfig:
     # Environment safety
     require_paper_mode: bool = True              # Block live trading unless explicitly disabled
 
+    def __post_init__(self):
+        positive_limits = {
+            "max_single_order_value": self.max_single_order_value,
+            "max_single_order_shares": self.max_single_order_shares,
+            "max_daily_trade_value": self.max_daily_trade_value,
+            "max_daily_loss": self.max_daily_loss,
+            "max_adv_fraction": self.max_adv_fraction,
+            "min_price": self.min_price,
+            "max_position_pct_of_portfolio": self.max_position_pct_of_portfolio,
+        }
+        for name, raw_value in positive_limits.items():
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Safety limit {name} must be numeric") from exc
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"Safety limit {name} must be positive and finite")
+        if float(self.max_adv_fraction) > 1:
+            raise ValueError("Safety limit max_adv_fraction must not exceed 1")
+        if float(self.max_position_pct_of_portfolio) > 1:
+            raise ValueError(
+                "Safety limit max_position_pct_of_portfolio must not exceed 1"
+            )
+        if not isinstance(self.require_paper_mode, bool):
+            raise ValueError("Safety limit require_paper_mode must be boolean")
+
     @classmethod
     def from_config(cls, config: dict) -> "SafetyConfig":
         """Build SafetyConfig from the project config.yaml dict, with safe defaults."""
@@ -70,6 +97,7 @@ class DailyTracker:
     orders_filled: int = 0
     orders_rejected: int = 0
     processed_client_order_ids: set[str] = field(default_factory=set)
+    processed_fill_values: dict[str, float] = field(default_factory=dict)
 
     def reset_if_new_day(self):
         today = _market_date()
@@ -81,6 +109,7 @@ class DailyTracker:
             self.orders_filled = 0
             self.orders_rejected = 0
             self.processed_client_order_ids.clear()
+            self.processed_fill_values.clear()
 
     def to_dict(self) -> dict:
         """Serialize for cross-process persistence (each Actions run is a
@@ -94,6 +123,7 @@ class DailyTracker:
             "orders_filled": self.orders_filled,
             "orders_rejected": self.orders_rejected,
             "processed_client_order_ids": sorted(self.processed_client_order_ids),
+            "processed_fill_values": dict(sorted(self.processed_fill_values.items())),
         }
 
     def restore(self, data: dict) -> bool:
@@ -110,16 +140,51 @@ class DailyTracker:
         if snap_date != _market_date():
             return False
         self.trade_date = snap_date
-        self.total_value_traded = float(data.get("total_value_traded", 0.0))
-        self.total_realised_pnl = float(data.get("total_realised_pnl", 0.0))
-        self.orders_submitted = int(data.get("orders_submitted", 0))
-        self.orders_filled = int(data.get("orders_filled", 0))
-        self.orders_rejected = int(data.get("orders_rejected", 0))
+        try:
+            total_value = float(data.get("total_value_traded", 0.0))
+            realised_pnl = float(data.get("total_realised_pnl", 0.0))
+            counters = {
+                "orders_submitted": int(data.get("orders_submitted", 0)),
+                "orders_filled": int(data.get("orders_filled", 0)),
+                "orders_rejected": int(data.get("orders_rejected", 0)),
+            }
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Same-day daily tracker contains invalid counters") from exc
+        if (
+            not math.isfinite(total_value)
+            or total_value < 0
+            or not math.isfinite(realised_pnl)
+            or any(value < 0 for value in counters.values())
+        ):
+            raise ValueError("Same-day daily tracker contains unsafe counters")
+
+        raw_ids = data.get("processed_client_order_ids", [])
+        if not isinstance(raw_ids, (list, tuple, set)):
+            raise ValueError("processed_client_order_ids must be a collection")
+        raw_fill_values = data.get("processed_fill_values", {})
+        if not isinstance(raw_fill_values, dict):
+            raise ValueError("processed_fill_values must be a mapping")
+
+        self.total_value_traded = total_value
+        self.total_realised_pnl = realised_pnl
+        self.orders_submitted = counters["orders_submitted"]
+        self.orders_filled = counters["orders_filled"]
+        self.orders_rejected = counters["orders_rejected"]
         self.processed_client_order_ids = {
             str(value)
-            for value in data.get("processed_client_order_ids", [])
+            for value in raw_ids
             if value
         }
+        self.processed_fill_values = {}
+        for raw_id, raw_value in raw_fill_values.items():
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("processed_fill_values contains invalid notional") from exc
+            if not raw_id or not math.isfinite(value) or value < 0:
+                raise ValueError("processed_fill_values contains unsafe notional")
+            self.processed_fill_values[str(raw_id)] = value
+            self.processed_client_order_ids.add(str(raw_id))
         return True
 
 
@@ -157,14 +222,30 @@ class PreTradeCheck:
         """
         self.daily.reset_if_new_day()
 
+        try:
+            price = float(price)
+            portfolio_value = float(portfolio_value)
+            current_position_value = float(
+                (current_positions or {}).get(order.symbol, 0.0)
+            )
+        except (TypeError, ValueError):
+            return False, "Price, portfolio value, and position value must be numeric"
+        if not math.isfinite(price) or price <= 0:
+            return False, f"No finite positive price for {order.symbol}"
+        if not math.isfinite(current_position_value) or current_position_value < 0:
+            return False, f"No valid current position value for {order.symbol}"
+
         order_value = abs(order.quantity * price)
-        current_position_value = (current_positions or {}).get(order.symbol, 0.0)
         projected_position = (
             max(0.0, current_position_value - order_value)
             if order.side == "sell"
             else current_position_value + order_value
         )
         risk_reducing = projected_position < current_position_value
+        if not math.isfinite(portfolio_value) or portfolio_value <= 0:
+            if not risk_reducing:
+                return False, "Portfolio value is not finite and positive"
+            portfolio_value = 0.0
 
         # 1. Min price check
         if price < self.config.min_price:
@@ -219,7 +300,13 @@ class PreTradeCheck:
                 return False, reason
 
         # 6. Liquidity / ADV check
-        if check_adv and avg_daily_volume is not None and avg_daily_volume > 0:
+        if check_adv and avg_daily_volume is not None:
+            try:
+                avg_daily_volume = float(avg_daily_volume)
+            except (TypeError, ValueError):
+                return False, f"ADV for {order.symbol} is not numeric"
+            if not math.isfinite(avg_daily_volume) or avg_daily_volume <= 0:
+                return False, f"ADV for {order.symbol} is not finite and positive"
             adv_fraction = abs(order.quantity) / avg_daily_volume
             if adv_fraction > self.config.max_adv_fraction:
                 reason = (
@@ -244,16 +331,40 @@ class PreTradeCheck:
         checkpointed by an earlier process.
         """
         self.daily.reset_if_new_day()
-        if (
-            client_order_id
-            and client_order_id in self.daily.processed_client_order_ids
-        ):
-            return False
-        self.daily.total_value_traded += abs(order_value)
+        fill_value = abs(float(order_value))
+        if not math.isfinite(fill_value):
+            raise ValueError("Filled order value must be finite")
+
+        if client_order_id:
+            client_order_id = str(client_order_id)
+            if client_order_id in self.daily.processed_fill_values:
+                previous = self.daily.processed_fill_values[client_order_id]
+                incremental_value = max(0.0, fill_value - previous)
+                self.daily.processed_fill_values[client_order_id] = max(
+                    previous, fill_value
+                )
+                if incremental_value <= 1e-9:
+                    return False
+                # A partially-filled order can accumulate more fills after a
+                # process restart. Count only the newly observed notional, but
+                # keep orders_filled as the number of distinct broker intents.
+                self.daily.total_value_traded += incremental_value
+                self.daily.total_realised_pnl += realised_pnl
+                return True
+
+            if client_order_id in self.daily.processed_client_order_ids:
+                # Compatibility with schema-v2 snapshots that persisted only a
+                # set of processed IDs. The old snapshot already counted this
+                # fill, so establish a baseline without charging it twice.
+                self.daily.processed_fill_values[client_order_id] = fill_value
+                return False
+
+        self.daily.total_value_traded += fill_value
         self.daily.total_realised_pnl += realised_pnl
         self.daily.orders_filled += 1
         if client_order_id:
             self.daily.processed_client_order_ids.add(client_order_id)
+            self.daily.processed_fill_values[client_order_id] = fill_value
         return True
 
     def record_submission(self):
@@ -267,6 +378,12 @@ class PreTradeCheck:
     def check_daily_loss_limit(self, unrealised_pnl: float = 0.0) -> tuple[bool, str]:
         """Check if daily loss limit has been breached."""
         self.daily.reset_if_new_day()
+        try:
+            unrealised_pnl = float(unrealised_pnl)
+        except (TypeError, ValueError):
+            return False, "Daily P&L is not numeric"
+        if not math.isfinite(unrealised_pnl):
+            return False, "Daily P&L is not finite"
         total_pnl = self.daily.total_realised_pnl + unrealised_pnl
         if total_pnl < -self.config.max_daily_loss:
             reason = (

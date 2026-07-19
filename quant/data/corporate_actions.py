@@ -11,6 +11,7 @@ must never guess.  It raises until the paper account is repaired or reset.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date
 from typing import Iterable, Mapping
@@ -74,11 +75,29 @@ def unresolved_splits(
             continue
         try:
             qty = abs(float(raw.get("qty", 0) or 0))
+        except (TypeError, ValueError):
+            # A known split position whose units cannot even be parsed is not a
+            # state in which automated quantity calculations are safe.
+            unresolved.append(split)
+            continue
+        if not math.isfinite(qty):
+            unresolved.append(split)
+            continue
+        if qty <= 0:
+            continue
+        try:
             avg_entry = float(raw.get("avg_entry_price", 0) or 0)
             current = float(raw.get("current_price", 0) or 0)
         except (TypeError, ValueError):
+            unresolved.append(split)
             continue
-        if qty > 0 and looks_presplit(avg_entry, current, split.ratio):
+        if (
+            not math.isfinite(avg_entry)
+            or not math.isfinite(current)
+            or avg_entry <= 0
+            or current <= 0
+            or looks_presplit(avg_entry, current, split.ratio)
+        ):
             unresolved.append(split)
     return unresolved
 

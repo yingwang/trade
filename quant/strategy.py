@@ -54,6 +54,10 @@ class MultiFactorStrategy:
         # --- Survivorship bias warning ---
         if self.pit_universe is None:
             warn_survivorship_bias(self.data.symbols, start)
+        else:
+            # Do not silently hold cash for the first part of a backtest whose
+            # constituent file starts too late.
+            self.pit_universe.members_as_of(start)
 
         # 1. Fetch data — pull extra history for signal warm-up
         logger.info("Fetching price data...")
@@ -97,7 +101,18 @@ class MultiFactorStrategy:
 
         # 2. Generate signals
         logger.info("Generating signals...")
-        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        eligibility = None
+        if self.pit_universe is not None:
+            eligibility = self.pit_universe.eligibility_mask(
+                prices.index,
+                [column for column in prices.columns if column != self.data.benchmark],
+            )
+        signals = self.signal_gen.generate(
+            prices,
+            returns,
+            fundamentals,
+            eligibility_mask=eligibility,
+        )
 
         # 3. Build target weights on rebalance dates
         logger.info("Computing target weights...")
@@ -147,7 +162,12 @@ class MultiFactorStrategy:
             spy_col = self.data.benchmark
             spy_ret = returns[spy_col].loc[:date] if spy_col in returns.columns else None
             regime = self.optimizer.detect_regime(spy_ret)
-            weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+            weights = self.optimizer.apply_vol_scaling(
+                weights,
+                cov,
+                regime=regime,
+                sector_map=sector_map,
+            )
             regime_cap = min(
                 self.optimizer.regime_caps.get(regime, 1.0),
                 self.optimizer.max_leverage,
@@ -159,7 +179,10 @@ class MultiFactorStrategy:
             # turnover created by vol scaling, which the in-optimizer
             # constraint cannot see.
             weights = self.optimizer.enforce_turnover_cap(
-                weights, prev_weights, gross_exposure_cap=regime_cap
+                weights,
+                prev_weights,
+                gross_exposure_cap=regime_cap,
+                sector_map=sector_map,
             )
 
             target_weights[str(date.date())] = weights
@@ -196,14 +219,27 @@ class MultiFactorStrategy:
 
     def get_current_signal(self) -> pd.Series:
         """Get the latest composite signal for live/paper trading decisions."""
-        prices = self.data.fetch_prices()
+        prices = enforce_live_data_quality(
+            self.data.fetch_prices(), benchmark=self.data.benchmark
+        )
         returns = MarketData.compute_returns(prices)
         try:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
             fundamentals = pd.DataFrame()
 
-        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        eligibility = None
+        if self.pit_universe is not None:
+            eligibility = self.pit_universe.eligibility_mask(
+                prices.index,
+                [column for column in prices.columns if column != self.data.benchmark],
+            )
+        signals = self.signal_gen.generate(
+            prices,
+            returns,
+            fundamentals,
+            eligibility_mask=eligibility,
+        )
         return signals.iloc[-1].sort_values(ascending=False)
 
     def get_current_portfolio(
@@ -246,7 +282,18 @@ class MultiFactorStrategy:
         if not fundamentals.empty and "sector" in fundamentals.columns:
             sector_map = fundamentals["sector"]
 
-        signals = self.signal_gen.generate(prices, returns, fundamentals)
+        eligibility = None
+        if self.pit_universe is not None:
+            eligibility = self.pit_universe.eligibility_mask(
+                prices.index,
+                [column for column in prices.columns if column != self.data.benchmark],
+            )
+        signals = self.signal_gen.generate(
+            prices,
+            returns,
+            fundamentals,
+            eligibility_mask=eligibility,
+        )
         day_scores = signals.iloc[-1].dropna()
 
         # Select top stocks
@@ -272,14 +319,22 @@ class MultiFactorStrategy:
         spy_col = self.data.benchmark
         spy_ret = returns[spy_col] if spy_col in returns.columns else None
         regime = self.optimizer.detect_regime(spy_ret)
-        weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+        weights = self.optimizer.apply_vol_scaling(
+            weights,
+            cov,
+            regime=regime,
+            sector_map=sector_map,
+        )
         # Do NOT renormalize -- remainder is cash buffer for vol targeting.
         regime_cap = min(
             self.optimizer.regime_caps.get(regime, 1.0),
             self.optimizer.max_leverage,
         )
         weights = self.optimizer.enforce_turnover_cap(
-            weights, prev_weights, gross_exposure_cap=regime_cap
+            weights,
+            prev_weights,
+            gross_exposure_cap=regime_cap,
+            sector_map=sector_map,
         )
 
         # Build output table

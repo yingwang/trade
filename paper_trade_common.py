@@ -39,6 +39,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
 
+import numpy as np
 import pandas as pd
 
 from quant.execution.broker import Order, generate_rebalance_orders
@@ -167,26 +168,38 @@ def show_status(broker, banner: str = "PAPER TRADING STATUS"):
 def current_broker_weights(broker) -> Optional[pd.Series]:
     """The account's actual portfolio weights (shares * price / equity).
 
-    Used as prev_weights for the optimizer's turnover machinery.  Returns
-    None when they cannot be derived, so the strategy falls back to its
-    no-previous-portfolio behavior instead of binding against garbage.
+    Used as prev_weights for the optimizer's turnover machinery. A held
+    position with an unavailable mark must abort the trading path; silently
+    treating it as zero disables turnover/concentration controls and can buy
+    more of an already-held symbol.
     """
     try:
         positions = broker.get_positions()
         if positions.empty:
             return pd.Series(dtype=float)
-        equity = broker.get_portfolio_value()
-        if not equity or equity <= 0:
-            return None
+        positions = pd.to_numeric(positions, errors="coerce")
+        if not np.isfinite(positions.to_numpy(dtype=float)).all() or (positions < 0).any():
+            raise ValueError("broker positions contain non-finite or short quantities")
+        equity = float(broker.get_portfolio_value())
+        if not np.isfinite(equity) or equity <= 0:
+            raise ValueError("broker equity is not finite and positive")
         prices = broker.get_current_prices(positions.index.tolist())
+        missing = [
+            symbol
+            for symbol in positions.index
+            if symbol not in prices
+            or not np.isfinite(float(prices[symbol]))
+            or float(prices[symbol]) <= 0
+        ]
+        if missing:
+            raise ValueError(f"missing valid marks for {sorted(missing)}")
         values = pd.Series(
-            {sym: shares * prices.get(sym, 0.0) for sym, shares in positions.items()},
+            {sym: shares * float(prices[sym]) for sym, shares in positions.items()},
             dtype=float,
         )
         return values / equity
     except Exception as e:
-        logger.warning("Could not derive current weights from broker: %s", e)
-        return None
+        raise RuntimeError(f"Could not derive current broker weights: {e}") from e
 
 
 def check_stop_losses(
@@ -460,9 +473,43 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     filled = []
     n_filled = 0
     n_rejected = 0
+    n_not_submitted = 0
     total_value_traded = 0.0
+    buy_block_reason = ""
 
-    for o in orders:
+    def checkpoint(record: dict):
+        filled.append(record)
+        if order_result_callback is not None:
+            order_result_callback(record)
+
+    def skipped_record(order: Order, reason: str) -> dict:
+        return {
+            "time": datetime.now().isoformat(),
+            "symbol": order.symbol,
+            "side": order.side,
+            "qty": 0.0,
+            "requested_qty": float(order.requested_quantity or order.quantity),
+            "status": "not_submitted",
+            "price": None,
+            "signal_price": order.signal_price,
+            "order_id": "",
+            "client_order_id": getattr(order, "client_order_id", ""),
+            "reject_reason": reason,
+        }
+
+    for index, o in enumerate(orders):
+        if o.side == "buy" and buy_block_reason:
+            remaining = orders[index:]
+            for skipped in remaining:
+                checkpoint(skipped_record(skipped, buy_block_reason))
+            n_not_submitted += len(remaining)
+            logger.error(
+                "Skipped %d buy order(s): %s",
+                len(remaining),
+                buy_block_reason,
+            )
+            break
+
         result = broker.submit_order(o, avg_daily_volume=adv_map.get(o.symbol))
         record = {
             "time": datetime.now().isoformat(),
@@ -479,22 +526,49 @@ def run_rebalance(strategy, broker, config, dry_run=False,
             "client_order_id": getattr(result, "client_order_id", ""),
             "reject_reason": result.reject_reason,
         }
-        filled.append(record)
+        checkpoint(record)
 
-        if order_result_callback is not None:
-            order_result_callback(record)
-
-        if result.status in ("filled", "partial_fill"):
+        actual_qty = float(getattr(result, "filled_quantity", 0) or 0)
+        if actual_qty > 0:
             n_filled += 1
-            actual_qty = float(getattr(result, "filled_quantity", 0) or result.quantity)
             total_value_traded += actual_qty * (result.filled_price or 0)
-        elif result.status == "rejected":
+        if result.status == "rejected":
             n_rejected += 1
+
+        if result.status in {"unknown", "submitted", "partial_fill_open"}:
+            reason = (
+                f"Execution halted after {o.symbol}: broker status "
+                f"{result.status!r} may still represent an open order"
+            )
+            remaining = orders[index + 1:]
+            for skipped in remaining:
+                checkpoint(skipped_record(skipped, reason))
+            n_not_submitted += len(remaining)
+            logger.error("%s; skipped %d remaining order(s)", reason, len(remaining))
+            break
+
+        # Sells fund and de-risk the subsequent buy phase. A rejected,
+        # cancelled, unfilled, or only partially-filled sell must not be
+        # followed by fresh buys based on the assumption that the exit worked.
+        # Other sells remain risk-reducing and are still allowed to proceed.
+        requested_qty = float(o.requested_quantity or o.quantity)
+        if (
+            o.side == "sell"
+            and (
+                result.status != "filled"
+                or actual_qty + 1e-9 < requested_qty
+            )
+        ):
+            buy_block_reason = (
+                f"Buy phase blocked because sell {o.symbol} finished with "
+                f"status {result.status!r} and filled "
+                f"{actual_qty:g}/{requested_qty:g} shares"
+            )
 
     exec_log.log_rebalance_complete(n_filled, n_rejected, total_value_traded)
 
     print(f"\n  Results: {n_filled} filled, {n_rejected} rejected, "
-          f"${total_value_traded:,.0f} traded")
+          f"{n_not_submitted} not submitted, ${total_value_traded:,.0f} traded")
 
     return filled, target_weights
 
@@ -624,6 +698,18 @@ def run_main(profile: TradeProfile):
             logger.info("Stopped out %d position(s): %s", len(stopped), stopped)
             if not args.dry_run:
                 save_state(profile.state_file, state)
+            # A rebalance computed from the pre-stop portfolio can immediately
+            # re-buy the same symbol or submit a second exit with a different
+            # purpose/idempotency key. Finish this safety run here and let the
+            # next daily run recompute from the broker's confirmed positions.
+            logger.warning(
+                "Skipping rebalance in the same run as a stop-loss trigger; "
+                "the next daily run will recompute from confirmed positions"
+            )
+            if not args.dry_run:
+                _persist_daily_tracker(profile, broker, state)
+            show_status(broker, profile.status_banner)
+            return
 
         # Check if rebalance is due
         if not args.force and not should_rebalance(state, freq):

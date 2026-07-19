@@ -212,6 +212,7 @@ class MLFeatureEngine:
         prices: pd.DataFrame,
         returns: pd.DataFrame,
         factor_scores: Optional[dict[str, pd.DataFrame]] = None,
+        eligibility_mask: Optional[pd.DataFrame] = None,
     ) -> dict[str, pd.DataFrame]:
         """Build all features for every (date, symbol) pair.
 
@@ -280,6 +281,15 @@ class MLFeatureEngine:
         for name, df in compute_activity_ratios(ret).items():
             features[name] = df
 
+        if eligibility_mask is not None:
+            eligible = eligibility_mask.reindex(
+                index=px.index, columns=px.columns
+            ).fillna(False).astype(bool)
+            for name in list(features):
+                features[name] = features[name].reindex(
+                    index=px.index, columns=px.columns
+                ).where(eligible)
+
         # --- Group 4: Cross-sectional rank features ---
         base_names = list(features.keys())
         for name in base_names:
@@ -300,6 +310,7 @@ class MLFeatureEngine:
         prices: pd.DataFrame,
         returns: pd.DataFrame,
         factor_scores: Optional[dict[str, pd.DataFrame]] = None,
+        eligibility_mask: Optional[pd.DataFrame] = None,
     ) -> tuple[np.ndarray, list[str], pd.DatetimeIndex, list[str]]:
         """Build a 3D numpy array (dates x symbols x features).
 
@@ -312,7 +323,12 @@ class MLFeatureEngine:
         dates : DatetimeIndex
         symbols : list of str
         """
-        features = self.build_features(prices, returns, factor_scores)
+        features = self.build_features(
+            prices,
+            returns,
+            factor_scores,
+            eligibility_mask=eligibility_mask,
+        )
         symbols = [c for c in prices.columns if c != self.benchmark]
         dates = prices.index
 
@@ -340,6 +356,7 @@ class MLFeatureEngine:
         self,
         returns: pd.DataFrame,
         horizon: int = 21,
+        delisting_returns: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """Compute forward returns as the prediction target.
 
@@ -356,7 +373,34 @@ class MLFeatureEngine:
         Values at date t represent cumulative return from t+1 to t+horizon.
         """
         symbols = [c for c in returns.columns if c != self.benchmark]
-        ret = returns[symbols]
+        ret = returns[symbols].copy()
+        if delisting_returns is not None and not delisting_returns.empty:
+            normalized_index = pd.DatetimeIndex(ret.index).tz_localize(None).normalize()
+            for event in delisting_returns.itertuples(index=False):
+                event_date = pd.Timestamp(event.date).tz_localize(None).normalize()
+                if event_date < normalized_index.min() or event_date > normalized_index.max():
+                    continue
+                symbol = str(event.symbol)
+                if symbol not in ret.columns:
+                    raise ValueError(
+                        f"Delisting return for {symbol} falls inside the ML period "
+                        "but the symbol has no return column"
+                    )
+                matches = np.flatnonzero(normalized_index == event_date)
+                if len(matches) != 1:
+                    raise ValueError(
+                        f"Delisting date {event_date.date()} for {symbol} is not "
+                        "a unique market-data row"
+                    )
+                position = int(matches[0])
+                ret.iloc[position, ret.columns.get_loc(symbol)] = float(
+                    event.delisting_return
+                )
+                # A terminal payoff ends the investment. Zero returns after
+                # that event let pre-delisting forward windows retain the loss
+                # instead of being censored by the missing price series.
+                if position + 1 < len(ret):
+                    ret.iloc[position + 1:, ret.columns.get_loc(symbol)] = 0.0
         # Forward cumulative return: product of (1+r) over next `horizon` days - 1
         fwd = (1 + ret).rolling(horizon).apply(np.prod, raw=True).shift(-horizon) - 1
         return fwd
@@ -365,11 +409,22 @@ class MLFeatureEngine:
         self,
         returns: pd.DataFrame,
         horizon: int = 21,
+        eligibility_mask: Optional[pd.DataFrame] = None,
+        delisting_returns: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """Cross-sectional rank of forward returns (0 to 1).
 
         This is the primary target for the TFT model: predict relative
         stock performance rather than absolute returns.
         """
-        fwd = self.get_target(returns, horizon)
+        fwd = self.get_target(
+            returns,
+            horizon,
+            delisting_returns=delisting_returns,
+        )
+        if eligibility_mask is not None:
+            eligible = eligibility_mask.reindex(
+                index=fwd.index, columns=fwd.columns
+            ).fillna(False).astype(bool)
+            fwd = fwd.where(eligible)
         return fwd.rank(axis=1, pct=True)

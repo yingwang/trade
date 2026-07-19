@@ -365,8 +365,13 @@ class SignalGenerator:
                 "the composite signal would be empty. Configure at least one factor."
             )
 
-    def generate(self, prices: pd.DataFrame, returns: pd.DataFrame,
-                 fundamentals: pd.DataFrame = None) -> pd.DataFrame:
+    def generate(
+        self,
+        prices: pd.DataFrame,
+        returns: pd.DataFrame,
+        fundamentals: pd.DataFrame = None,
+        eligibility_mask: pd.DataFrame = None,
+    ) -> pd.DataFrame:
         """Produce a composite alpha score for each symbol on each date.
 
         Pipeline:
@@ -429,8 +434,23 @@ class SignalGenerator:
             sector_map = fundamentals["sector"]
             logger.info("Applying industry-neutral z-scoring")
 
+        eligible = None
+        if eligibility_mask is not None:
+            eligible = eligibility_mask.reindex(
+                index=px.index, columns=px.columns
+            ).fillna(False).astype(bool)
+
         for name in list(factors.keys()):
             f = factors[name].reindex(index=px.index, columns=px.columns)
+            if eligible is not None:
+                f = f.where(eligible)
+                # Several low-level factor builders already z-score across
+                # columns. Re-standardizing after the PIT mask removes the
+                # affine influence of names that were not eligible that day
+                # before winsorization can turn it into a real rank change.
+                mean = f.mean(axis=1)
+                std = f.std(axis=1).replace(0, 1)
+                f = f.sub(mean, axis=0).div(std, axis=0)
             # Industry-neutral z-score (within-sector ranking)
             if sector_map is not None:
                 f = neutralize_by_sector(f, sector_map)

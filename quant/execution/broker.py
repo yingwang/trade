@@ -44,6 +44,11 @@ class Order:
             raise ValueError(f"Unsupported order type: {self.order_type}")
         if not math.isfinite(float(self.quantity)) or float(self.quantity) <= 0:
             raise ValueError("Order quantity must be a finite positive number")
+        if self.order_type == "limit":
+            if self.limit_price is None or not math.isfinite(float(self.limit_price)):
+                raise ValueError("Limit orders require a finite limit price")
+            if float(self.limit_price) <= 0:
+                raise ValueError("Limit orders require a positive limit price")
         if self.requested_quantity is None:
             self.requested_quantity = float(self.quantity)
 

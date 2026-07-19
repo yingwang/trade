@@ -32,6 +32,27 @@ class TestConfigLoading:
         config = load_config()
         assert isinstance(config, dict)
 
+    def test_duplicate_universe_symbols_are_rejected(self, tmp_path):
+        source = load_config()
+        source["universe"]["symbols"] = ["AAAA", "AAAA"]
+        source["portfolio"]["max_positions"] = 1
+        path = tmp_path / "bad.yaml"
+        import yaml
+
+        path.write_text(yaml.safe_dump(source, sort_keys=False))
+        with pytest.raises(ValueError, match="duplicate tickers"):
+            load_config(path)
+
+    def test_nonfinite_risk_limit_is_rejected(self, tmp_path):
+        source = load_config()
+        source["risk"]["max_sector_weight"] = float("nan")
+        path = tmp_path / "bad.yaml"
+        import yaml
+
+        path.write_text(yaml.safe_dump(source, sort_keys=False))
+        with pytest.raises(ValueError, match="must be finite"):
+            load_config(path)
+
 
 # ── paper_trade helpers ─────────────────────────────────────────────────────
 
@@ -224,6 +245,76 @@ class TestRebalanceSafety:
         strategy.data.fetch_adv.assert_called_once()
         _, kwargs = broker.submit_order.call_args
         assert kwargs["avg_daily_volume"] == 2_000_000.0
+
+    def test_failed_sell_blocks_subsequent_buys(self, config, quiet_exec_log):
+        """A target must not assume failed exits produced cash/risk capacity."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 100_000
+        broker.get_daily_pnl.return_value = 0.0
+        broker.get_positions.return_value = pd.Series({"BBBB": 500.0})
+        broker.get_current_prices.return_value = {"AAAA": 100.0, "BBBB": 100.0}
+        broker.is_market_open.return_value = True
+
+        def reject_sell(order, avg_daily_volume=None):
+            assert order.side == "sell"
+            order.status = "rejected"
+            order.reject_reason = "simulated broker rejection"
+            return order
+
+        broker.submit_order.side_effect = reject_sell
+
+        strategy = MagicMock()
+        strategy.get_current_portfolio.return_value = pd.DataFrame(
+            {
+                "score": [1.0],
+                "weight": [0.5],
+                "weight_pct": [50.0],
+                "dollars": [50_000.0],
+                "shares": [500],
+                "price": [100.0],
+            },
+            index=["AAAA"],
+        )
+        strategy.data.fetch_adv.return_value = {
+            "AAAA": 2_000_000.0,
+            "BBBB": 2_000_000.0,
+        }
+
+        records, _ = run_rebalance(
+            strategy, broker, self._config_with_safety(config), dry_run=False
+        )
+
+        assert broker.submit_order.call_count == 1
+        assert [record["status"] for record in records] == [
+            "rejected",
+            "not_submitted",
+        ]
+        assert records[1]["side"] == "buy"
+
+    def test_missing_held_position_mark_aborts_before_signal_generation(
+        self, config, quiet_exec_log
+    ):
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 100_000
+        broker.get_daily_pnl.return_value = 0.0
+        broker.get_positions.return_value = pd.Series({"AAAA": 100.0})
+        broker.get_current_prices.return_value = {}
+        broker.is_market_open.return_value = True
+        strategy = MagicMock()
+
+        with pytest.raises(RuntimeError, match="missing valid marks"):
+            run_rebalance(
+                strategy,
+                broker,
+                self._config_with_safety(config),
+                dry_run=False,
+            )
+
+        strategy.get_current_portfolio.assert_not_called()
 
 
 # ── ADV fetching ────────────────────────────────────────────────────────────
@@ -466,6 +557,45 @@ class TestDailyTrackerPersistence:
         assert t.restore({}) is False
         assert t.restore({"trade_date": "not-a-date"}) is False
 
+    def test_same_day_nonfinite_snapshot_fails_closed(self):
+        from quant.execution.safety import DailyTracker
+
+        t = DailyTracker()
+        snapshot = t.to_dict()
+        snapshot["total_value_traded"] = float("nan")
+
+        with pytest.raises(ValueError, match="unsafe counters"):
+            DailyTracker().restore(snapshot)
+
+
+# ── Market-data timing and live quality gate ───────────────────────────────
+
+class TestMarketDataTiming:
+    def test_explicit_end_date_is_inclusive(self):
+        from quant.data.market_data import MarketData
+
+        assert MarketData._exclusive_download_end("2026-07-16") == "2026-07-17"
+
+    def test_default_excludes_intraday_candle_before_close(self):
+        from quant.data.market_data import MarketData
+
+        assert MarketData._exclusive_download_end(
+            now=datetime(2026, 7, 16, 11, 0)
+        ) == "2026-07-16"
+
+    def test_default_includes_session_after_close_grace(self):
+        from quant.data.market_data import MarketData
+
+        assert MarketData._exclusive_download_end(
+            now=datetime(2026, 7, 16, 16, 30)
+        ) == "2026-07-17"
+
+    def test_returns_do_not_bridge_missing_prices(self):
+        from quant.data.market_data import MarketData
+
+        prices = pd.DataFrame({"AAAA": [100.0, np.nan, 110.0]})
+        assert MarketData.compute_returns(prices).empty
+
 
 # ── Live data quality gate ──────────────────────────────────────────────────
 
@@ -511,6 +641,21 @@ class TestLiveQualityGate:
         prices["BENCH"] = np.nan
         with pytest.raises(RuntimeError, match="benchmark"):
             enforce_live_data_quality(prices, benchmark="BENCH")
+
+    def test_missing_benchmark_aborts(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices().drop(columns=["BENCH"])
+        with pytest.raises(RuntimeError, match="benchmark BENCH is missing"):
+            enforce_live_data_quality(prices, benchmark="BENCH")
+
+    def test_infinite_quote_is_sanitized(self):
+        from quant.data.quality import enforce_live_data_quality
+
+        prices = self._prices()
+        prices.loc[prices.index[100], "S0"] = np.inf
+        out = enforce_live_data_quality(prices, benchmark="BENCH")
+        assert pd.isna(out.loc[out.index[100], "S0"])
 
     def test_short_history_aborts(self):
         from quant.data.quality import enforce_live_data_quality

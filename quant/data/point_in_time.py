@@ -32,11 +32,24 @@ class PointInTimeUniverse:
             )
         frame = frame[["date", "symbol", "is_member"]].copy()
         frame["date"] = pd.to_datetime(frame["date"], errors="raise").dt.normalize()
+        if frame["symbol"].isna().any():
+            raise ValueError("Point-in-time universe contains a missing symbol")
         frame["symbol"] = frame["symbol"].astype(str).str.upper().str.strip()
-        frame["is_member"] = frame["is_member"].map(
+        if (frame["symbol"] == "").any():
+            raise ValueError("Point-in-time universe contains an empty symbol")
+        membership_text = frame["is_member"].map(
             lambda value: str(value).strip().lower()
-            in {"1", "1.0", "true", "yes", "y"}
         )
+        true_values = {"1", "1.0", "true", "yes", "y"}
+        false_values = {"0", "0.0", "false", "no", "n"}
+        invalid = ~membership_text.isin(true_values | false_values)
+        if invalid.any():
+            values = sorted(set(membership_text[invalid].tolist()))
+            raise ValueError(
+                "Point-in-time universe has invalid is_member values: "
+                f"{values}"
+            )
+        frame["is_member"] = membership_text.isin(true_values)
         if frame[["date", "symbol"]].duplicated().any():
             raise ValueError("Point-in-time universe contains duplicate date/symbol rows")
         if not frame["is_member"].any():
@@ -49,13 +62,54 @@ class PointInTimeUniverse:
 
     def members_as_of(self, date) -> set[str]:
         """Members from the latest complete snapshot available by ``date``."""
-        as_of = pd.Timestamp(date).normalize()
+        as_of = pd.Timestamp(date).tz_localize(None).normalize()
         eligible = self.snapshots[self.snapshots["date"] <= as_of]
         if eligible.empty:
             raise ValueError(f"No universe snapshot available on or before {as_of.date()}")
         snapshot_date = eligible["date"].max()
         snapshot = eligible[eligible["date"] == snapshot_date]
         return set(snapshot.loc[snapshot["is_member"], "symbol"])
+
+    def eligibility_mask(
+        self,
+        dates: pd.DatetimeIndex,
+        symbols: list[str] | pd.Index,
+    ) -> pd.DataFrame:
+        """Boolean membership mask using the latest snapshot at every date.
+
+        The mask is consumed before cross-sectional factor ranks and ML labels
+        are built. Filtering only the final portfolio is insufficient: future
+        constituents would still influence historical z-scores and train the
+        ranker before they entered the research universe.
+        """
+
+        index = pd.DatetimeIndex(dates)
+        normalized = index.tz_localize(None).normalize()
+        columns = [str(symbol).upper() for symbol in symbols]
+        mask = pd.DataFrame(False, index=index, columns=columns, dtype=bool)
+
+        snapshot_dates = pd.DatetimeIndex(
+            self.snapshots["date"].drop_duplicates().sort_values()
+        )
+        grouped = {
+            pd.Timestamp(snapshot_date): set(
+                self.snapshots.loc[
+                    (self.snapshots["date"] == snapshot_date)
+                    & self.snapshots["is_member"],
+                    "symbol",
+                ]
+            )
+            for snapshot_date in snapshot_dates
+        }
+
+        for row, as_of in enumerate(normalized):
+            position = int(snapshot_dates.searchsorted(as_of, side="right")) - 1
+            if position < 0:
+                continue
+            members = grouped[pd.Timestamp(snapshot_dates[position])]
+            if members:
+                mask.iloc[row] = [symbol in members for symbol in columns]
+        return mask
 
 
 @dataclass(frozen=True)
@@ -74,7 +128,11 @@ class DelistingReturns:
             raise ValueError(f"Delisting returns are missing columns: {sorted(missing)}")
         frame = frame[["date", "symbol", "delisting_return"]].copy()
         frame["date"] = pd.to_datetime(frame["date"], errors="raise").dt.normalize()
+        if frame["symbol"].isna().any():
+            raise ValueError("Delisting returns contain a missing symbol")
         frame["symbol"] = frame["symbol"].astype(str).str.upper().str.strip()
+        if (frame["symbol"] == "").any():
+            raise ValueError("Delisting returns contain an empty symbol")
         frame["delisting_return"] = pd.to_numeric(
             frame["delisting_return"], errors="raise"
         )

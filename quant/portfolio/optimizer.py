@@ -41,21 +41,52 @@ def _ledoit_wolf_shrinkage(returns: pd.DataFrame) -> pd.DataFrame:
     DataFrame
         Shrinkage covariance matrix (N x N), with same index/columns as input.
     """
+    columns = returns.columns
+    if len(columns) == 0:
+        return pd.DataFrame(index=columns, columns=columns, dtype=float)
+
+    clean = returns.apply(pd.to_numeric, errors="coerce").replace(
+        [np.inf, -np.inf], np.nan
+    )
+    observations = clean.dropna(how="any")
+    if len(observations) < 2:
+        # A single missing quote should not make the whole risk calculation
+        # crash. Mean imputation is conservative enough for this fallback and
+        # keeps the estimator finite; explicit missing-data filtering happens
+        # before symbols are selected by each strategy.
+        observations = clean.dropna(how="all")
+        observations = observations.fillna(clean.mean()).fillna(0.0)
+
+    if len(observations) < 2:
+        variances = clean.var(ddof=0).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return pd.DataFrame(
+            np.diag(variances.reindex(columns).to_numpy(dtype=float)),
+            index=columns,
+            columns=columns,
+        )
+
     try:
         from sklearn.covariance import LedoitWolf
-        lw = LedoitWolf().fit(returns.dropna())
+
+        lw = LedoitWolf().fit(observations)
         cov_shrunk = lw.covariance_
         shrinkage_intensity = lw.shrinkage_
         logger.debug("Ledoit-Wolf shrinkage intensity: %.4f", shrinkage_intensity)
-        return pd.DataFrame(cov_shrunk, index=returns.columns, columns=returns.columns)
+        return pd.DataFrame(cov_shrunk, index=columns, columns=columns)
     except ImportError:
         logger.warning("sklearn not available; falling back to analytical Ledoit-Wolf")
+    except (ValueError, FloatingPointError) as exc:
+        logger.warning(
+            "sklearn Ledoit-Wolf rejected the return matrix (%s); "
+            "using the analytical estimator",
+            exc,
+        )
 
     # Analytical Ledoit-Wolf (no sklearn dependency)
-    X = returns.dropna().values
+    X = observations.to_numpy(dtype=float)
     T, N = X.shape
     if T < 2:
-        return returns.cov()
+        return clean.cov().fillna(0.0)
 
     # De-mean
     X = X - X.mean(axis=0)
@@ -82,7 +113,7 @@ def _ledoit_wolf_shrinkage(returns: pd.DataFrame) -> pd.DataFrame:
     cov_shrunk = kappa * target + (1 - kappa) * sample_cov
     logger.debug("Analytical Ledoit-Wolf shrinkage intensity: %.4f", kappa)
 
-    return pd.DataFrame(cov_shrunk, index=returns.columns, columns=returns.columns)
+    return pd.DataFrame(cov_shrunk, index=columns, columns=columns)
 
 
 class PortfolioOptimizer:
@@ -133,8 +164,42 @@ class PortfolioOptimizer:
 
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
-        valid = scores.dropna().sort_values(ascending=False)
+        valid = pd.to_numeric(scores, errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        ).dropna().sort_values(ascending=False)
         return valid.head(self.max_positions).index
+
+    def _effective_position_cap(self) -> float:
+        """Hard per-position cap shared by optimization and post-processing."""
+        cap = float(self.max_weight)
+        if self.max_position_pct_safety is not None:
+            cap = min(cap, float(self.max_position_pct_safety))
+        return max(0.0, cap)
+
+    @staticmethod
+    def _aligned_sectors(
+        selected: list[str] | pd.Index,
+        sector_map: pd.Series,
+    ) -> pd.Series:
+        """Align sectors and group missing classifications into one risk bucket."""
+        sectors = sector_map.reindex(selected).astype("object")
+        return sectors.where(sectors.notna(), "__UNKNOWN__")
+
+    def _sector_gross_capacity(
+        self,
+        selected: list[str] | pd.Index,
+        sector_map: Optional[pd.Series],
+    ) -> float:
+        """Maximum feasible gross weight under position and sector caps."""
+        position_cap = self._effective_position_cap()
+        if sector_map is None:
+            return min(1.0, len(selected) * position_cap)
+        sectors = self._aligned_sectors(selected, sector_map)
+        capacity = 0.0
+        for sector in sectors.unique():
+            count = int((sectors == sector).sum())
+            capacity += min(self.max_sector_weight, count * position_cap)
+        return min(1.0, max(0.0, capacity))
 
     def optimize_weights(
         self,
@@ -167,8 +232,13 @@ class PortfolioOptimizer:
         n = len(selected)
         if n == 0:
             return pd.Series(dtype=float)
+        target_gross = self._sector_gross_capacity(selected, sector_map)
+        if target_gross <= 0:
+            return pd.Series(dtype=float)
 
-        raw_alpha = scores.reindex(selected).astype(float).fillna(0).values
+        raw_alpha = pd.to_numeric(
+            scores.reindex(selected), errors="coerce"
+        ).replace([np.inf, -np.inf], np.nan).fillna(0).values
         alpha_std = float(np.std(raw_alpha))
         if alpha_std > 1e-12:
             alpha = (raw_alpha - float(np.mean(raw_alpha))) / alpha_std
@@ -180,6 +250,7 @@ class PortfolioOptimizer:
         # horizon so both terms materially influence the solution.
         cov = (
             cov_matrix.reindex(index=selected, columns=selected)
+            .replace([np.inf, -np.inf], np.nan)
             .fillna(0)
             .values
             * 252.0
@@ -201,7 +272,7 @@ class PortfolioOptimizer:
         if prev_weights is not None:
             w_prev = prev_weights.reindex(selected).fillna(0).values
         else:
-            w_prev = np.full(n, 1.0 / n)
+            w_prev = np.full(n, target_gross / n)
 
         # Objective: maximize alpha'w - lambda * w'Cov*w - gamma * |w - w_prev|
         risk_aversion = self.risk_aversion
@@ -215,7 +286,10 @@ class PortfolioOptimizer:
 
         # Constraints
         constraints = [
-            {"type": "eq", "fun": lambda w: np.sum(w) - 1.0},  # fully invested
+            {
+                "type": "eq",
+                "fun": lambda w, target=target_gross: np.sum(w) - target,
+            },
         ]
 
         # Max turnover constraint
@@ -227,7 +301,7 @@ class PortfolioOptimizer:
 
         # Sector constraints: max weight per sector
         if sector_map is not None:
-            sectors = sector_map.reindex(selected).dropna()
+            sectors = self._aligned_sectors(selected, sector_map)
             for sector_name in sectors.unique():
                 sector_mask = (sectors == sector_name).reindex(selected).fillna(False).values
                 if sector_mask.sum() > 0:
@@ -236,8 +310,9 @@ class PortfolioOptimizer:
                         "fun": lambda w, m=sector_mask: self.max_sector_weight - np.sum(w[m]),
                     })
 
-        bounds = [(self.min_weight, self.max_weight)] * n
-        w0 = np.full(n, 1.0 / n)
+        lower_bound = self.min_weight if self.min_weight * n <= target_gross else 0.0
+        bounds = [(lower_bound, self._effective_position_cap())] * n
+        w0 = np.full(n, target_gross / n)
 
         try:
             result = minimize(neg_utility, w0, method="SLSQP",
@@ -259,65 +334,115 @@ class PortfolioOptimizer:
                              sector_map: Optional[pd.Series] = None) -> pd.Series:
         """Fallback: weights proportional to alpha scores (shifted positive).
 
-        Also enforces sector constraints by iteratively capping sector weights
-        and redistributing excess to other sectors.
+        Sector excess is redistributed only into genuinely available capacity;
+        if the selected universe cannot reach 100% without breaching a sector
+        cap, the remainder stays in cash.
         """
-        s = scores.reindex(selected).fillna(0)
+        s = pd.to_numeric(scores.reindex(selected), errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0)
         s = s - s.min() + 1e-6
-        w = self._enforce_bounds(s / s.sum())
+        target_gross = self._sector_gross_capacity(selected, sector_map)
+        w = self._enforce_bounds(s / s.sum(), target_sum=target_gross)
+        return self._enforce_sector_caps(w, sector_map, target_sum=target_gross)
 
-        # Enforce sector constraints if sector_map is provided
-        if sector_map is not None:
-            sectors = sector_map.reindex(selected).dropna()
-            for _ in range(10):  # iterate to convergence
-                breached = False
-                for sector_name in sectors.unique():
-                    mask = sectors == sector_name
-                    sector_w = w[mask].sum()
-                    if sector_w > self.max_sector_weight + 1e-6:
-                        # Scale down this sector's weights to the limit
-                        scale = self.max_sector_weight / sector_w
-                        w[mask] = w[mask] * scale
-                        breached = True
-                if not breached:
-                    break
-                w = self._enforce_bounds(w)
-
-        return w
-
-    def _enforce_bounds(self, weights: pd.Series) -> pd.Series:
-        """Project weights into configured min/max bounds while preserving sum=1."""
+    def _enforce_bounds(
+        self,
+        weights: pd.Series,
+        target_sum: float = 1.0,
+    ) -> pd.Series:
+        """Project weights into configured bounds while preserving target gross."""
         w = weights.astype(float).copy()
         n = len(w)
         if n == 0:
             return w
 
-        if self.min_weight * n > 1.0 + 1e-9 or self.max_weight * n < 1.0 - 1e-9:
-            logger.warning("Infeasible min/max bounds for %d positions; using equal weights", n)
-            return pd.Series(1.0 / n, index=w.index)
+        target_sum = max(0.0, float(target_sum))
+        lower = self.min_weight
+        if lower * n > target_sum + 1e-9:
+            logger.warning(
+                "Minimum weights are infeasible for %.1f%% gross; allowing "
+                "smaller positions",
+                target_sum * 100,
+            )
+            lower = 0.0
+        position_cap = self._effective_position_cap()
+        if position_cap * n < target_sum - 1e-9:
+            logger.warning(
+                "Maximum weights are infeasible for %.1f%% gross; using the "
+                "largest feasible allocation",
+                target_sum * 100,
+            )
+            target_sum = position_cap * n
 
         total = float(w.sum())
         if total <= 0:
-            w[:] = 1.0 / n
+            w[:] = target_sum / n
         else:
-            w /= total
+            w *= target_sum / total
 
         for _ in range(20):
-            w = w.clip(lower=self.min_weight, upper=self.max_weight)
-            deficit = 1.0 - float(w.sum())
+            w = w.clip(lower=lower, upper=position_cap)
+            deficit = target_sum - float(w.sum())
             if abs(deficit) < 1e-10:
                 break
 
             if deficit > 0:
-                free = (self.max_weight - w).clip(lower=0)
+                free = (position_cap - w).clip(lower=0)
             else:
-                free = (w - self.min_weight).clip(lower=0)
+                free = (w - lower).clip(lower=0)
             free_sum = float(free.sum())
             if free_sum <= 1e-12:
                 break
             w = w + deficit * (free / free_sum)
 
-        return w / w.sum()
+        return w
+
+    def _enforce_sector_caps(
+        self,
+        weights: pd.Series,
+        sector_map: Optional[pd.Series],
+        *,
+        target_sum: float,
+        position_cap: Optional[float] = None,
+    ) -> pd.Series:
+        """Cap sectors and redistribute only into truly available capacity."""
+        if sector_map is None or weights.empty:
+            return weights
+
+        w = weights.astype(float).copy()
+        sectors = self._aligned_sectors(w.index, sector_map)
+        if position_cap is None:
+            position_cap = self._effective_position_cap()
+        position_cap = max(0.0, float(position_cap))
+        for _ in range(20):
+            for sector in sectors.unique():
+                mask = sectors == sector
+                sector_weight = float(w.loc[mask].sum())
+                if sector_weight > self.max_sector_weight + 1e-12:
+                    w.loc[mask] *= self.max_sector_weight / sector_weight
+
+            deficit = target_sum - float(w.sum())
+            if deficit <= 1e-10:
+                break
+
+            capacity = (position_cap - w).clip(lower=0.0)
+            for sector in sectors.unique():
+                mask = sectors == sector
+                sector_room = max(
+                    0.0, self.max_sector_weight - float(w.loc[mask].sum())
+                )
+                group_capacity = float(capacity.loc[mask].sum())
+                if group_capacity > sector_room and group_capacity > 0:
+                    capacity.loc[mask] *= sector_room / group_capacity
+
+            capacity_sum = float(capacity.sum())
+            if capacity_sum <= 1e-12:
+                break
+            addition = min(deficit, capacity_sum) * capacity / capacity_sum
+            w += addition
+
+        return w
 
     def _finalize_weights(
         self,
@@ -325,25 +450,13 @@ class PortfolioOptimizer:
         sector_map: Optional[pd.Series] = None,
     ) -> pd.Series:
         """Apply fallback-safe normalization without perturbing optimized solutions."""
-        weights = self._enforce_bounds(weights)
-        if sector_map is None or weights.empty:
-            return weights
-
-        sectors = sector_map.reindex(weights.index).dropna()
-        for _ in range(10):
-            breached = False
-            for sector_name in sectors.unique():
-                mask = sectors == sector_name
-                sector_w = weights[mask].sum()
-                if sector_w <= self.max_sector_weight + 1e-6:
-                    continue
-                weights[mask] = weights[mask] * (self.max_sector_weight / sector_w)
-                breached = True
-            if not breached:
-                break
-            weights = self._enforce_bounds(weights)
-
-        return weights
+        target_gross = self._sector_gross_capacity(weights.index, sector_map)
+        weights = self._enforce_bounds(weights, target_sum=target_gross)
+        return self._enforce_sector_caps(
+            weights,
+            sector_map,
+            target_sum=target_gross,
+        )
 
     def detect_regime(self, spy_returns: pd.Series) -> str:
         """Detect market regime from SPY realized volatility.
@@ -360,28 +473,45 @@ class PortfolioOptimizer:
             return "high_vol"
         return "normal"
 
-    def apply_vol_scaling(self, weights: pd.Series,
-                          cov_matrix: pd.DataFrame,
-                          regime: str = "normal") -> pd.Series:
+    def apply_vol_scaling(
+        self,
+        weights: pd.Series,
+        cov_matrix: pd.DataFrame,
+        regime: str = "normal",
+        sector_map: Optional[pd.Series] = None,
+    ) -> pd.Series:
         """Scale portfolio to target vol with dynamic leverage based on regime.
 
         In calm markets (low_vol regime), allows leveraging up via margin.
         In stressed markets (high_vol regime), forces de-leveraging.
         """
         selected = weights.index.tolist()
-        cov = cov_matrix.reindex(index=selected, columns=selected).fillna(0).values
+        cov = (
+            cov_matrix.reindex(index=selected, columns=selected)
+            .replace([np.inf, -np.inf], np.nan)
+            .fillna(0)
+            .values
+        )
         w = weights.values
+        leverage_cap = min(self.regime_caps.get(regime, 1.0), self.max_leverage)
 
         # Validate covariance before matrix multiplication
         if np.any(np.isnan(cov)):
             logger.warning("Covariance matrix contains NaN, skipping vol scaling")
-            return weights
+            return self.apply_hard_exposure_limits(
+                weights,
+                gross_exposure_cap=leverage_cap,
+                sector_map=sector_map,
+            )
 
-        leverage_cap = min(self.regime_caps.get(regime, 1.0), self.max_leverage)
         port_vol = np.sqrt(w @ cov @ w) * np.sqrt(252)
         if np.isnan(port_vol) or port_vol <= 0:
             logger.warning("Portfolio vol is %.4f, skipping vol scaling", port_vol)
-            return weights
+            return self.apply_hard_exposure_limits(
+                weights,
+                gross_exposure_cap=leverage_cap,
+                sector_map=sector_map,
+            )
         if port_vol > 0:
             scale = self.target_vol / port_vol
             scale = min(scale, leverage_cap)
@@ -390,18 +520,14 @@ class PortfolioOptimizer:
                         "invested=%.1f%%", port_vol * 100, regime, scale,
                         weights.sum() * 100)
 
-        # Clip individual positions to the safety concentration limit so the
-        # broker's pre-trade check never rejects a leveraged target weight.
-        if self.max_position_pct_safety is not None:
-            over = weights > self.max_position_pct_safety
-            if over.any():
-                logger.info(
-                    "Capping %d position(s) at safety limit %.0f%%: %s",
-                    int(over.sum()), self.max_position_pct_safety * 100,
-                    weights[over].index.tolist())
-                weights = weights.clip(upper=self.max_position_pct_safety)
-
-        return weights
+        # Scaling is not allowed to recreate a position/sector breach that
+        # the optimizer already removed. Excess stays in cash if the selected
+        # names do not have enough compliant capacity.
+        return self.apply_hard_exposure_limits(
+            weights,
+            gross_exposure_cap=leverage_cap,
+            sector_map=sector_map,
+        )
 
     def enforce_turnover_cap(
         self,
@@ -409,6 +535,7 @@ class PortfolioOptimizer:
         prev_weights: Optional[pd.Series],
         min_stub_weight: float = 0.0025,
         gross_exposure_cap: Optional[float] = None,
+        sector_map: Optional[pd.Series] = None,
     ) -> pd.Series:
         """Cap TOTAL two-sided turnover vs the previous portfolio.
 
@@ -426,7 +553,9 @@ class PortfolioOptimizer:
         avoid dust orders (the tiny cap overshoot is logged).
         """
         weights = self.apply_hard_exposure_limits(
-            weights, gross_exposure_cap=gross_exposure_cap
+            weights,
+            gross_exposure_cap=gross_exposure_cap,
+            sector_map=sector_map,
         )
         if prev_weights is None or weights.empty:
             return weights
@@ -452,6 +581,31 @@ class PortfolioOptimizer:
                 gross_exposure_cap * 100,
             )
             return weights
+
+        if sector_map is not None:
+            sectors = self._aligned_sectors(
+                prev.index.union(weights.index),
+                sector_map,
+            )
+            prev_aligned = prev.reindex(sectors.index).fillna(0.0)
+            new_aligned = weights.reindex(sectors.index).fillna(0.0)
+            for sector in sectors.unique():
+                mask = sectors == sector
+                previous_sector = float(prev_aligned.loc[mask].sum())
+                new_sector = float(new_aligned.loc[mask].sum())
+                if (
+                    previous_sector > self.max_sector_weight + 1e-9
+                    and new_sector <= self.max_sector_weight + 1e-9
+                ):
+                    logger.warning(
+                        "Bypassing turnover cap to reduce %s sector exposure "
+                        "from %.1f%% to %.1f%% (risk cap %.1f%%)",
+                        sector,
+                        previous_sector * 100,
+                        new_sector * 100,
+                        self.max_sector_weight * 100,
+                    )
+                    return weights
 
         if self.max_turnover >= 1.0:
             return weights
@@ -479,13 +633,16 @@ class PortfolioOptimizer:
             int((~blended.index.isin(weights.index)).sum()), len(stubs),
         )
         return self.apply_hard_exposure_limits(
-            blended, gross_exposure_cap=gross_exposure_cap
+            blended,
+            gross_exposure_cap=gross_exposure_cap,
+            sector_map=sector_map,
         )
 
     def apply_hard_exposure_limits(
         self,
         weights: pd.Series,
         gross_exposure_cap: Optional[float] = None,
+        sector_map: Optional[pd.Series] = None,
     ) -> pd.Series:
         """Enforce final broker-compatible position and gross limits.
 
@@ -508,6 +665,18 @@ class PortfolioOptimizer:
         gross = float(limited.abs().sum())
         if gross > gross_exposure_cap + 1e-12 and gross > 0:
             limited *= gross_exposure_cap / gross
+
+        final_position_cap = (
+            float(self.max_position_pct_safety)
+            if self.max_position_pct_safety is not None
+            else max(float(limited.sum()), float(limited.max()))
+        )
+        limited = self._enforce_sector_caps(
+            limited,
+            sector_map,
+            target_sum=float(limited.sum()),
+            position_cap=final_position_cap,
+        )
 
         return limited[limited.abs() > 1e-12]
 
@@ -563,6 +732,9 @@ class RiskMonitor:
 
     def check_drawdown(self, equity_curve: pd.Series) -> bool:
         """Return True if max drawdown limit has been breached."""
+        equity_curve = pd.to_numeric(equity_curve, errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        ).dropna()
         if equity_curve.empty:
             return False
         peak = equity_curve.cummax()
@@ -588,7 +760,9 @@ class RiskMonitor:
         -------
         dict with keys 'var', 'cvar', 'confidence'.
         """
-        ret = returns.dropna()
+        ret = pd.to_numeric(returns, errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        ).dropna()
         if len(ret) < 20:
             return {"var": np.nan, "cvar": np.nan, "confidence": confidence}
 
@@ -627,7 +801,7 @@ class RiskMonitor:
         if sector_map is None or sector_map.empty:
             return {"sector_weights": {}, "breaches": [], "max_sector_weight": 0.0}
 
-        sectors = sector_map.reindex(weights.index).dropna()
+        sectors = self._aligned_sectors(weights.index, sector_map)
         sector_weights = {}
         for sector in sectors.unique():
             mask = sectors == sector
@@ -646,6 +820,29 @@ class RiskMonitor:
             "breaches": breaches,
             "max_sector_weight": max_sw,
         }
+
+    @staticmethod
+    def _aligned_sectors(
+        symbols: pd.Index,
+        sector_map: pd.Series,
+    ) -> pd.Series:
+        """Treat missing classifications as a single monitored risk bucket."""
+        sectors = sector_map.reindex(symbols).astype("object")
+        return sectors.where(sectors.notna(), "__UNKNOWN__")
+
+    @staticmethod
+    def _complete_portfolio_returns(
+        weights: pd.Series,
+        returns: pd.DataFrame,
+    ) -> pd.Series:
+        """Portfolio returns without silently treating missing assets as flat."""
+        if weights.empty:
+            return pd.Series(dtype=float)
+        panel = returns.reindex(columns=weights.index).apply(
+            pd.to_numeric, errors="coerce"
+        ).replace([np.inf, -np.inf], np.nan)
+        weighted = panel.mul(weights, axis=1)
+        return weighted.sum(axis=1, min_count=len(weights)).dropna()
 
     def compute_risk_report(
         self,
@@ -674,7 +871,7 @@ class RiskMonitor:
         report = {}
 
         # Portfolio returns
-        port_returns = (returns[weights.index] * weights).sum(axis=1).dropna()
+        port_returns = self._complete_portfolio_returns(weights, returns)
 
         # VaR / CVaR
         var_cvar = self.compute_var_cvar(port_returns)
@@ -735,7 +932,7 @@ class RiskMonitor:
         -------
         dict with 'betas' (dict of factor -> beta), 'r_squared', 'residual_vol'.
         """
-        port_ret = (returns[weights.index] * weights).sum(axis=1).dropna()
+        port_ret = RiskMonitor._complete_portfolio_returns(weights, returns)
 
         if factor_returns is None or factor_returns.empty:
             return {"betas": {}, "r_squared": np.nan, "residual_vol": np.nan}

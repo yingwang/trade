@@ -66,6 +66,10 @@ jobs:
           else
             MODE="live"
           fi
+          if [ "$MODE" = "live" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Live paper trading is allowed only from main; got $GITHUB_REF" >&2
+            exit 2
+          fi
           case "$MODE" in
             dry-run)       echo "args=--dry-run"         >> "$GITHUB_OUTPUT" ;;
             # Full pipeline smoke test: computes the target portfolio and
@@ -92,7 +96,7 @@ jobs:
 
       # Commit updated trade logs and state back to repo
       - name: Commit trade logs
-        if: github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
+        if: github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

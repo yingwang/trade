@@ -266,7 +266,7 @@ data:
 3. **Next-open execution / 次日开盘执行**: 回测中信号在 T 日收盘计算，优先按下一可交易日开盘价成交；若开盘缺失才使用该日收盘，开盘和收盘都缺失则等待，不会沿用旧价格假成交
 4. **Paper-trading fills / 模拟盘成交**: Alpaca paper 账户的成交不含真实点差与市场冲击，实盘成本会更高
 
-4. **Paper corporate actions / 模拟账户公司行动**: BKNG 25 拆 1 于 2026-04-02 生效、2026-04-06 起按拆股价交易。若模拟账户仍显示拆股前数量/成本，自动交易会安全停止，需先在 Alpaca 重置或修复该模拟持仓
+4. **Paper corporate actions / 模拟账户公司行动**: BKNG 25 拆 1 于 2026-04-02 生效、2026-04-06 起按拆股价交易。若模拟账户仍显示拆股前数量/成本，自动交易会安全停止，需先在 Alpaca 重置或修复该模拟持仓。已手工补入的拆股现金必须记录在 `dashboard.split_cash_compensations`，避免仪表盘再次自动补账
 
 详见 `docs/audit/CONFIDENCE_ASSESSMENT.md` 和 `docs/audit/FINAL_DELIVERY.md`。
 

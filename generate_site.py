@@ -129,7 +129,14 @@ def main():
     # actual paper equity/holdings, not the backtest's configured $1m seed.
     logger.info("Fetching trade history and current account...")
     trades = fetch_trade_history(
-        "ALPACA_API_KEY", "ALPACA_SECRET_KEY", "logs/paper_trade_state.json"
+        "ALPACA_API_KEY",
+        "ALPACA_SECRET_KEY",
+        "logs/paper_trade_state.json",
+        split_cash_compensations=(
+            config.get("dashboard", {})
+            .get("split_cash_compensations", {})
+            .get("multifactor", {})
+        ),
     )
     trades["annual_risk_free_rate"] = float(
         config.get("backtest", {}).get("risk_free_rate", 0.0)

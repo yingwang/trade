@@ -269,10 +269,14 @@ def enforce_live_data_quality(
             "Live data quality report:\n%s", DataQualityChecker.format_report(report)
         )
 
-    universe = [c for c in prices.columns if c != benchmark]
+    clean = prices.apply(pd.to_numeric, errors="coerce").replace(
+        [np.inf, -np.inf], np.nan
+    )
+    clean = clean.where(clean > 0)
+    universe = [c for c in clean.columns if c != benchmark]
 
     def _usable(col: str) -> bool:
-        s = prices[col]
+        s = clean[col]
         if s.notna().sum() < min_history_days:
             return False
         if s.isna().mean() > checker.max_missing_rate:
@@ -280,7 +284,12 @@ def enforce_live_data_quality(
         # Allow one straggler day (some symbols lag the benchmark by a bar)
         return s.tail(2).notna().any()
 
-    if benchmark is not None and benchmark in prices.columns and not _usable(benchmark):
+    if benchmark is not None and benchmark not in clean.columns:
+        raise RuntimeError(
+            f"Live data quality gate: benchmark {benchmark} is missing — "
+            "aborting rather than trading without a regime reference"
+        )
+    if benchmark is not None and not _usable(benchmark):
         raise RuntimeError(
             f"Live data quality gate: benchmark {benchmark} data is unusable — "
             "aborting rather than trading on a broken feed"
@@ -302,8 +311,8 @@ def enforce_live_data_quality(
             "trading on degraded data"
         )
 
-    keep = valid + ([benchmark] if benchmark is not None and benchmark in prices.columns else [])
-    return prices[keep]
+    keep = valid + ([benchmark] if benchmark is not None else [])
+    return clean[keep]
 
 
 # ======================================================================

@@ -4,11 +4,13 @@ import logging
 import time
 import warnings
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
+MARKET_TZ = ZoneInfo("America/New_York")
 
 
 class MarketData:
@@ -20,7 +22,7 @@ class MarketData:
         self.lookback_years: int = config["data"]["lookback_years"]
         self.frequency: str = config["data"]["frequency"]
 
-        self._price_cache: dict[str, pd.DataFrame] = {}
+        self._price_cache: dict[tuple[str, str, str, str], pd.DataFrame] = {}
         self._info_cache: dict[str, dict] = {}
         # Populated by fetch_prices from the exact same adjusted download.
         # Backtests use it to execute a close-generated signal at the next
@@ -31,20 +33,56 @@ class MarketData:
     # Price data
     # ------------------------------------------------------------------
 
-    def fetch_prices(self, start: str = None, end: str = None) -> pd.DataFrame:
-        """Return a DataFrame of adjusted close prices, columns = symbols."""
-        if end is None:
-            end = datetime.today().strftime("%Y-%m-%d")
-        if start is None:
-            start = (datetime.today() - timedelta(days=365 * self.lookback_years)).strftime("%Y-%m-%d")
+    @staticmethod
+    def _exclusive_download_end(
+        inclusive_end: str | None = None,
+        *,
+        now: datetime | None = None,
+    ) -> str:
+        """Translate the public inclusive end date to yfinance's exclusive end.
 
-        all_symbols = self.symbols + [self.benchmark]
-        logger.info("Fetching price data for %d symbols from %s to %s", len(all_symbols), start, end)
+        With no explicit end, only completed US sessions are eligible: before
+        16:15 ET today's still-forming daily candle is excluded; after that
+        grace period it is included. Weekends/holidays naturally fall back to
+        the vendor's latest available session.
+        """
+        if inclusive_end is not None:
+            parsed = pd.Timestamp(inclusive_end)
+            if pd.isna(parsed):
+                raise ValueError("Market-data end date is invalid")
+            return (parsed.normalize() + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+
+        market_now = now or datetime.now(MARKET_TZ)
+        if market_now.tzinfo is None:
+            market_now = market_now.replace(tzinfo=MARKET_TZ)
+        else:
+            market_now = market_now.astimezone(MARKET_TZ)
+        after_close_grace = (market_now.hour, market_now.minute) >= (16, 15)
+        completed_through = market_now.date()
+        if not after_close_grace:
+            completed_through -= timedelta(days=1)
+        return (completed_through + timedelta(days=1)).isoformat()
+
+    def fetch_prices(self, start: str = None, end: str = None) -> pd.DataFrame:
+        """Return adjusted closes; an explicit ``end`` date is inclusive."""
+        download_end = self._exclusive_download_end(end)
+        if start is None:
+            start = (
+                datetime.now(MARKET_TZ) - timedelta(days=365 * self.lookback_years)
+            ).strftime("%Y-%m-%d")
+
+        all_symbols = list(dict.fromkeys(self.symbols + [self.benchmark]))
+        logger.info(
+            "Fetching price data for %d symbols from %s through %s",
+            len(all_symbols),
+            start,
+            end or "latest completed session",
+        )
 
         data = yf.download(
             all_symbols,
             start=start,
-            end=end,
+            end=download_end,
             interval=self.frequency,
             auto_adjust=True,
             progress=False,
@@ -79,10 +117,13 @@ class MarketData:
         if not symbols:
             return {}
         try:
-            start = (datetime.today() - timedelta(days=window * 2 + 10)).strftime("%Y-%m-%d")
+            start = (
+                datetime.now(MARKET_TZ) - timedelta(days=window * 2 + 10)
+            ).strftime("%Y-%m-%d")
             data = yf.download(
                 list(symbols),
                 start=start,
+                end=self._exclusive_download_end(),
                 interval="1d",
                 auto_adjust=True,
                 progress=False,
@@ -98,18 +139,25 @@ class MarketData:
             return {}
 
     def fetch_ohlcv(self, symbol: str, start: str = None, end: str = None) -> pd.DataFrame:
-        """Return OHLCV DataFrame for a single symbol."""
-        if end is None:
-            end = datetime.today().strftime("%Y-%m-%d")
+        """Return OHLCV for one symbol; an explicit ``end`` is inclusive."""
+        download_end = self._exclusive_download_end(end)
         if start is None:
-            start = (datetime.today() - timedelta(days=365 * self.lookback_years)).strftime("%Y-%m-%d")
+            start = (
+                datetime.now(MARKET_TZ) - timedelta(days=365 * self.lookback_years)
+            ).strftime("%Y-%m-%d")
 
-        if symbol in self._price_cache:
-            return self._price_cache[symbol]
+        cache_key = (symbol, start, download_end, self.frequency)
+        if cache_key in self._price_cache:
+            return self._price_cache[cache_key]
 
         ticker = yf.Ticker(symbol)
-        df = ticker.history(start=start, end=end, interval=self.frequency, auto_adjust=True)
-        self._price_cache[symbol] = df
+        df = ticker.history(
+            start=start,
+            end=download_end,
+            interval=self.frequency,
+            auto_adjust=True,
+        )
+        self._price_cache[cache_key] = df
         return df
 
     # ------------------------------------------------------------------
@@ -186,7 +234,7 @@ class MarketData:
     @staticmethod
     def compute_returns(prices: pd.DataFrame) -> pd.DataFrame:
         """Simple daily returns."""
-        return prices.pct_change().dropna(how="all")
+        return prices.pct_change(fill_method=None).dropna(how="all")
 
     @staticmethod
     def compute_log_returns(prices: pd.DataFrame) -> pd.DataFrame:

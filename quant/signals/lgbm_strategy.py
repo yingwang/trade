@@ -121,6 +121,7 @@ class LGBMStrategy:
         }
         if lgbm_params:
             default_lgbm.update(lgbm_params)
+        default_lgbm.setdefault("label_horizon", self.pred_horizon)
         self.model = LGBMRankingModel(**default_lgbm)
 
         # State
@@ -283,6 +284,8 @@ class LGBMStrategy:
 
         if self.pit_universe is None:
             warn_survivorship_bias(self.data.symbols, start)
+        else:
+            self.pit_universe.members_as_of(start)
 
         # 1. Fetch data with extra history for ML training warm-up
         logger.info("Fetching price data for LightGBM backtest...")
@@ -327,22 +330,54 @@ class LGBMStrategy:
 
         # 2. Generate factor signals (used as input features for LightGBM)
         logger.info("Generating factor signals for ML features...")
-        self.signal_gen.generate(prices, returns, fundamentals)
+        eligibility = None
+        if self.pit_universe is not None:
+            eligibility = self.pit_universe.eligibility_mask(
+                prices.index,
+                [column for column in prices.columns if column != self.data.benchmark],
+            )
+        delisting_events = (
+            self.delisting_returns.events
+            if self.delisting_returns is not None
+            else None
+        )
+        self.signal_gen.generate(
+            prices,
+            returns,
+            fundamentals,
+            eligibility_mask=eligibility,
+        )
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
         # 3. Build feature matrix once for the full period
         logger.info("Building ML feature matrix...")
         X, feature_names, dates, symbols = self.feature_engine.build_feature_matrix(
-            prices, returns, factor_scores
+            prices,
+            returns,
+            factor_scores,
+            eligibility_mask=eligibility,
         )
         self._feature_names = feature_names
         cs_targets = self.feature_engine.get_cross_sectional_target(
-            returns, self.pred_horizon
+            returns,
+            self.pred_horizon,
+            eligibility_mask=eligibility,
+            delisting_returns=delisting_events,
         )
         y = cs_targets.reindex(index=dates, columns=symbols).values
         forward_returns = self.feature_engine.get_target(
-            returns, self.pred_horizon
-        ).reindex(index=dates, columns=symbols).values
+            returns,
+            self.pred_horizon,
+            delisting_returns=delisting_events,
+        )
+        if eligibility is not None:
+            forward_returns = forward_returns.where(
+                eligibility.reindex(
+                    index=forward_returns.index,
+                    columns=forward_returns.columns,
+                ).fillna(False)
+            )
+        forward_returns = forward_returns.reindex(index=dates, columns=symbols).values
         # Keep NaN — _flatten() filters them via np.isfinite()
 
         if not ML_BACKEND_AVAILABLE:
@@ -453,7 +488,12 @@ class LGBMStrategy:
             spy_col = self.data.benchmark
             spy_ret = returns[spy_col].loc[:date] if spy_col in returns.columns else None
             regime = self.optimizer.detect_regime(spy_ret)
-            weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+            weights = self.optimizer.apply_vol_scaling(
+                weights,
+                cov,
+                regime=regime,
+                sector_map=sector_map,
+            )
             regime_cap = min(
                 self.optimizer.regime_caps.get(regime, 1.0),
                 self.optimizer.max_leverage,
@@ -463,7 +503,10 @@ class LGBMStrategy:
             # turnover created by vol scaling, which the in-optimizer
             # constraint cannot see.
             weights = self.optimizer.enforce_turnover_cap(
-                weights, prev_weights, gross_exposure_cap=regime_cap
+                weights,
+                prev_weights,
+                gross_exposure_cap=regime_cap,
+                sector_map=sector_map,
             )
 
             target_weights[str(date.date())] = weights
@@ -516,21 +559,43 @@ class LGBMStrategy:
             self.data.fetch_prices(), benchmark=self.data.benchmark
         )
         returns = MarketData.compute_returns(prices)
+        eligibility = None
+        if self.pit_universe is not None:
+            eligibility = self.pit_universe.eligibility_mask(
+                prices.index,
+                [column for column in prices.columns if column != self.data.benchmark],
+            )
+        delisting_events = (
+            self.delisting_returns.events
+            if self.delisting_returns is not None
+            else None
+        )
 
         try:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
             fundamentals = pd.DataFrame()
 
-        self.signal_gen.generate(prices, returns, fundamentals)
+        self.signal_gen.generate(
+            prices,
+            returns,
+            fundamentals,
+            eligibility_mask=eligibility,
+        )
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
         X, feature_names, dates, symbols = self.feature_engine.build_feature_matrix(
-            prices, returns, factor_scores
+            prices,
+            returns,
+            factor_scores,
+            eligibility_mask=eligibility,
         )
 
         cs_targets = self.feature_engine.get_cross_sectional_target(
-            returns, self.pred_horizon
+            returns,
+            self.pred_horizon,
+            eligibility_mask=eligibility,
+            delisting_returns=delisting_events,
         )
         y = cs_targets.reindex(index=dates, columns=symbols).values
         # Keep NaN — _flatten() filters them via np.isfinite()
@@ -540,6 +605,9 @@ class LGBMStrategy:
         self._train_model(X, y, date_idx, feature_names)
 
         scores = self._live_scores(X, symbols)
+        if self.pit_universe is not None:
+            members = self.pit_universe.members_as_of(prices.index[-1])
+            scores = scores[scores.index.isin(members)]
         return scores.sort_values(ascending=False)
 
     def get_current_portfolio(
@@ -578,6 +646,17 @@ class LGBMStrategy:
         )
         self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)
+        eligibility = None
+        if self.pit_universe is not None:
+            eligibility = self.pit_universe.eligibility_mask(
+                prices.index,
+                [column for column in prices.columns if column != self.data.benchmark],
+            )
+        delisting_events = (
+            self.delisting_returns.events
+            if self.delisting_returns is not None
+            else None
+        )
         try:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
@@ -587,15 +666,26 @@ class LGBMStrategy:
         if not fundamentals.empty and "sector" in fundamentals.columns:
             sector_map = fundamentals["sector"]
 
-        self.signal_gen.generate(prices, returns, fundamentals)
+        self.signal_gen.generate(
+            prices,
+            returns,
+            fundamentals,
+            eligibility_mask=eligibility,
+        )
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
         X, feature_names, dates, symbols = self.feature_engine.build_feature_matrix(
-            prices, returns, factor_scores
+            prices,
+            returns,
+            factor_scores,
+            eligibility_mask=eligibility,
         )
 
         cs_targets = self.feature_engine.get_cross_sectional_target(
-            returns, self.pred_horizon
+            returns,
+            self.pred_horizon,
+            eligibility_mask=eligibility,
+            delisting_returns=delisting_events,
         )
         y = cs_targets.reindex(index=dates, columns=symbols).values
         # Keep NaN — _flatten() filters them via np.isfinite()
@@ -604,6 +694,9 @@ class LGBMStrategy:
         self._train_model(X, y, date_idx, feature_names)
 
         scores = self._live_scores(X, symbols)
+        if self.pit_universe is not None:
+            members = self.pit_universe.members_as_of(prices.index[-1])
+            scores = scores[scores.index.isin(members)]
 
         # Same score-level turnover damping as the backtest loop
         scores = self._apply_turnover_penalty(scores, prev_scores)
@@ -629,13 +722,21 @@ class LGBMStrategy:
         spy_col = self.data.benchmark
         spy_ret = returns[spy_col] if spy_col in returns.columns else None
         regime = self.optimizer.detect_regime(spy_ret)
-        weights = self.optimizer.apply_vol_scaling(weights, cov, regime=regime)
+        weights = self.optimizer.apply_vol_scaling(
+            weights,
+            cov,
+            regime=regime,
+            sector_map=sector_map,
+        )
         regime_cap = min(
             self.optimizer.regime_caps.get(regime, 1.0),
             self.optimizer.max_leverage,
         )
         weights = self.optimizer.enforce_turnover_cap(
-            weights, prev_weights, gross_exposure_cap=regime_cap
+            weights,
+            prev_weights,
+            gross_exposure_cap=regime_cap,
+            sector_map=sector_map,
         )
 
         latest_prices = prices.reindex(columns=weights.index).iloc[-1]

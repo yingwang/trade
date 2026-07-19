@@ -8,6 +8,7 @@ it now lives here once, with guards that the original copies lacked.
 
 import json
 import logging
+import math
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -52,10 +53,10 @@ def _enum_value(value):
     return getattr(value, "value", value)
 
 
-def _eastern_date(value) -> str:
-    """Convert an Alpaca timestamp to the US market's calendar date."""
+def _parse_timestamp(value) -> datetime | None:
+    """Normalize Alpaca timestamps for deterministic event ordering."""
     if value is None:
-        return ""
+        return None
     if isinstance(value, (int, float)):
         dt = datetime.fromtimestamp(value, tz=timezone.utc)
     elif isinstance(value, datetime):
@@ -65,9 +66,17 @@ def _eastern_date(value) -> str:
         try:
             dt = datetime.fromisoformat(text)
         except ValueError:
-            return str(value)[:10]
+            return None
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _eastern_date(value) -> str:
+    """Convert an Alpaca timestamp to the US market's calendar date."""
+    dt = _parse_timestamp(value)
+    if dt is None:
+        return str(value)[:10] if value is not None else ""
     return dt.astimezone(ZoneInfo("America/New_York")).date().isoformat()
 
 
@@ -85,7 +94,36 @@ def adjust_position_for_split(symbol, qty, avg_entry_price, cost_basis, current_
     return qty, avg_entry_price, cost_basis
 
 
-def _split_sold_credit(filled_orders) -> float:
+def _validated_split_cash_compensations(compensations: dict | None) -> dict:
+    """Validate operator-entered cash that already repaired a paper split."""
+    result = {}
+    for raw_symbol, raw_entry in (compensations or {}).items():
+        symbol = str(raw_symbol).upper().strip()
+        if symbol not in STOCK_SPLITS:
+            raise ValueError(f"Unknown split compensation symbol: {symbol}")
+        if not isinstance(raw_entry, dict):
+            raise ValueError(f"Split compensation for {symbol} must be a mapping")
+        compensation_date = str(raw_entry.get("date", ""))
+        try:
+            datetime.strptime(compensation_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(
+                f"Split compensation for {symbol} needs a YYYY-MM-DD date"
+            ) from exc
+        amount = float(raw_entry.get("amount", 0))
+        if not math.isfinite(amount) or amount <= 0:
+            raise ValueError(
+                f"Split compensation for {symbol} needs a positive finite amount"
+            )
+        result[symbol] = {"date": compensation_date, "amount": amount}
+    return result
+
+
+def _split_sold_credit(
+    filled_orders,
+    cash_compensations: dict | None = None,
+    as_of: str | None = None,
+) -> float:
     """Cash that post-split sells of PRE-split shares failed to book.
 
     Alpaca books such a sell as qty x price with the pre-split qty, missing
@@ -97,6 +135,8 @@ def _split_sold_credit(filled_orders) -> float:
     has rolled out of the window its sell would be over-credited, which we
     accept and log.
     """
+    compensations = _validated_split_cash_compensations(cash_compensations)
+    as_of = as_of or datetime.now(ZoneInfo("America/New_York")).date().isoformat()
     credit = 0.0
     for sym, split in STOCK_SPLITS.items():
         ratio = split["ratio"]
@@ -106,16 +146,18 @@ def _split_sold_credit(filled_orders) -> float:
         for o in filled_orders:
             if o.symbol != sym:
                 continue
-            fill_dt = _eastern_date(o.filled_at or o.submitted_at)
-            if fill_dt < split_date:
+            timestamp = _parse_timestamp(o.filled_at or o.submitted_at)
+            fill_date = _eastern_date(timestamp)
+            if timestamp is None or fill_date < split_date:
                 continue
             qty = float(o.filled_qty)
             price = float(o.filled_avg_price) if o.filled_avg_price else 0.0
-            events.append((fill_dt, _enum_value(o.side), qty, price))
+            events.append((timestamp, fill_date, _enum_value(o.side), qty, price))
 
-        events.sort(key=lambda e: e[0])
+        events.sort(key=lambda event: event[0])
         post_split_bought = 0.0
-        for fill_dt, side, qty, price in events:
+        symbol_credit = 0.0
+        for _, fill_date, side, qty, price in events:
             if side == "buy":
                 post_split_bought += qty
             elif side == "sell":
@@ -123,16 +165,35 @@ def _split_sold_credit(filled_orders) -> float:
                 post_split_bought -= covered
                 presplit_qty = qty - covered
                 if presplit_qty > 0:
-                    credit += (ratio - 1) * presplit_qty * price
+                    inferred = (ratio - 1) * presplit_qty * price
+                    symbol_credit += inferred
                     logger.info(
                         "Split sold-credit: %s sell of %.0f pre-split share(s) "
-                        "on %s -> +$%.2f", sym, presplit_qty, fill_dt,
-                        (ratio - 1) * presplit_qty * price,
+                        "on %s -> +$%.2f", sym, presplit_qty, fill_date,
+                        inferred,
                     )
+        compensation = compensations.get(sym)
+        if compensation and compensation["date"] <= as_of:
+            offset = min(symbol_credit, compensation["amount"])
+            symbol_credit -= offset
+            if abs(symbol_credit) < 1e-9:
+                symbol_credit = 0.0
+            logger.info(
+                "Split sold-credit offset: %s manual cash on %s -> -$%.2f",
+                sym,
+                compensation["date"],
+                offset,
+            )
+        credit += symbol_credit
     return credit
 
 
-def _split_history_adjustments(portfolio_history, raw_positions, filled_orders) -> dict:
+def _split_history_adjustments(
+    portfolio_history,
+    raw_positions,
+    filled_orders,
+    cash_compensations: dict | None = None,
+) -> dict:
     """Build date-specific equity corrections for stale paper-account splits.
 
     Held-share corrections vary with the adjusted market price, while missing
@@ -149,6 +210,7 @@ def _split_history_adjustments(portfolio_history, raw_positions, filled_orders) 
     except ImportError:
         return {}
 
+    compensations = _validated_split_cash_compensations(cash_compensations)
     history_dates = pd.DatetimeIndex(
         pd.to_datetime([row["date"] for row in portfolio_history])
     ).normalize().unique().sort_values()
@@ -172,22 +234,24 @@ def _split_history_adjustments(portfolio_history, raw_positions, filled_orders) 
         for order in filled_orders:
             if order.symbol != symbol:
                 continue
-            event_date = _eastern_date(order.filled_at or order.submitted_at)
+            timestamp = _parse_timestamp(order.filled_at or order.submitted_at)
+            event_date = _eastern_date(timestamp)
             if not event_date or event_date < split["first_adjusted_session"]:
                 continue
             events.append(
                 (
+                    timestamp,
                     pd.Timestamp(event_date),
                     _enum_value(order.side),
                     float(order.filled_qty or 0),
                     float(order.filled_avg_price or 0),
                 )
             )
-        events.sort(key=lambda event: event[0])
+        events.sort(key=lambda event: event[0] or datetime.min.replace(tzinfo=timezone.utc))
 
         post_split_bought = 0.0
         presplit_sales = []
-        for event_date, side, qty, price in events:
+        for _, event_date, side, qty, price in events:
             if side == "buy":
                 post_split_bought += qty
             elif side == "sell":
@@ -243,19 +307,32 @@ def _split_history_adjustments(portfolio_history, raw_positions, filled_orders) 
             market_price = close.get(history_date)
             if pd.isna(market_price):
                 continue
-            adjustments.loc[history_date] += (
+            compensation = compensations.get(symbol)
+            compensation_amount = 0.0
+            if (
+                compensation
+                and pd.Timestamp(compensation["date"]) <= history_date
+            ):
+                compensation_amount = compensation["amount"]
+            adjustment = (
                 (ratio - 1.0) * remaining * float(market_price)
-                + cumulative_credit
+                + max(0.0, cumulative_credit - compensation_amount)
             )
+            adjustments.loc[history_date] += adjustment
 
     return {
         date.strftime("%Y-%m-%d"): float(value)
         for date, value in adjustments.items()
-        if value != 0
+        if abs(value) > 1e-9
     }
 
 
-def fetch_trade_history(api_key_env: str, secret_key_env: str, state_file: str) -> dict:
+def fetch_trade_history(
+    api_key_env: str,
+    secret_key_env: str,
+    state_file: str,
+    split_cash_compensations: dict | None = None,
+) -> dict:
     """Trade history + positions + equity history for one Alpaca account.
 
     Falls back to local log files if API keys are not available.
@@ -264,14 +341,24 @@ def fetch_trade_history(api_key_env: str, secret_key_env: str, state_file: str) 
     secret_key = os.environ.get(secret_key_env, "")
 
     if api_key and secret_key:
-        return _fetch_trades_from_alpaca(api_key, secret_key, state_file)
+        return _fetch_trades_from_alpaca(
+            api_key,
+            secret_key,
+            state_file,
+            split_cash_compensations=split_cash_compensations,
+        )
 
     logger.warning("No Alpaca keys in %s/%s, falling back to local logs",
                    api_key_env, secret_key_env)
     return parse_local_trade_logs(state_file)
 
 
-def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
+def _fetch_trades_from_alpaca(
+    api_key,
+    secret_key,
+    state_file,
+    split_cash_compensations: dict | None = None,
+) -> dict:
     """Pull trade history and current positions from the Alpaca API."""
     try:
         from alpaca.trading.client import TradingClient
@@ -396,7 +483,10 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
                     float(p.qty) * (split["ratio"] - 1) * float(p.current_price)
                 )
 
-        sold_credit = _split_sold_credit(filled_orders)
+        sold_credit = _split_sold_credit(
+            filled_orders,
+            cash_compensations=split_cash_compensations,
+        )
 
         equity_adjustment = held_adjustment + sold_credit
         if equity_adjustment:
@@ -411,7 +501,10 @@ def _fetch_trades_from_alpaca(api_key, secret_key, state_file) -> dict:
             )
 
         history_adjustments = _split_history_adjustments(
-            portfolio_history, raw_positions, filled_orders
+            portfolio_history,
+            raw_positions,
+            filled_orders,
+            cash_compensations=split_cash_compensations,
         )
         for row in portfolio_history:
             adjustment = history_adjustments.get(row["date"], 0.0)

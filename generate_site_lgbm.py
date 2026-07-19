@@ -213,6 +213,11 @@ def main():
     trades = fetch_trade_history(
         "ALPACA_LGBM_API_KEY", "ALPACA_LGBM_SECRET_KEY",
         "logs/paper_trade_lgbm_state.json",
+        split_cash_compensations=(
+            config.get("dashboard", {})
+            .get("split_cash_compensations", {})
+            .get("lgbm", {})
+        ),
     )
     trades["annual_risk_free_rate"] = float(
         config.get("backtest", {}).get("risk_free_rate", 0.0)
