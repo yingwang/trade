@@ -10,12 +10,12 @@ Multi-factor quantitative equity trading system for medium-term US equities. Two
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+python3.12 -m pip install --require-hashes -r requirements.lock
 
 # Run full backtest
 python run.py backtest --start 2021-03-16 --plot
 python run.py backtest-lgbm --start 2021-03-16        # LightGBM strategy
-python run.py -c config_etf.yaml backtest --start 2007-01-01  # honest ETF control
+python run.py -c config_etf.yaml backtest --start 2007-01-01  # ETF robustness control
 
 # View current alpha signals
 python run.py signal
@@ -49,15 +49,15 @@ data/   signals/   portfolio/   execution/   backtest/
 
 - **`quant/strategy.py`** — Multi-factor orchestrator: `run_backtest()`, `get_current_signal()`, `get_current_portfolio(capital, prev_weights)`
 - **`quant/signals/lgbm_strategy.py`** — LightGBM orchestrator, same interface plus `prev_scores`; live path hard-fails instead of falling back to constant scores
-- **`quant/signals/lgbm_model.py`** — LightGBM ranking model + `purged_train_val_split` (de Prado purge/embargo — always use it for walk-forward splits, never slice windows by hand)
+- **`quant/signals/lgbm_model.py`** — Date-grouped LambdaRank model + `purged_train_val_split`, missingness-aware inputs, Rank IC/ICIR and baseline-skill diagnostics
 - **`quant/data/market_data.py`** — yfinance wrapper for prices and fundamentals
 - **`quant/data/quality.py`** — `DataQualityChecker` (logging, backtest path) and `enforce_live_data_quality` (hard gate, live path — drops dead symbols, aborts on breadth collapse)
 - **`quant/signals/factors.py`** — Alpha factor calculations. Factors are industry-neutralized and winsorized to ±3σ. `factor_weights` in config is the single source of truth: unlisted factors are 0, no hidden defaults
 - **`quant/portfolio/optimizer.py`** — Constrained MVO with Ledoit-Wolf shrinkage. `detect_regime()` (SPY vol), `apply_vol_scaling()` (0.8x–1.8x), and `enforce_turnover_cap()` — the real 40% cap, applied to final weights including exit legs and leverage changes
 - **`quant/execution/safety.py`** — `PreTradeCheck` limits; `DailyTracker` counters persist across same-day runs via the state file
-- **`quant/backtest/engine.py`** — Event-driven daily simulator: T+1 close execution, daily stop-loss, margin interest, Almgren-Chriss market impact, Sharpe/Sortino vs configured risk-free rate
+- **`quant/backtest/engine.py`** — Event-driven daily simulator: T-close signal / next-session-open execution, pending missing-bar orders, next-bar stop-losses, delisting returns, margin interest, market impact, and corrected risk metrics
 - **`paper_trade_common.py`** — All live-trading logic (market-closed gate, daily stop-loss check, kill-switch, entry-price semantics, state/lock handling). The two entry scripts are thin wrappers whose module-level names (STATE_FILE, ExecutionLogger, ...) exist for tests to patch
-- **`config.yaml`** — All strategy parameters; `config_etf.yaml` — survivorship-free ETF control universe for honest-backtest
+- **`config.yaml`** — All strategy parameters; `config_etf.yaml` — ETF robustness-control universe (not a survivorship-bias estimate)
 
 ## Signal Pipeline
 
@@ -72,7 +72,7 @@ Raw prices → live quality gate → factor scores (momentum 50%, high_proximity
 
 ## Live Operation (GitHub Actions)
 
-- `rebalance.yml` (cron 0 15 UTC) and `rebalance-lgbm.yml` (cron 10 15 UTC, staggered to avoid push races) run every weekday; state is cached AND committed to main `[skip ci]`, with `git pull --rebase` before push
+- `rebalance.yml` and `rebalance-lgbm.yml` run every weekday and share a repository-wide concurrency group; state is cached AND committed to main `[skip ci]`, with `git pull --rebase` before push
 - Market-closed days exit before submitting anything; stop-losses are checked on every daily run, not only rebalance days
 - Entry prices back the stop-loss and are recorded only when a position is newly established (adds don't reset the base) — same semantics as the backtest engine
 - The LGBM account persists `prev_scores` in its state file so the score-level turnover penalty is active across runs
@@ -86,12 +86,12 @@ Tests use synthetic fixtures (3 years of 10 stocks + benchmark) defined in `test
 ## Deployment Notes
 
 - Logs go to `logs/paper_trade_YYYYMMDD.log`; state tracked in `logs/paper_trade_state.json` / `logs/paper_trade_lgbm_state.json` (committed to main by the workflows)
-- `logs/paper_trade.lock` prevents concurrent execution (auto-expires after 1 hour)
-- Alpaca paper accounts do not process corporate actions — `site_common.STOCK_SPLITS` carries manual split corrections with entry-price-scale guards
+- `logs/paper_trade.lock` protects a local process; the Actions concurrency group coordinates separate hosted runners
+- Alpaca paper accounts may not process corporate actions. The dashboard annotates known splits, while the trading path fails closed if BKNG still appears in pre-split units
 
 ## Known Limitations
 
-- **Survivorship bias**: Static 100-stock universe excludes delisted companies; quantify with the honest-backtest ETF control
-- **T+1 close execution**: Backtest signals at T close, fills at T+1 close; intraday fill prices still differ in reality
+- **Survivorship bias**: Static 100-stock universe excludes delisted companies. The ETF workflow is a robustness control, not a bias estimate; use PIT constituents plus delisting returns for a bias-reduced stock run
+- **Next-open execution**: Backtest signals at T close and fills at the next available session open (same-day close fallback only when the open is absent); real fills can still differ
 - **No point-in-time fundamentals**: Why quality/value factors are disabled
 - **Paper fills**: Alpaca paper fills carry no real spread/impact; live costs will be higher

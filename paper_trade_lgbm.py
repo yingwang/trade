@@ -11,7 +11,7 @@ so the score-level turnover penalty is active in live trading.
 
 Usage:
     # One-time setup:
-    pip install alpaca-trade-api lightgbm
+    python3.12 -m pip install --require-hashes -r requirements.lock
 
     export ALPACA_LGBM_API_KEY="your-paper-key"
     export ALPACA_LGBM_SECRET_KEY="your-paper-secret"
@@ -84,12 +84,20 @@ def show_status(broker):
     common.show_status(broker, PROFILE.status_banner)
 
 
-def run_rebalance(strategy, broker, config, dry_run=False, prev_scores=None):
+def run_rebalance(
+    strategy,
+    broker,
+    config,
+    dry_run=False,
+    prev_scores=None,
+    order_result_callback=None,
+):
     return common.run_rebalance(
         strategy, broker, config, dry_run=dry_run,
         banner=PROFILE.portfolio_banner,
         exec_logger_cls=ExecutionLogger,
         prev_scores=prev_scores,
+        order_result_callback=order_result_callback,
     )
 
 

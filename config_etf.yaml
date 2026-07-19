@@ -1,21 +1,17 @@
-# Quant Trading System Configuration — HONEST CONTROL (ETF universe)
+# Quant Trading System Configuration — ETF ROBUSTNESS CONTROL
 #
-# 目的：把现有多因子动量策略原样跑在一个"天然无幸存者偏差"的池子上，
-# 用来回答"去掉作弊后到底还剩多少真 alpha"。
+# 目的：把现有多因子动量策略原样跑在不同的 ETF 机会集上，检查信号是否
+# 具有跨资产稳健性。它不能估算个股池的幸存者偏差或"真实 alpha"，因为
+# ETF 池同时改变了相关性、波动率、成分构造和可交易机会。
 #
 # 与 config.yaml 的唯一区别：universe.symbols 换成一篮子流动性好、历史深、
 # 几乎不退市的 ETF（行业 + 规模 + 国际 + 债券 + 商品）。
 # signals / portfolio / risk / leverage / safety / backtest 全部与主策略保持一致，
-# 这样对比才公平 —— 同一套逻辑，只换池子。
-#
-# 为什么 ETF 能消除幸存者偏差：
-#   - 这些是"按类别"发行的 ETF（科技/能源/债券/黄金…），不是按未来表现挑出来的赢家；
-#   - ETF 极少退市，不存在"今天名单里全是赢家"的问题；
-#   - 个别较新的 ETF（XLRE 2015、XLC 2018）上市前价格为 NaN，引擎会按 0 权重处理，
-#     不构成前视（上市本身与未来表现无关）。
+# 同一逻辑只换池子，便于做 robustness control，但不是 apples-to-apples
+# 业绩归因。真正的偏差收敛仍需历史时点成分股与退市收益。
 
 universe:
-  # ~31 liquid, deep-history, category-defined ETFs. No winner-picking.
+  # ~31 liquid, deep-history, category-defined ETFs.
   symbols:
     # Sector SPDRs (since 1998-12; XLRE 2015, XLC 2018)
     - XLK   # technology
@@ -91,6 +87,8 @@ portfolio:
   rebalance_frequency_days: 21
   transaction_cost_bps: 10
   max_turnover_per_rebalance: 0.40
+  alpha_scale: 0.05
+  risk_aversion: 1.0
 
 risk:
   # IDENTICAL to config.yaml.
@@ -124,8 +122,9 @@ safety:
 
 backtest:
   # Longer clean window than the stock config — includes the 2008 GFC and the
-  # 2009 momentum crash, which are the honest stress tests for a momentum book.
+  # 2009 momentum crash, useful long-cycle stress tests for a momentum book.
   start_date: "2007-01-01"
+  rebalance_anchor_date: "2000-01-03"
   end_date: null  # null = today
   initial_capital: 1000000
   slippage_bps: 5
