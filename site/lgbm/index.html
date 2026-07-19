@@ -191,7 +191,7 @@
       }
 
       // Update last point with current account equity if available
-      if (data.account && data.account.equity != null) {
+      if (data.account && data.account.equity) {
         hist[hist.length - 1].equity = data.account.equity;
       }
 
@@ -203,15 +203,13 @@
 
       const dailyReturns = [];
       for (let i = 1; i < hist.length; i++) {
-        if (hist[i].equity != null && hist[i-1].equity != null && hist[i-1].equity !== 0) {
+        if (hist[i].equity && hist[i-1].equity) {
           dailyReturns.push(hist[i].equity / hist[i-1].equity - 1);
         }
       }
       const avgRet = dailyReturns.reduce((a,b) => a+b, 0) / dailyReturns.length;
       const stdRet = Math.sqrt(dailyReturns.reduce((a,b) => a + (b-avgRet)**2, 0) / dailyReturns.length);
-      const annualRf = data.annual_risk_free_rate ?? 0;
-      const dailyRf = Math.pow(1 + annualRf, 1 / 252) - 1;
-      const sharpe = stdRet > 0 ? ((avgRet - dailyRf) / stdRet * Math.sqrt(252)).toFixed(2) : 'N/A';
+      const sharpe = stdRet > 0 ? (avgRet / stdRet * Math.sqrt(252)).toFixed(2) : 'N/A';
 
       let peak = 0, maxDD = 0;
       hist.forEach(d => {
@@ -265,27 +263,27 @@
 
       const acct = data.account || {};
       document.getElementById('live-account-info').innerHTML = `
-        <span class="stat">Equity: $${(acct.equity ?? 0).toLocaleString()}</span>
-        <span class="stat">Cash: $${(acct.cash ?? 0).toLocaleString()}</span>
-        <span class="stat">Buying Power: $${(acct.buying_power ?? 0).toLocaleString()}</span>
+        <span class="stat">Equity: $${(acct.equity||0).toLocaleString()}</span>
+        <span class="stat">Cash: $${(acct.cash||0).toLocaleString()}</span>
+        <span class="stat">Buying Power: $${(acct.buying_power||0).toLocaleString()}</span>
       `;
 
       const tbody = document.querySelector('#live-positions-table tbody');
       data.positions.forEach(p => {
-        const todayPct = p.today_pl_pct ?? 0;
-        const todayPl = p.today_pl ?? 0;
-        const totalPct = p.total_pl_pct ?? 0;
-        const totalPl = p.total_pl ?? 0;
+        const todayPct = p.today_pl_pct || 0;
+        const todayPl = p.today_pl || 0;
+        const totalPct = p.total_pl_pct || 0;
+        const totalPl = p.total_pl || 0;
         const todayClass = todayPl >= 0 ? 'positive' : 'negative';
         const totalClass = totalPl >= 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
           <td class="symbol">${symLink(p.symbol)}</td>
-          <td>$${(p.current_price ?? 0).toFixed(2)}</td>
-          <td>${p.qty ?? 0}</td>
+          <td>$${(p.current_price || 0).toFixed(2)}</td>
+          <td>${p.qty || 0}</td>
           <td>${(p.side || 'long').charAt(0).toUpperCase() + (p.side || 'long').slice(1)}</td>
-          <td>$${(p.market_value ?? 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-          <td>$${(p.avg_entry_price ?? 0).toFixed(4)}</td>
-          <td>$${(p.cost_basis ?? 0).toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4})}</td>
+          <td>$${(p.market_value || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+          <td>$${(p.avg_entry_price || 0).toFixed(4)}</td>
+          <td>$${(p.cost_basis || 0).toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4})}</td>
           <td class="${todayClass}">${todayPct >= 0 ? '+' : ''}${todayPct.toFixed(2)}%</td>
           <td class="${todayClass}">${todayPl >= 0 ? '' : '-'}$${Math.abs(todayPl).toFixed(2)}</td>
           <td class="${totalClass}">${totalPct >= 0 ? '+' : ''}${totalPct.toFixed(2)}%</td>
@@ -307,16 +305,14 @@
 
       const tbody = document.querySelector('#portfolio-table tbody');
       data.positions.forEach(p => {
-        const hasScore = p.score != null;
-        const scoreColor = hasScore && p.score > 0 ? 'positive' : 'negative';
-        const scoreText = hasScore ? `${p.score > 0 ? '+' : ''}${p.score.toFixed(4)}` : '—';
+        const scoreColor = p.score > 0 ? 'positive' : 'negative';
         tbody.innerHTML += `<tr>
           <td class="symbol">${symLink(p.symbol)}</td>
           <td>${p.weight_pct.toFixed(1)}%</td>
           <td>$${p.dollars.toLocaleString()}</td>
           <td>${p.shares}</td>
           <td>$${p.price.toFixed(2)}</td>
-          <td class="${scoreColor}">${scoreText}</td>
+          <td class="${scoreColor}">${p.score > 0 ? '+' : ''}${p.score.toFixed(4)}</td>
         </tr>`;
       });
     }
@@ -324,15 +320,13 @@
     function renderPerformance(data) {
       const m = data.metrics;
       const cards = document.getElementById('metrics-cards');
-      const metric = (name, scale=1, suffix='', digits=2) =>
-        m[name] == null ? 'N/A' : (m[name] * scale).toFixed(digits) + suffix;
       [
-        { label: 'Total Return', value: metric('Total Return', 100, '%', 1) },
-        { label: 'CAGR', value: metric('CAGR', 100, '%', 1) },
-        { label: 'Sharpe', value: metric('Sharpe Ratio') },
-        { label: 'Sortino', value: metric('Sortino Ratio') },
-        { label: 'Max Drawdown', value: metric('Max Drawdown', 100, '%', 1) },
-        { label: 'vs SPY', value: (m['Total Return'] == null || m['Benchmark Return'] == null) ? 'N/A' : ((m['Total Return'] - m['Benchmark Return']) * 100).toFixed(1) + 'pp' },
+        { label: 'Total Return', value: (m['Total Return'] * 100).toFixed(1) + '%' },
+        { label: 'CAGR', value: (m['CAGR'] * 100).toFixed(1) + '%' },
+        { label: 'Sharpe', value: m['Sharpe Ratio'].toFixed(2) },
+        { label: 'Sortino', value: m['Sortino Ratio'].toFixed(2) },
+        { label: 'Max Drawdown', value: (m['Max Drawdown'] * 100).toFixed(1) + '%' },
+        { label: 'vs SPY', value: ((m['Total Return'] - m['Benchmark Return']) * 100).toFixed(1) + 'pp' },
       ].forEach(it => {
         const isNeg = it.value.startsWith('-');
         cards.innerHTML += `<div class="card">

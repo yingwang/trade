@@ -2,82 +2,170 @@
 
 ## Prerequisites
 
-- Python 3.12
-- An Alpaca paper-trading account and paper API credentials
-- This repository's hash-locked dependencies
+- ✓ Python 3.9+ installed
+- ✓ All dependencies installed (numpy, pandas, yfinance, matplotlib, seaborn, alpaca-trade-api)
+- ✓ Alpaca account (free paper trading account)
 
+## Quick Setup (3 Steps)
+
+### 1. Get Alpaca API Credentials
+
+1. Go to [alpaca.markets](https://alpaca.markets)
+2. Create a free account (no credit card required for paper trading)
+3. Navigate to **Paper Trading** section in the dashboard
+4. Click **Generate API Keys**
+5. Save your:
+   - **API Key** (starts with `PK...`)
+   - **Secret Key** (keep this secure!)
+
+### 2. Configure Environment Variables
+
+**Option A: Use the setup script**
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --require-hashes -r requirements.lock
+cd /Users/ying/claude/trade
+./setup_alpaca.sh
 ```
 
-The integration uses the maintained `alpaca-py` SDK. Do not install the legacy
-`alpaca-trade-api` package alongside this lock: its old `websockets` constraint
-conflicts with the current market-data stack.
-
-## Credentials
-
-Create keys in Alpaca's Paper Trading dashboard and export them locally:
-
+**Option B: Manual setup**
 ```bash
-export ALPACA_API_KEY="your-paper-api-key"
-export ALPACA_SECRET_KEY="your-paper-secret-key"
+# Add to ~/.zshrc or ~/.bash_profile
+export ALPACA_API_KEY="your-api-key-here"
+export ALPACA_SECRET_KEY="your-secret-key-here"
+
+# Reload shell
+source ~/.zshrc
 ```
 
-The LightGBM account uses separate variables:
+### 3. Test Your Setup
 
 ```bash
-export ALPACA_LGBM_API_KEY="your-second-paper-api-key"
-export ALPACA_LGBM_SECRET_KEY="your-second-paper-secret-key"
+cd /Users/ying/claude/trade
+
+# Check if API credentials work
+python3 paper_trade.py --status
 ```
 
-Never commit keys or paste them into configuration files.
+## Usage Commands
 
-## Verify and operate
+### Check Portfolio Status
+```bash
+python3 paper_trade.py --status
+```
+Shows current holdings, cash, and portfolio value.
+
+### Dry Run (Preview Trades)
+```bash
+python3 paper_trade.py --dry-run
+```
+Calculates what trades would be made WITHOUT executing them.
+
+### Execute Rebalance
+```bash
+python3 paper_trade.py
+```
+Executes the portfolio rebalance (only if 21+ trading days have passed).
+
+### Force Rebalance
+```bash
+python3 paper_trade.py --force
+```
+Rebalances immediately, ignoring the 21-day interval.
+
+## How It Works
+
+1. **Data Collection**: Fetches 3 years of price data for 30 large-cap stocks
+2. **Factor Calculation**: Computes 6 alpha factors:
+   - Momentum (30% weight)
+   - Trend (20%)
+   - Value (15%)
+   - Mean Reversion (15%)
+   - Volatility (10%)
+   - Quality (10%)
+3. **Portfolio Optimization**: Selects top 20 stocks using mean-variance optimization
+4. **Execution**: Generates and submits orders to Alpaca
+5. **Tracking**: Logs all trades and updates state file
+
+## Configuration
+
+Edit `config.yaml` to customize:
+
+- **Stock universe**: Add/remove symbols
+- **Position limits**: Max/min weights per stock
+- **Rebalance frequency**: Default is 21 trading days (monthly)
+- **Risk parameters**: Max drawdown, sector limits, stop loss
+
+## File Structure
+
+```
+/Users/ying/claude/trade/
+├── paper_trade.py          # Main trading script
+├── config.yaml             # Strategy configuration
+├── setup_alpaca.sh         # Setup helper script
+├── logs/
+│   ├── paper_trade_YYYYMMDD.log  # Daily trade logs
+│   └── paper_trade_state.json    # Rebalance state tracker
+└── quant/
+    ├── strategy.py         # Strategy logic
+    ├── execution/
+    │   └── alpaca_broker.py  # Alpaca API integration
+    └── ...
+```
+
+## Troubleshooting
+
+### "No module named 'alpaca_trade_api'"
+```bash
+pip3 install alpaca-trade-api
+```
+
+### "Environment variables not set"
+```bash
+# Check if variables are set
+echo $ALPACA_API_KEY
+echo $ALPACA_SECRET_KEY
+
+# If empty, run setup again
+./setup_alpaca.sh
+source ~/.zshrc
+```
+
+### "Xcode license agreement error"
+```bash
+sudo xcodebuild -license
+# Type 'agree' when prompted
+```
+
+## Safety Notes
+
+- **Paper trading is enabled by default** - no real money is used
+- The script only rebalances every 21 trading days to avoid overtrading
+- All trades are logged in `logs/` directory
+- State is tracked to prevent duplicate trades
+
+## Next Steps
+
+1. Run `--dry-run` first to see what the strategy would do
+2. Check the proposed trades make sense
+3. Run actual rebalance when ready
+4. Monitor via `--status` command
+5. Set up a cron job for automation (optional)
+
+## Automation (Optional)
+
+To auto-rebalance at 3:55 PM ET on weekdays:
 
 ```bash
-python paper_trade.py --status
-python paper_trade.py --dry-run --force
-python paper_trade.py
-python paper_trade.py --reconcile
+crontab -e
 ```
 
-Use the same flags with `paper_trade_lgbm.py` for the ML account. A normal run
-rebalances only when due, while stop-losses are checked on every open-market
-weekday run.
+Add:
+```
+55 15 * * 1-5 cd /Users/ying/claude/trade && python3 paper_trade.py >> logs/trade.log 2>&1
+```
 
-## Safety behavior
+---
 
-- Every order has a stable `client_order_id`; retries query Alpaca before a new
-  submission.
-- Rejected, unknown, and partially filled orders leave the rebalance pending so
-  a later run repairs actual drift.
-- Stop-loss state is deleted only after the position is confirmed closed.
-- Large orders use a 30-minute TWAP schedule. Hosted jobs allow 90 minutes so a
-  valid TWAP cannot be killed by the workflow timeout.
-- The two trading workflows share one GitHub Actions concurrency group; a local
-  lock alone cannot coordinate separate hosted runners.
-- Paper mode is mandatory under the default configuration.
-
-## BKNG split guard
-
-Booking Holdings' 25-for-1 split became effective on 2026-04-02 and trading
-started on a split-adjusted basis on 2026-04-06. Alpaca paper accounts may not
-apply corporate actions. If a BKNG position still has a pre-split average entry
-price and share count, the program stops before placing any order: otherwise a
-target calculation could be wrong by 25×.
-
-This guard does not prevent commits, pushes, status checks, tests, or backtests.
-To resume automated paper trading, reset the affected paper account or manually
-repair/close the stale BKNG paper position in Alpaca, then verify with
-`--status`.
-
-## GitHub Actions
-
-Store credentials as repository Actions secrets. Scheduled workflows use
-Python 3.12, install `requirements.lock` with hash verification, serialize live
-runs, cache state, and commit audit state back to the branch.
-
-Run the `dry-run-force` dispatch mode after configuration changes before the
-next live scheduled run.
+**Questions or Issues?**
+- Check the main README.md
+- Review logs in `logs/` directory
+- Verify config.yaml settings

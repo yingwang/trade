@@ -35,7 +35,9 @@ def _spy_total_return(result):
     return bc.iloc[-1] / bc.iloc[0] - 1.0
 
 
-def summarize_window(r):
+def run_window(make_strategy, start, end):
+    strat = make_strategy()
+    r = strat.run_backtest(start=start, end=end)
     mt = r.metrics
     strat_ret = _m(mt, "Total Return")
     spy_ret = _spy_total_return(r)
@@ -97,23 +99,10 @@ def main():
         print("\n" + "=" * 70)
         print(f"## {title} — windows ending {end}")
         print("=" * 70)
-        earliest_start = (end_d - relativedelta(years=max(y for _, y in windows))).isoformat()
-        try:
-            # Run one continuous simulation.  Re-running each window resets
-            # cash, holdings, stops, model state and the rebalance phase, so
-            # the overlapping years were not actually comparable.
-            strategy = make_strategy()
-            continuous = strategy.run_backtest(start=earliest_start, end=end)
-        except Exception as e:
-            print(f"\n!! continuous backtest failed: {e}\n")
-            return
         for label, yrs in windows:
             start = (end_d - relativedelta(years=yrs)).isoformat()
             try:
-                window_result = strategy.backtest_engine.slice_result(
-                    continuous, start=start, end=end
-                )
-                res = summarize_window(window_result)
+                res = run_window(make_strategy, start, end)
                 print("\n" + table(label, f"{start} → {end}", res))
             except Exception as e:
                 print(f"\n### {label} ({start} → {end})\n!! failed: {e}\n")
@@ -125,7 +114,7 @@ def main():
         run_all(
             lambda: LGBMStrategy(
                 config, train_window=504, val_window=63,
-                pred_horizon=21, retrain_every=1, turnover_penalty=0.1,
+                pred_horizon=21, retrain_every=3, turnover_penalty=0.1,
             ),
             "LightGBM Strategy",
         )

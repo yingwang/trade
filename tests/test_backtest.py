@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quant.backtest.engine import BacktestEngine
+from quant.backtest.engine import BacktestEngine, BacktestResult
 from quant.backtest.report import monthly_returns_table, risk_report
 
 
@@ -15,7 +15,7 @@ class TestBacktestEngine:
             "backtest": {**config["backtest"], "risk_free_rate": 0.0525},
         }
         engine = BacktestEngine(config)
-        assert engine.risk_free_rate == pytest.approx((1.0 + 0.0525) ** (1 / 252) - 1)
+        assert engine.risk_free_rate == pytest.approx(0.0525 / 252)
 
     def test_no_trades_preserves_capital(self, config, synthetic_prices):
         """With no rebalance targets, portfolio stays in cash."""

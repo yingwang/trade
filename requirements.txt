@@ -1,2 +1,10 @@
-# Reproducible environment used by local setup and GitHub Actions.
--r requirements.lock
+numpy>=1.24.0
+pandas>=2.0.0
+pyyaml>=6.0
+yfinance>=0.2.30
+scipy>=1.11.0
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+alpaca-trade-api>=3.0.0
+lightgbm>=2.0.0

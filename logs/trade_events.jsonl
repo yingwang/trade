@@ -292,3 +292,5 @@
 {"event": "reconciliation", "portfolio_value": 118889.46, "n_positions": 12, "total_abs_drift_pct": 1.56, "max_drift_symbol": "MPWR", "max_drift_pct": 0.45, "timestamp": "2026-06-29T17:18:01.150099Z"}
 {"event": "order_submitted", "symbol": "IBM", "side": "sell", "quantity": 25.0, "order_type": "market", "limit_price": null, "signal_price": 217.21, "timestamp": "2026-07-14T16:35:30.838143Z"}
 {"event": "order_filled", "symbol": "IBM", "side": "sell", "quantity": 25.0, "filled_price": 217.2, "signal_price": 217.21, "slippage_bps": 0.46, "order_id": "4812cf4c-7c98-4432-83e6-a9d3eda23a6d", "timestamp": "2026-07-14T16:35:31.912406Z"}
+{"event": "order_submitted", "symbol": "INTC", "side": "sell", "quantity": 92.0, "order_type": "market", "limit_price": null, "signal_price": 99.52, "timestamp": "2026-07-15T16:13:27.105394Z"}
+{"event": "order_filled", "symbol": "INTC", "side": "sell", "quantity": 92.0, "filled_price": 99.510761, "signal_price": 99.52, "slippage_bps": 0.93, "order_id": "37e1759c-aa8b-4853-a8bd-5002dc856129", "timestamp": "2026-07-15T16:13:30.406005Z"}

@@ -1,11 +1,21 @@
-"""Leakage-aware LightGBM cross-sectional ranking model.
+"""LightGBM ranking model for cross-sectional stock selection.
 
-Each trading date is one ranking query.  LightGBM therefore receives query
-group sizes and optimizes LambdaRank/NDCG instead of treating correlated
-stock/date observations as independent regression rows.
+Uses LightGBM's gradient boosting framework to learn a mapping from the 46
+ML features (see ml_features.py) to forward return ranks.  Designed as a
+faster, more robust alternative to the TFT model:
+
+  - Trains in seconds (vs. ~40 minutes per window for TFT)
+  - Longer training window: 504 days (2 years) vs. 252 days
+  - Proper validation set with early stopping to prevent overfitting
+  - Built-in feature importance for interpretability
+  - No GPU required
+
+Training scheme:
+  - Rolling window: 504-day train, 63-day validation, predict 21 days ahead
+  - Target: cross-sectional percentile rank of forward 21-day returns
+  - Early stopping on validation set (patience=20 rounds)
+  - Retrains every 3 rebalances (~63 trading days)
 """
-
-from __future__ import annotations
 
 import logging
 from typing import Optional
@@ -15,20 +25,22 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Graceful fallback: try lightgbm first, then sklearn GradientBoosting
 try:
     import lightgbm as lgb
-
     LGBM_AVAILABLE = True
     SKLEARN_FALLBACK = False
+    logger.info("Using LightGBM backend")
 except (ImportError, OSError):
     lgb = None
     LGBM_AVAILABLE = False
     try:
-        from sklearn.ensemble import GradientBoostingRegressor as _GBR  # noqa: F401
-
+        from sklearn.ensemble import GradientBoostingRegressor as _GBR
         SKLEARN_FALLBACK = True
+        logger.info("lightgbm not available; using sklearn GradientBoostingRegressor fallback")
     except ImportError:
         SKLEARN_FALLBACK = False
+        logger.info("Neither lightgbm nor sklearn available; LightGBM strategy will use equal-weight fallback")
 
 
 def purged_train_val_split(
@@ -38,41 +50,76 @@ def purged_train_val_split(
     train_window: int,
     val_window: int,
     pred_horizon: int,
-    auxiliary: np.ndarray | None = None,
 ):
-    """Return a purged, embargoed walk-forward train/validation split.
+    """Purged and embargoed walk-forward split (de Prado).
 
-    A target at ``t`` uses prices through ``t + pred_horizon``.  Training rows
-    whose labels overlap validation are purged, while validation rows whose
-    labels reach the rebalance date are embargoed.  Supplying an auxiliary
-    panel (normally forward returns) returns its matching validation slice as
-    a fifth element without changing the legacy four-element API.
+    The target at row t is built from returns through t + pred_horizon, so a
+    naive split leaks future information in two ways:
+
+      1. Validation rows in [date_idx - pred_horizon, date_idx) have targets
+         that use prices AFTER the rebalance date — early stopping would then
+         pick the boosting round count using future information.
+      2. Training rows in [val_start - pred_horizon, val_start) have targets
+         that overlap the validation window — the classic purge problem.
+
+    This helper truncates both boundaries by pred_horizon rows.
+
+    Returns
+    -------
+    (X_train, y_train, X_val, y_val) on success, or None when the purged
+    training window is too short to be meaningful (< 63 rows).
     """
     val_start = max(0, date_idx - val_window)
     train_start = max(0, val_start - train_window)
-    train_end = max(train_start, val_start - pred_horizon)
-    val_end = max(val_start, date_idx - pred_horizon)
+    train_end = max(train_start, val_start - pred_horizon)   # purge
+    val_end = max(val_start, date_idx - pred_horizon)        # embargo
 
-    if train_end - train_start < 63:
+    min_train_days = 63  # at least 3 months of usable rows
+    if train_end - train_start < min_train_days:
         logger.warning(
-            "Insufficient training data after purge: %d days (need >= 63)",
-            train_end - train_start,
+            "Insufficient training data after purge: %d days (need >= %d). Skipping.",
+            train_end - train_start, min_train_days,
         )
         return None
 
-    result = (
+    return (
         X[train_start:train_end],
         y[train_start:train_end],
         X[val_start:val_end],
         y[val_start:val_end],
     )
-    if auxiliary is not None:
-        result += (auxiliary[val_start:val_end],)
-    return result
 
 
 class LGBMRankingModel:
-    """Grouped LambdaRank model with cross-sectional validation diagnostics."""
+    """LightGBM-based cross-sectional stock ranking model.
+
+    Trains a gradient-boosted regression model to predict the cross-sectional
+    percentile rank of each stock's forward 21-day return.  At inference time,
+    predicted ranks are used directly as alpha scores for portfolio construction.
+
+    Parameters
+    ----------
+    num_leaves : int
+        Maximum number of leaves per tree (controls model complexity).
+    learning_rate : float
+        Boosting learning rate (shrinkage).
+    n_estimators : int
+        Maximum number of boosting rounds.
+    early_stopping_rounds : int
+        Stop training if validation metric does not improve for this many rounds.
+    min_child_samples : int
+        Minimum number of samples in a leaf (regularization).
+    subsample : float
+        Fraction of training data used per boosting round.
+    colsample_bytree : float
+        Fraction of features used per tree.
+    reg_alpha : float
+        L1 regularization on leaf weights.
+    reg_lambda : float
+        L2 regularization on leaf weights.
+    random_state : int
+        Random seed for reproducibility.
+    """
 
     def __init__(
         self,
@@ -86,8 +133,6 @@ class LGBMRankingModel:
         reg_alpha: float = 0.1,
         reg_lambda: float = 1.0,
         random_state: int = 42,
-        label_horizon: int = 21,
-        relevance_levels: int = 10,
     ):
         self.params = {
             "num_leaves": num_leaves,
@@ -101,123 +146,45 @@ class LGBMRankingModel:
             "reg_lambda": reg_lambda,
             "random_state": random_state,
         }
-        self.label_horizon = max(1, int(label_horizon))
-        self.relevance_levels = max(2, min(int(relevance_levels), 31))
-        self.model = None
+        self.model: Optional[lgb.LGBMRegressor] = None
         self.feature_importance_: Optional[pd.Series] = None
         self._train_history: list[dict] = []
 
-    @staticmethod
     def _prepare_panel_data(
+        self,
         X: np.ndarray,
         y: np.ndarray,
-        *,
-        stride: int = 1,
-    ) -> tuple[np.ndarray, np.ndarray, list[int], list[tuple[int, int]]]:
-        """Flatten a panel while retaining one query group per date."""
-        rows_x: list[np.ndarray] = []
-        rows_y: list[np.ndarray] = []
-        groups: list[int] = []
-        keys: list[tuple[int, int]] = []
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Flatten 3D panel data (T, N, F) + 2D targets (T, N) into 2D tabular form.
 
-        for ti in range(0, X.shape[0], max(1, stride)):
-            valid = np.isfinite(y[ti])
-            count = int(valid.sum())
-            if count < 2:
-                continue
-            rows_x.append(X[ti, valid])
-            rows_y.append(y[ti, valid].astype(float))
-            groups.append(count)
-            keys.extend((ti, int(si)) for si in np.flatnonzero(valid))
+        Each (date, stock) pair becomes one row.  Rows with NaN targets
+        (future dates where forward returns are unknown) are dropped.
 
-        if not rows_x:
-            feature_count = X.shape[2] if X.ndim == 3 else 0
-            return (
-                np.empty((0, feature_count)),
-                np.empty(0),
-                [],
-                [],
-            )
-        return np.vstack(rows_x), np.concatenate(rows_y), groups, keys
+        Parameters
+        ----------
+        X : ndarray of shape (T, N, F)
+            Feature tensor.
+        y : ndarray of shape (T, N)
+            Target matrix (cross-sectional percentile ranks).
 
-    def _relevance_labels(self, y: np.ndarray) -> np.ndarray:
-        clipped = np.clip(y, 0.0, 1.0)
-        return np.minimum(
-            (clipped * self.relevance_levels).astype(int),
-            self.relevance_levels - 1,
-        )
+        Returns
+        -------
+        X_flat : ndarray of shape (samples, F)
+        y_flat : ndarray of shape (samples,)
+        """
+        T, N, F = X.shape
+        X_flat = X.reshape(T * N, F)
+        y_flat = y.reshape(T * N)
 
-    def _predict_matrix(self, X: np.ndarray) -> np.ndarray:
-        """Predict without sklearn's synthetic feature-name warning."""
-        booster = getattr(self.model, "booster_", None)
-        if booster is not None:
-            best_iteration = getattr(self.model, "best_iteration_", None)
-            return np.asarray(
-                booster.predict(X, num_iteration=best_iteration or -1), dtype=float
-            )
-        return np.asarray(self.model.predict(X), dtype=float)
+        # Drop rows where target is exactly 0 and features are all 0
+        # (these are padding / missing data rows)
+        valid_mask = np.isfinite(y_flat) & (y_flat != 0.0)
+        # Also keep rows where target is 0 but features are non-zero
+        # (a stock can legitimately have the lowest rank)
+        has_features = np.any(X_flat != 0, axis=1)
+        valid_mask = valid_mask | (np.isfinite(y_flat) & has_features)
 
-    @staticmethod
-    def _ranking_metrics(
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        groups: list[int],
-        forward_returns: np.ndarray | None = None,
-    ) -> dict:
-        ics: list[float] = []
-        spreads: list[float] = []
-        return_spreads: list[float] = []
-        offset = 0
-        for size in groups:
-            actual = y_true[offset:offset + size]
-            predicted = y_pred[offset:offset + size]
-            if np.std(actual) > 0 and np.std(predicted) > 0:
-                ic = pd.Series(actual).corr(pd.Series(predicted), method="spearman")
-                if pd.notna(ic):
-                    ics.append(float(ic))
-
-            order = np.argsort(predicted)
-            bucket = max(1, size // 10)
-            spreads.append(
-                float(actual[order[-bucket:]].mean() - actual[order[:bucket]].mean())
-            )
-            if forward_returns is not None:
-                group_returns = forward_returns[offset:offset + size]
-                finite = np.isfinite(group_returns)
-                if finite.all():
-                    return_spreads.append(
-                        float(
-                            group_returns[order[-bucket:]].mean()
-                            - group_returns[order[:bucket]].mean()
-                        )
-                    )
-            offset += size
-
-        rank_ic = float(np.mean(ics)) if ics else np.nan
-        ic_std = float(np.std(ics, ddof=1)) if len(ics) > 1 else np.nan
-        result = {
-            "val_rank_ic": rank_ic,
-            "val_icir": (
-                float(rank_ic / ic_std) if np.isfinite(ic_std) and ic_std > 0 else np.nan
-            ),
-            "val_top_minus_bottom_rank": float(np.mean(spreads)) if spreads else np.nan,
-        }
-        if return_spreads:
-            result["val_top_minus_bottom_return"] = float(np.mean(return_spreads))
-        return result
-
-    @staticmethod
-    def _groupwise_percentiles(values: np.ndarray, groups: list[int]) -> np.ndarray:
-        """Calibrate arbitrary ranker margins to comparable 0-1 ranks."""
-        calibrated = np.empty(len(values), dtype=float)
-        offset = 0
-        for size in groups:
-            block = pd.Series(values[offset:offset + size])
-            calibrated[offset:offset + size] = block.rank(
-                method="average", pct=True
-            ).to_numpy()
-            offset += size
-        return calibrated
+        return X_flat[valid_mask], y_flat[valid_mask]
 
     def train(
         self,
@@ -226,40 +193,61 @@ class LGBMRankingModel:
         X_val: np.ndarray,
         y_val: np.ndarray,
         feature_names: Optional[list[str]] = None,
-        y_val_returns: np.ndarray | None = None,
     ) -> dict:
-        """Fit the model and record ranking skill against a constant baseline."""
+        """Train the LightGBM model on a rolling window.
+
+        Parameters
+        ----------
+        X_train : ndarray of shape (T_train, N, F)
+            Training features.
+        y_train : ndarray of shape (T_train, N)
+            Training targets (cross-sectional percentile ranks).
+        X_val : ndarray of shape (T_val, N, F)
+            Validation features (last 63 days of the rolling window).
+        y_val : ndarray of shape (T_val, N)
+            Validation targets.
+        feature_names : list of str, optional
+            Feature names for importance tracking.
+
+        Returns
+        -------
+        dict with training info: status, best_iteration, train_rmse, val_rmse.
+        """
         if not LGBM_AVAILABLE and not SKLEARN_FALLBACK:
             return {"status": "no_backend_available"}
 
-        # Daily forward labels overlap heavily.  Keep one independent-ish
-        # training query per prediction horizon while retaining every
-        # validation date for stable IC diagnostics.
-        X_tr, y_tr, train_groups, _ = self._prepare_panel_data(
-            X_train, y_train, stride=self.label_horizon
-        )
-        X_va, y_va, val_groups, val_keys = self._prepare_panel_data(
-            X_val, y_val, stride=1
-        )
-        if len(X_tr) < 100 or len(train_groups) < 3:
-            return {
-                "status": "insufficient_data",
-                "n_train": len(X_tr),
-                "train_groups": len(train_groups),
-            }
+        # Flatten panel data to tabular form
+        X_tr, y_tr = self._prepare_panel_data(X_train, y_train)
+        X_va, y_va = self._prepare_panel_data(X_val, y_val)
 
-        forward_flat = None
-        if y_val_returns is not None and val_keys:
-            forward_flat = np.asarray(
-                [y_val_returns[ti, si] for ti, si in val_keys], dtype=float
+        if len(X_tr) < 100:
+            logger.warning(
+                "Insufficient training samples: %d (need >= 100). Skipping.",
+                len(X_tr),
             )
+            return {"status": "insufficient_data", "n_train": len(X_tr)}
 
-        use_validation = len(X_va) >= 20 and len(val_groups) >= 1
+        if len(X_va) < 20:
+            logger.warning(
+                "Insufficient validation samples: %d (need >= 20). "
+                "Training without early stopping.",
+                len(X_va),
+            )
+            X_va, y_va = None, None
+
+        backend = "lightgbm" if LGBM_AVAILABLE else "sklearn"
+        logger.info(
+            "Training %s: %d train samples, %s val samples, %d features",
+            backend,
+            len(X_tr),
+            len(X_va) if X_va is not None else "no",
+            X_tr.shape[1],
+        )
+
         if LGBM_AVAILABLE:
-            self.model = lgb.LGBMRanker(
-                objective="lambdarank",
-                metric="ndcg",
-                importance_type="gain",
+            self.model = lgb.LGBMRegressor(
+                objective="regression",
+                metric="rmse",
                 num_leaves=self.params["num_leaves"],
                 learning_rate=self.params["learning_rate"],
                 n_estimators=self.params["n_estimators"],
@@ -272,32 +260,35 @@ class LGBMRankingModel:
                 verbosity=-1,
                 n_jobs=-1,
             )
+
             callbacks = [lgb.log_evaluation(period=0)]
-            fit_kwargs = {
-                "X": X_tr,
-                "y": self._relevance_labels(y_tr),
-                "group": train_groups,
-                "callbacks": callbacks,
-            }
-            if use_validation:
+            if X_va is not None:
                 callbacks.append(
                     lgb.early_stopping(
                         stopping_rounds=self.params["early_stopping_rounds"],
                         verbose=False,
                     )
                 )
-                fit_kwargs.update(
-                    eval_set=[(X_va, self._relevance_labels(y_va))],
-                    eval_group=[val_groups],
-                    eval_names=["validation"],
-                    eval_at=[1, 3, 5, 10],
-                )
+
+            fit_kwargs = {
+                "X": X_tr,
+                "y": y_tr,
+                "callbacks": callbacks,
+            }
+            if feature_names is not None:
+                fit_kwargs["feature_name"] = feature_names[:X_tr.shape[1]]
+
+            if X_va is not None:
+                fit_kwargs["eval_set"] = [(X_va, y_va)]
+                fit_kwargs["eval_names"] = ["validation"]
+
             self.model.fit(**fit_kwargs)
         else:
+            # sklearn GradientBoostingRegressor fallback
             from sklearn.ensemble import GradientBoostingRegressor
-
+            n_est = min(self.params["n_estimators"], 100)  # cap for speed
             self.model = GradientBoostingRegressor(
-                n_estimators=min(self.params["n_estimators"], 100),
+                n_estimators=n_est,
                 max_depth=5,
                 learning_rate=self.params["learning_rate"],
                 subsample=self.params["subsample"],
@@ -305,73 +296,82 @@ class LGBMRankingModel:
             )
             self.model.fit(X_tr, y_tr)
 
-        best_iter = (
-            getattr(self.model, "best_iteration_", None)
-            or getattr(self.model, "n_estimators_", None)
-            or self.params["n_estimators"]
-        )
-        train_pred = self._groupwise_percentiles(
-            self._predict_matrix(X_tr), train_groups
-        )
+        # Extract training info
+        best_iter = getattr(self.model, "best_iteration_", None) or getattr(self.model, "n_estimators_", None) or self.params["n_estimators"]
+
+        # Compute train and validation RMSE
+        train_pred = self.model.predict(X_tr)
+        train_rmse = float(np.sqrt(np.mean((y_tr - train_pred) ** 2)))
+
         info = {
             "status": "ok",
-            "objective": "lambdarank" if LGBM_AVAILABLE else "regression_fallback",
-            "best_iteration": int(best_iter),
+            "best_iteration": best_iter,
             "n_train": len(X_tr),
-            "train_groups": len(train_groups),
-            "train_rmse": float(np.sqrt(np.mean((y_tr - train_pred) ** 2))),
-            "training_stride": self.label_horizon,
+            "train_rmse": train_rmse,
         }
-        if use_validation:
-            val_pred = self._groupwise_percentiles(
-                self._predict_matrix(X_va), val_groups
-            )
-            val_rmse = float(np.sqrt(np.mean((y_va - val_pred) ** 2)))
-            baseline_rmse = float(np.sqrt(np.mean((y_va - 0.5) ** 2)))
-            info.update(
-                n_val=len(X_va),
-                val_groups=len(val_groups),
-                val_rmse=val_rmse,
-                baseline_rmse=baseline_rmse,
-                baseline_skill=(
-                    1.0 - val_rmse / baseline_rmse if baseline_rmse > 0 else np.nan
-                ),
-            )
-            info.update(
-                self._ranking_metrics(
-                    y_va, val_pred, val_groups, forward_returns=forward_flat
-                )
-            )
 
-        importance = getattr(self.model, "feature_importances_", np.zeros(X_tr.shape[1]))
-        names = (
-            feature_names[:len(importance)]
-            if feature_names is not None and len(feature_names) >= len(importance)
-            else list(range(len(importance)))
-        )
-        self.feature_importance_ = pd.Series(importance, index=names).sort_values(
-            ascending=False
-        )
+        if X_va is not None:
+            val_pred = self.model.predict(X_va)
+            val_rmse = float(np.sqrt(np.mean((y_va - val_pred) ** 2)))
+            info["n_val"] = len(X_va)
+            info["val_rmse"] = val_rmse
+
+        # Feature importance (gain-based)
+        importance = self.model.feature_importances_
+        if feature_names is not None and len(feature_names) >= len(importance):
+            self.feature_importance_ = pd.Series(
+                importance,
+                index=feature_names[:len(importance)],
+            ).sort_values(ascending=False)
+        else:
+            self.feature_importance_ = pd.Series(importance).sort_values(ascending=False)
+
         self._train_history.append(info)
         logger.info(
-            "Ranking model trained: %d query groups, best_iter=%d, val IC=%s",
-            len(train_groups),
-            int(best_iter),
-            f"{info.get('val_rank_ic'):.4f}"
-            if np.isfinite(info.get("val_rank_ic", np.nan))
-            else "n/a",
+            "LightGBM trained: best_iter=%d, train_rmse=%.4f%s",
+            best_iter,
+            train_rmse,
+            f", val_rmse={info.get('val_rmse', 0):.4f}" if "val_rmse" in info else "",
         )
+
         return info
 
     def predict(self, X: np.ndarray) -> np.ndarray:
+        """Generate predicted ranks for the most recent date in the panel.
+
+        Parameters
+        ----------
+        X : ndarray of shape (T, N, F)
+            Feature tensor.  Only the last time step is used for prediction.
+
+        Returns
+        -------
+        ndarray of shape (N,) with predicted cross-sectional scores.
+        Higher values indicate higher expected relative performance.
+        """
         if self.model is None:
             raise RuntimeError("Model has not been trained yet")
-        return self._predict_matrix(X[-1])
+
+        # Use only the most recent date's features
+        X_latest = X[-1]  # shape (N, F)
+        predictions = self.model.predict(X_latest)
+
+        return predictions
 
     def predict_ranking(self, X: np.ndarray) -> np.ndarray:
-        from scipy.stats import rankdata
+        """Generate cross-sectional ranking scores (percentile 0-1).
 
+        Parameters
+        ----------
+        X : ndarray of shape (T, N, F)
+
+        Returns
+        -------
+        ndarray of shape (N,) with percentile ranks (0=worst, 1=best).
+        """
         raw_scores = self.predict(X)
+        # Convert to percentile ranks
+        from scipy.stats import rankdata
         ranks = rankdata(raw_scores, method="average")
         return ranks / len(ranks)
 
@@ -380,16 +380,30 @@ class LGBMRankingModel:
         feature_names: Optional[list[str]] = None,
         top_n: int = 20,
     ) -> pd.DataFrame:
+        """Get feature importance from the trained model.
+
+        Parameters
+        ----------
+        feature_names : list of str, optional
+            Names for the features.  If None, uses stored importance.
+        top_n : int
+            Number of top features to return.
+
+        Returns
+        -------
+        DataFrame with columns 'feature', 'importance', 'importance_pct'.
+        """
         if self.feature_importance_ is None:
             return pd.DataFrame(columns=["feature", "importance", "importance_pct"])
+
         imp = self.feature_importance_.copy()
         if feature_names is not None and len(feature_names) >= len(imp):
             imp.index = feature_names[:len(imp)]
-        total = float(imp.sum())
-        return pd.DataFrame(
-            {
-                "feature": imp.index,
-                "importance": imp.values,
-                "importance_pct": imp.values / total * 100 if total > 0 else 0.0,
-            }
-        ).head(top_n).reset_index(drop=True)
+
+        total = imp.sum()
+        df = pd.DataFrame({
+            "feature": imp.index,
+            "importance": imp.values,
+            "importance_pct": (imp.values / total * 100) if total > 0 else 0,
+        })
+        return df.head(top_n).reset_index(drop=True)
