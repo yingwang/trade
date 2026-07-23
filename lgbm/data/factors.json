@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "trend_persistence"
+  ],
+  "stocks": {
+    "ISRG": {
+      "momentum": -1.867,
+      "high_proximity": -2.822,
+      "short_term_reversal": 3.116,
+      "vol_contraction": -1.816,
+      "trend_persistence": -0.806
+    },
+    "META": {
+      "momentum": -2.238,
+      "high_proximity": -1.271,
+      "short_term_reversal": 1.285,
+      "vol_contraction": -0.6,
+      "trend_persistence": -0.393
+    },
+    "BKNG": {
+      "momentum": -0.813,
+      "high_proximity": -0.084,
+      "short_term_reversal": -0.095,
+      "vol_contraction": 0.308,
+      "trend_persistence": -0.666
+    },
+    "ZS": {
+      "momentum": -1.088,
+      "high_proximity": -1.988,
+      "short_term_reversal": 0.58,
+      "vol_contraction": 0.531,
+      "trend_persistence": 0.529
+    },
+    "CSCO": {
+      "momentum": 0.064,
+      "high_proximity": 0.771,
+      "short_term_reversal": -0.635,
+      "vol_contraction": 0.084,
+      "trend_persistence": 0.641
+    },
+    "TXN": {
+      "momentum": 0.015,
+      "high_proximity": 0.692,
+      "short_term_reversal": 0.166,
+      "vol_contraction": 0.651,
+      "trend_persistence": -1.081
+    },
+    "MCHP": {
+      "momentum": -0.281,
+      "high_proximity": 0.294,
+      "short_term_reversal": -0.134,
+      "vol_contraction": -0.33,
+      "trend_persistence": -1.356
+    },
+    "IBM": {
+      "momentum": -0.672,
+      "high_proximity": -0.702,
+      "short_term_reversal": 0.775,
+      "vol_contraction": -3.148,
+      "trend_persistence": 0.888
+    },
+    "ADI": {
+      "momentum": -0.246,
+      "high_proximity": 0.666,
+      "short_term_reversal": -0.167,
+      "vol_contraction": 0.662,
+      "trend_persistence": -1.044
+    },
+    "LRCX": {
+      "momentum": 0.853,
+      "high_proximity": -0.034,
+      "short_term_reversal": -0.138,
+      "vol_contraction": 0.181,
+      "trend_persistence": 0.341
+    },
+    "ORCL": {
+      "momentum": -0.857,
+      "high_proximity": -2.265,
+      "short_term_reversal": 0.339,
+      "vol_contraction": -0.76,
+      "trend_persistence": -1.358
+    },
+    "MU": {
+      "momentum": 3.128,
+      "high_proximity": 0.44,
+      "short_term_reversal": -2.744,
+      "vol_contraction": -0.307,
+      "trend_persistence": -0.125
+    }
+  }
+}

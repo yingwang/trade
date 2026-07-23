@@ -1,0 +1,106 @@
+{
+  "updated_at": "2026-07-23 18:11 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 93.1,
+  "cash_pct": 6.9,
+  "account_equity_basis": 128635.1,
+  "positions": [
+    {
+      "symbol": "ISRG",
+      "weight_pct": 14.37,
+      "dollars": 18489.0,
+      "shares": 55,
+      "price": 332.02,
+      "score": 0.99
+    },
+    {
+      "symbol": "META",
+      "weight_pct": 14.37,
+      "dollars": 18489.0,
+      "shares": 30,
+      "price": 606.1,
+      "score": 0.93
+    },
+    {
+      "symbol": "BKNG",
+      "weight_pct": 14.37,
+      "dollars": 18489.0,
+      "shares": 106,
+      "price": 172.83,
+      "score": 0.91
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 8.53,
+      "dollars": 10973.0,
+      "shares": 78,
+      "price": 139.7,
+      "score": 1.0
+    },
+    {
+      "symbol": "CSCO",
+      "weight_pct": 8.34,
+      "dollars": 10728.0,
+      "shares": 95,
+      "price": 112.76,
+      "score": 0.98
+    },
+    {
+      "symbol": "TXN",
+      "weight_pct": 7.43,
+      "dollars": 9559.0,
+      "shares": 33,
+      "price": 284.99,
+      "score": 0.97
+    },
+    {
+      "symbol": "MCHP",
+      "weight_pct": 6.52,
+      "dollars": 8390.0,
+      "shares": 103,
+      "price": 81.35,
+      "score": 0.96
+    },
+    {
+      "symbol": "IBM",
+      "weight_pct": 5.61,
+      "dollars": 7221.0,
+      "shares": 34,
+      "price": 206.65,
+      "score": 0.95
+    },
+    {
+      "symbol": "ADI",
+      "weight_pct": 4.7,
+      "dollars": 6052.0,
+      "shares": 15,
+      "price": 380.2,
+      "score": 0.94
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 2.95,
+      "dollars": 3798.0,
+      "shares": 11,
+      "price": 319.78,
+      "score": 0.92
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 2.95,
+      "dollars": 3798.0,
+      "shares": 31,
+      "price": 120.04,
+      "score": 0.9
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 2.95,
+      "dollars": 3798.0,
+      "shares": 3,
+      "price": 990.21,
+      "score": 0.89
+    }
+  ]
+}

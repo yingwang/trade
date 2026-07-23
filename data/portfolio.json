@@ -1,0 +1,137 @@
+{
+  "updated_at": "2026-07-23 18:09 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 78.4,
+  "cash_pct": 21.6,
+  "account_equity_basis": 122550.9,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 10.0,
+      "dollars": 12261.0,
+      "shares": 91,
+      "price": 134.48,
+      "score": 1.4307
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 9.81,
+      "dollars": 12025.0,
+      "shares": 12,
+      "price": 990.21,
+      "score": 1.3342
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 8.01,
+      "dollars": 9814.0,
+      "shares": 10,
+      "price": 894.54,
+      "score": 0.9046
+    },
+    {
+      "symbol": "UNH",
+      "weight_pct": 7.54,
+      "dollars": 9242.0,
+      "shares": 21,
+      "price": 423.56,
+      "score": 0.703
+    },
+    {
+      "symbol": "MS",
+      "weight_pct": 6.04,
+      "dollars": 7396.0,
+      "shares": 34,
+      "price": 215.18,
+      "score": 0.9058
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 5.62,
+      "dollars": 6886.0,
+      "shares": 68,
+      "price": 100.23,
+      "score": 1.0903
+    },
+    {
+      "symbol": "TJX",
+      "weight_pct": 5.62,
+      "dollars": 6886.0,
+      "shares": 44,
+      "price": 153.48,
+      "score": 1.0956
+    },
+    {
+      "symbol": "SBUX",
+      "weight_pct": 5.53,
+      "dollars": 6773.0,
+      "shares": 65,
+      "price": 103.21,
+      "score": 0.8932
+    },
+    {
+      "symbol": "GS",
+      "weight_pct": 4.12,
+      "dollars": 5046.0,
+      "shares": 4,
+      "price": 1074.72,
+      "score": 0.6943
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 2.98,
+      "dollars": 3657.0,
+      "shares": 25,
+      "price": 145.49,
+      "score": 0.8329
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 2.5,
+      "dollars": 3068.0,
+      "shares": 12,
+      "price": 244.39,
+      "score": 0.7131
+    },
+    {
+      "symbol": "ABBV",
+      "weight_pct": 2.5,
+      "dollars": 3068.0,
+      "shares": 11,
+      "price": 256.92,
+      "score": 0.7164
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 2.5,
+      "dollars": 3068.0,
+      "shares": 2,
+      "price": 1185.87,
+      "score": 0.7748
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 1.95,
+      "dollars": 2387.0,
+      "shares": 37,
+      "price": 63.5,
+      "score": 0.2028
+    },
+    {
+      "symbol": "SLB",
+      "weight_pct": 1.93,
+      "dollars": 2371.0,
+      "shares": 50,
+      "price": 47.22,
+      "score": -0.3324
+    },
+    {
+      "symbol": "C",
+      "weight_pct": 1.74,
+      "dollars": 2129.0,
+      "shares": 16,
+      "price": 131.88,
+      "score": 0.4072
+    }
+  ]
+}

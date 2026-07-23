@@ -1,0 +1,1701 @@
+{
+  "source": "alpaca",
+  "account": {
+    "equity": 128635.1,
+    "cash": 36803.66,
+    "buying_power": 36803.66
+  },
+  "positions": [
+    {
+      "symbol": "ADBE",
+      "qty": 34.0,
+      "side": "long",
+      "current_price": 211.8,
+      "market_value": 7201.2,
+      "avg_entry_price": 205.42,
+      "cost_basis": 6984.34,
+      "today_pl_pct": -3.004,
+      "today_pl": -223.04,
+      "total_pl_pct": 3.105,
+      "total_pl": 216.86
+    },
+    {
+      "symbol": "AMD",
+      "qty": 13.0,
+      "side": "long",
+      "current_price": 543.94,
+      "market_value": 7071.22,
+      "avg_entry_price": 535.99,
+      "cost_basis": 6967.87,
+      "today_pl_pct": -1.5190000000000001,
+      "today_pl": -109.07,
+      "total_pl_pct": 1.483,
+      "total_pl": 103.35
+    },
+    {
+      "symbol": "AVGO",
+      "qty": 19.0,
+      "side": "long",
+      "current_price": 392.28,
+      "market_value": 7453.32,
+      "avg_entry_price": 374.47,
+      "cost_basis": 7114.93,
+      "today_pl_pct": -1.142,
+      "today_pl": -86.07,
+      "total_pl_pct": 4.756,
+      "total_pl": 338.39
+    },
+    {
+      "symbol": "FCX",
+      "qty": 174.0,
+      "side": "long",
+      "current_price": 63.61,
+      "market_value": 11068.14,
+      "avg_entry_price": 65.6,
+      "cost_basis": 11414.4,
+      "today_pl_pct": -2.138,
+      "today_pl": -241.86,
+      "total_pl_pct": -3.034,
+      "total_pl": -346.26
+    },
+    {
+      "symbol": "LRCX",
+      "qty": 17.0,
+      "side": "long",
+      "current_price": 324.5092,
+      "market_value": 5516.66,
+      "avg_entry_price": 267.63,
+      "cost_basis": 4549.73,
+      "today_pl_pct": 1.635,
+      "today_pl": 88.7264,
+      "total_pl_pct": 21.252,
+      "total_pl": 966.93
+    },
+    {
+      "symbol": "MCHP",
+      "qty": 80.0,
+      "side": "long",
+      "current_price": 81.42,
+      "market_value": 6513.6,
+      "avg_entry_price": 89.08,
+      "cost_basis": 7126.4,
+      "today_pl_pct": -4.234,
+      "today_pl": -288.0,
+      "total_pl_pct": -8.599,
+      "total_pl": -612.8
+    },
+    {
+      "symbol": "MPWR",
+      "qty": 5.0,
+      "side": "long",
+      "current_price": 1397.0,
+      "market_value": 6985.0,
+      "avg_entry_price": 1329.46,
+      "cost_basis": 6647.3,
+      "today_pl_pct": -0.104,
+      "today_pl": -7.25,
+      "total_pl_pct": 5.08,
+      "total_pl": 337.7
+    },
+    {
+      "symbol": "NOW",
+      "qty": 71.0,
+      "side": "long",
+      "current_price": 92.25,
+      "market_value": 6549.75,
+      "avg_entry_price": 91.56,
+      "cost_basis": 6500.42,
+      "today_pl_pct": -3.363,
+      "today_pl": -227.91,
+      "total_pl_pct": 0.759,
+      "total_pl": 49.33
+    },
+    {
+      "symbol": "NXPI",
+      "qty": 25.0,
+      "side": "long",
+      "current_price": 277.25,
+      "market_value": 6931.25,
+      "avg_entry_price": 278.42,
+      "cost_basis": 6960.5,
+      "today_pl_pct": -0.5559999999999999,
+      "today_pl": -38.75,
+      "total_pl_pct": -0.42,
+      "total_pl": -29.25
+    },
+    {
+      "symbol": "TXN",
+      "qty": 24.0,
+      "side": "long",
+      "current_price": 284.1,
+      "market_value": 6818.4,
+      "avg_entry_price": 304.9,
+      "cost_basis": 7317.56,
+      "today_pl_pct": -3.4299999999999997,
+      "today_pl": -242.16,
+      "total_pl_pct": -6.821,
+      "total_pl": -499.16
+    },
+    {
+      "symbol": "ZS",
+      "qty": 51.0,
+      "side": "long",
+      "current_price": 139.1,
+      "market_value": 7094.1,
+      "avg_entry_price": 137.27,
+      "cost_basis": 7000.6,
+      "today_pl_pct": -2.221,
+      "today_pl": -161.16,
+      "total_pl_pct": 1.336,
+      "total_pl": 93.5
+    }
+  ],
+  "portfolio_history": [
+    {
+      "date": "2026-03-31",
+      "equity": 100000.0,
+      "profit_loss": 0.0
+    },
+    {
+      "date": "2026-04-01",
+      "equity": 99400.0,
+      "profit_loss": -600.0
+    },
+    {
+      "date": "2026-04-02",
+      "equity": 100339.04,
+      "profit_loss": 939.04
+    },
+    {
+      "date": "2026-04-06",
+      "equity": 101482.72,
+      "profit_loss": -11510.19
+    },
+    {
+      "date": "2026-04-07",
+      "equity": 101810.0,
+      "profit_loss": 526.94
+    },
+    {
+      "date": "2026-04-08",
+      "equity": 104012.84,
+      "profit_loss": 1657.73
+    },
+    {
+      "date": "2026-04-09",
+      "equity": 98946.87,
+      "profit_loss": -4749.97
+    },
+    {
+      "date": "2026-04-10",
+      "equity": 94553.49,
+      "profit_loss": -4167.86
+    },
+    {
+      "date": "2026-04-13",
+      "equity": 99580.0,
+      "profit_loss": 4754.31
+    },
+    {
+      "date": "2026-04-14",
+      "equity": 100005.07,
+      "profit_loss": 147.13
+    },
+    {
+      "date": "2026-04-15",
+      "equity": 104650.29,
+      "profit_loss": 4317.01
+    },
+    {
+      "date": "2026-04-16",
+      "equity": 104831.67,
+      "profit_loss": 262.53
+    },
+    {
+      "date": "2026-04-17",
+      "equity": 107357.1,
+      "profit_loss": 1990.38
+    },
+    {
+      "date": "2026-04-20",
+      "equity": 108555.46,
+      "profit_loss": 1196.92
+    },
+    {
+      "date": "2026-04-21",
+      "equity": 108036.41,
+      "profit_loss": -435.02
+    },
+    {
+      "date": "2026-04-22",
+      "equity": 108275.0,
+      "profit_loss": 1061.64
+    },
+    {
+      "date": "2026-04-23",
+      "equity": 104500.01,
+      "profit_loss": -3584.67
+    },
+    {
+      "date": "2026-04-24",
+      "equity": 105053.16,
+      "profit_loss": 301.78
+    },
+    {
+      "date": "2026-04-27",
+      "equity": 105672.4,
+      "profit_loss": 815.31
+    },
+    {
+      "date": "2026-04-28",
+      "equity": 104793.5,
+      "profit_loss": -758.31
+    },
+    {
+      "date": "2026-04-29",
+      "equity": 105591.33,
+      "profit_loss": 797.83
+    },
+    {
+      "date": "2026-04-30",
+      "equity": 104925.57,
+      "profit_loss": -665.76
+    },
+    {
+      "date": "2026-05-01",
+      "equity": 106583.68,
+      "profit_loss": 1658.11
+    },
+    {
+      "date": "2026-05-04",
+      "equity": 106583.68,
+      "profit_loss": 0.0
+    },
+    {
+      "date": "2026-05-05",
+      "equity": 109443.79,
+      "profit_loss": 2860.11
+    },
+    {
+      "date": "2026-05-06",
+      "equity": 110410.04,
+      "profit_loss": 966.25
+    },
+    {
+      "date": "2026-05-07",
+      "equity": 113462.13,
+      "profit_loss": 3052.09
+    },
+    {
+      "date": "2026-05-08",
+      "equity": 115870.98,
+      "profit_loss": 2408.85
+    },
+    {
+      "date": "2026-05-11",
+      "equity": 116717.4,
+      "profit_loss": 846.42
+    },
+    {
+      "date": "2026-05-12",
+      "equity": 115927.0,
+      "profit_loss": -790.4
+    },
+    {
+      "date": "2026-05-13",
+      "equity": 117574.14,
+      "profit_loss": 1647.14
+    },
+    {
+      "date": "2026-05-14",
+      "equity": 118223.37,
+      "profit_loss": 649.23
+    },
+    {
+      "date": "2026-05-15",
+      "equity": 118114.72,
+      "profit_loss": -108.65
+    },
+    {
+      "date": "2026-05-18",
+      "equity": 118739.81,
+      "profit_loss": 625.09
+    },
+    {
+      "date": "2026-05-19",
+      "equity": 118715.83,
+      "profit_loss": -23.98
+    },
+    {
+      "date": "2026-05-20",
+      "equity": 119905.48,
+      "profit_loss": 1189.65
+    },
+    {
+      "date": "2026-05-21",
+      "equity": 120244.78,
+      "profit_loss": 339.3
+    },
+    {
+      "date": "2026-05-22",
+      "equity": 122141.53,
+      "profit_loss": 1896.75
+    },
+    {
+      "date": "2026-05-26",
+      "equity": 124550.34,
+      "profit_loss": 2408.81
+    },
+    {
+      "date": "2026-05-27",
+      "equity": 121668.93,
+      "profit_loss": -2881.41
+    },
+    {
+      "date": "2026-05-28",
+      "equity": 125689.03,
+      "profit_loss": 4020.1
+    },
+    {
+      "date": "2026-05-29",
+      "equity": 130117.02,
+      "profit_loss": 4427.99
+    },
+    {
+      "date": "2026-06-01",
+      "equity": 133622.21,
+      "profit_loss": 3505.19
+    },
+    {
+      "date": "2026-06-02",
+      "equity": 133558.61,
+      "profit_loss": -63.6
+    },
+    {
+      "date": "2026-06-03",
+      "equity": 136937.98,
+      "profit_loss": 3379.37
+    },
+    {
+      "date": "2026-06-04",
+      "equity": 137697.69,
+      "profit_loss": 759.71
+    },
+    {
+      "date": "2026-06-05",
+      "equity": 129068.68,
+      "profit_loss": -8629.01
+    },
+    {
+      "date": "2026-06-08",
+      "equity": 132034.0,
+      "profit_loss": 2965.32
+    },
+    {
+      "date": "2026-06-09",
+      "equity": 130079.84,
+      "profit_loss": -1954.16
+    },
+    {
+      "date": "2026-06-10",
+      "equity": 127828.36,
+      "profit_loss": -2251.48
+    },
+    {
+      "date": "2026-06-11",
+      "equity": 133455.48,
+      "profit_loss": 5627.12
+    },
+    {
+      "date": "2026-06-12",
+      "equity": 134876.16,
+      "profit_loss": 1420.68
+    },
+    {
+      "date": "2026-06-15",
+      "equity": 137784.1,
+      "profit_loss": 2907.94
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 134703.67,
+      "profit_loss": -3080.43
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 132529.47,
+      "profit_loss": -2174.2
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 134639.71,
+      "profit_loss": 2110.24
+    },
+    {
+      "date": "2026-06-22",
+      "equity": 135893.67,
+      "profit_loss": 1253.96
+    },
+    {
+      "date": "2026-06-23",
+      "equity": 131663.27,
+      "profit_loss": -4230.4
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 131129.73,
+      "profit_loss": -533.54
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 132518.14,
+      "profit_loss": 1388.41
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 129830.49,
+      "profit_loss": -2687.65
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 131383.26,
+      "profit_loss": 1552.77
+    },
+    {
+      "date": "2026-06-30",
+      "equity": 133676.72,
+      "profit_loss": 2293.46
+    },
+    {
+      "date": "2026-07-01",
+      "equity": 132440.53,
+      "profit_loss": -1236.19
+    },
+    {
+      "date": "2026-07-02",
+      "equity": 131016.39,
+      "profit_loss": -1424.14
+    },
+    {
+      "date": "2026-07-06",
+      "equity": 133122.06,
+      "profit_loss": 2105.67
+    },
+    {
+      "date": "2026-07-07",
+      "equity": 131260.3,
+      "profit_loss": -1861.76
+    },
+    {
+      "date": "2026-07-08",
+      "equity": 131562.73,
+      "profit_loss": 302.43
+    },
+    {
+      "date": "2026-07-09",
+      "equity": 134050.07,
+      "profit_loss": 2487.34
+    },
+    {
+      "date": "2026-07-10",
+      "equity": 133689.95,
+      "profit_loss": -360.12
+    },
+    {
+      "date": "2026-07-13",
+      "equity": 131839.42,
+      "profit_loss": -1850.53
+    },
+    {
+      "date": "2026-07-14",
+      "equity": 131602.5,
+      "profit_loss": -236.92
+    },
+    {
+      "date": "2026-07-15",
+      "equity": 130610.16,
+      "profit_loss": -992.34
+    },
+    {
+      "date": "2026-07-16",
+      "equity": 128376.6,
+      "profit_loss": -2233.56
+    },
+    {
+      "date": "2026-07-17",
+      "equity": 127967.25,
+      "profit_loss": -409.35
+    },
+    {
+      "date": "2026-07-20",
+      "equity": 128245.95,
+      "profit_loss": 278.7
+    },
+    {
+      "date": "2026-07-21",
+      "equity": 130174.06,
+      "profit_loss": 1928.11
+    }
+  ],
+  "spy_history": [
+    {
+      "date": "2026-03-31",
+      "equity": 100000.0
+    },
+    {
+      "date": "2026-04-01",
+      "equity": 100753.45
+    },
+    {
+      "date": "2026-04-02",
+      "equity": 100844.17
+    },
+    {
+      "date": "2026-04-06",
+      "equity": 101320.85
+    },
+    {
+      "date": "2026-04-07",
+      "equity": 101365.43
+    },
+    {
+      "date": "2026-04-08",
+      "equity": 103947.17
+    },
+    {
+      "date": "2026-04-09",
+      "equity": 104546.84
+    },
+    {
+      "date": "2026-04-10",
+      "equity": 104477.66
+    },
+    {
+      "date": "2026-04-13",
+      "equity": 105498.66
+    },
+    {
+      "date": "2026-04-14",
+      "equity": 106784.15
+    },
+    {
+      "date": "2026-04-15",
+      "equity": 107626.78
+    },
+    {
+      "date": "2026-04-16",
+      "equity": 107891.25
+    },
+    {
+      "date": "2026-04-17",
+      "equity": 109195.19
+    },
+    {
+      "date": "2026-04-20",
+      "equity": 108976.83
+    },
+    {
+      "date": "2026-04-21",
+      "equity": 108263.37
+    },
+    {
+      "date": "2026-04-22",
+      "equity": 109359.72
+    },
+    {
+      "date": "2026-04-23",
+      "equity": 108935.33
+    },
+    {
+      "date": "2026-04-24",
+      "equity": 109779.5
+    },
+    {
+      "date": "2026-04-27",
+      "equity": 109968.63
+    },
+    {
+      "date": "2026-04-28",
+      "equity": 109433.52
+    },
+    {
+      "date": "2026-04-29",
+      "equity": 109416.61
+    },
+    {
+      "date": "2026-04-30",
+      "equity": 110505.27
+    },
+    {
+      "date": "2026-05-01",
+      "equity": 110811.27
+    },
+    {
+      "date": "2026-05-04",
+      "equity": 110405.32
+    },
+    {
+      "date": "2026-05-05",
+      "equity": 111291.02
+    },
+    {
+      "date": "2026-05-06",
+      "equity": 112837.9
+    },
+    {
+      "date": "2026-05-07",
+      "equity": 112491.93
+    },
+    {
+      "date": "2026-05-08",
+      "equity": 113420.67
+    },
+    {
+      "date": "2026-05-11",
+      "equity": 113679.0
+    },
+    {
+      "date": "2026-05-12",
+      "equity": 113506.78
+    },
+    {
+      "date": "2026-05-13",
+      "equity": 114141.83
+    },
+    {
+      "date": "2026-05-14",
+      "equity": 115042.9
+    },
+    {
+      "date": "2026-05-15",
+      "equity": 113659.01
+    },
+    {
+      "date": "2026-05-18",
+      "equity": 113579.05
+    },
+    {
+      "date": "2026-05-19",
+      "equity": 112822.52
+    },
+    {
+      "date": "2026-05-20",
+      "equity": 113978.84
+    },
+    {
+      "date": "2026-05-21",
+      "equity": 114204.87
+    },
+    {
+      "date": "2026-05-22",
+      "equity": 114653.87
+    },
+    {
+      "date": "2026-05-26",
+      "equity": 115415.02
+    },
+    {
+      "date": "2026-05-27",
+      "equity": 115395.02
+    },
+    {
+      "date": "2026-05-28",
+      "equity": 116031.61
+    },
+    {
+      "date": "2026-05-29",
+      "equity": 116320.69
+    },
+    {
+      "date": "2026-06-01",
+      "equity": 116637.45
+    },
+    {
+      "date": "2026-06-02",
+      "equity": 116795.83
+    },
+    {
+      "date": "2026-06-03",
+      "equity": 115976.26
+    },
+    {
+      "date": "2026-06-04",
+      "equity": 116414.49
+    },
+    {
+      "date": "2026-06-05",
+      "equity": 113409.91
+    },
+    {
+      "date": "2026-06-08",
+      "equity": 113666.69
+    },
+    {
+      "date": "2026-06-09",
+      "equity": 113333.02
+    },
+    {
+      "date": "2026-06-10",
+      "equity": 111546.27
+    },
+    {
+      "date": "2026-06-11",
+      "equity": 113442.2
+    },
+    {
+      "date": "2026-06-12",
+      "equity": 114055.72
+    },
+    {
+      "date": "2026-06-15",
+      "equity": 116066.98
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 115375.04
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 113934.25
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 115118.82
+    },
+    {
+      "date": "2026-06-22",
+      "equity": 114756.55
+    },
+    {
+      "date": "2026-06-23",
+      "equity": 113090.06
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 113037.64
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 113201.05
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 112382.45
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 114233.94
+    },
+    {
+      "date": "2026-06-30",
+      "equity": 115123.45
+    },
+    {
+      "date": "2026-07-01",
+      "equity": 114967.75
+    },
+    {
+      "date": "2026-07-02",
+      "equity": 114816.67
+    },
+    {
+      "date": "2026-07-06",
+      "equity": 115818.72
+    },
+    {
+      "date": "2026-07-07",
+      "equity": 115268.37
+    },
+    {
+      "date": "2026-07-08",
+      "equity": 114912.25
+    },
+    {
+      "date": "2026-07-09",
+      "equity": 115885.01
+    },
+    {
+      "date": "2026-07-10",
+      "equity": 116384.5
+    },
+    {
+      "date": "2026-07-13",
+      "equity": 115493.44
+    },
+    {
+      "date": "2026-07-14",
+      "equity": 115903.51
+    },
+    {
+      "date": "2026-07-15",
+      "equity": 116362.91
+    },
+    {
+      "date": "2026-07-16",
+      "equity": 115732.39
+    },
+    {
+      "date": "2026-07-17",
+      "equity": 114586.96
+    },
+    {
+      "date": "2026-07-20",
+      "equity": 114401.98
+    },
+    {
+      "date": "2026-07-21",
+      "equity": 115356.24
+    }
+  ],
+  "rebalances": [
+    {
+      "date": "2026-07-14",
+      "portfolio_value": 131602.5,
+      "trades": [
+        {
+          "symbol": "IBM",
+          "side": "sell",
+          "quantity": 25.0,
+          "price": 217.2,
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-29",
+      "portfolio_value": 131383.26,
+      "trades": [
+        {
+          "symbol": "TXN",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 290.04,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "NXPI",
+          "side": "buy",
+          "quantity": 25.0,
+          "price": 278.42,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "NOW",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 100.588333,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MPWR",
+          "side": "buy",
+          "quantity": 5.0,
+          "price": 1329.46,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MCHP",
+          "side": "buy",
+          "quantity": 80.0,
+          "price": 89.08,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "IBM",
+          "side": "buy",
+          "quantity": 25.0,
+          "price": 276.55,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AVGO",
+          "side": "buy",
+          "quantity": 19.0,
+          "price": 374.47,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AMD",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 535.99,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ADBE",
+          "side": "buy",
+          "quantity": 34.0,
+          "price": 205.421765,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ZS",
+          "side": "sell",
+          "quantity": 11.0,
+          "price": 136.99,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TGT",
+          "side": "sell",
+          "quantity": 120.0,
+          "price": 135.49,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "sell",
+          "quantity": 32.0,
+          "price": 328.85,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "sell",
+          "quantity": 44.0,
+          "price": 272.67,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "LRCX",
+          "side": "sell",
+          "quantity": 11.0,
+          "price": 410.88,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "FCX",
+          "side": "sell",
+          "quantity": 58.0,
+          "price": 61.62,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "C",
+          "side": "sell",
+          "quantity": 120.0,
+          "price": 143.2,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SLB",
+          "side": "sell",
+          "quantity": 277.0,
+          "price": 46.61,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ON",
+          "side": "sell",
+          "quantity": 75.0,
+          "price": 89.8,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "INTU",
+          "side": "sell",
+          "quantity": 20.0,
+          "price": 267.35,
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-29",
+      "portfolio_value": 130117.02,
+      "trades": [
+        {
+          "symbol": "ZS",
+          "side": "buy",
+          "quantity": 17.0,
+          "price": 137.38,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TXN",
+          "side": "buy",
+          "quantity": 20.0,
+          "price": 307.87,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TGT",
+          "side": "buy",
+          "quantity": 120.0,
+          "price": 126.07,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SLB",
+          "side": "buy",
+          "quantity": 277.0,
+          "price": 54.92,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ON",
+          "side": "buy",
+          "quantity": 75.0,
+          "price": 120.05,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "buy",
+          "quantity": 44.0,
+          "price": 203.64,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 317.75,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "INTU",
+          "side": "buy",
+          "quantity": 20.0,
+          "price": 330.89,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "FCX",
+          "side": "buy",
+          "quantity": 232.0,
+          "price": 65.6,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 120.0,
+          "price": 126.13,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "UNH",
+          "side": "sell",
+          "quantity": 26.0,
+          "price": 378.85,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SNOW",
+          "side": "sell",
+          "quantity": 43.0,
+          "price": 249.81,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 276.45,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ORCL",
+          "side": "sell",
+          "quantity": 37.0,
+          "price": 223.27,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "NOW",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 123.71,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 12.0,
+          "price": 953.9,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MCHP",
+          "side": "sell",
+          "quantity": 73.0,
+          "price": 95.24,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "KLAC",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 1917.99,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DDOG",
+          "side": "sell",
+          "quantity": 46.0,
+          "price": 241.470652,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "COP",
+          "side": "sell",
+          "quantity": 78.0,
+          "price": 113.77,
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-28",
+      "portfolio_value": 104793.5,
+      "trades": [
+        {
+          "symbol": "UNH",
+          "side": "buy",
+          "quantity": 26.0,
+          "price": 367.28,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "buy",
+          "quantity": 33.0,
+          "price": 181.883031,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ORCL",
+          "side": "buy",
+          "quantity": 37.0,
+          "price": 166.21,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "NOW",
+          "side": "buy",
+          "quantity": 68.0,
+          "price": 90.721324,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 12.0,
+          "price": 505.67,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MCHP",
+          "side": "buy",
+          "quantity": 73.0,
+          "price": 84.32,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "LRCX",
+          "side": "buy",
+          "quantity": 24.0,
+          "price": 252.21,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "KLAC",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 1822.19,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "COP",
+          "side": "buy",
+          "quantity": 78.0,
+          "price": 124.22,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ZS",
+          "side": "sell",
+          "quantity": 32.0,
+          "price": 135.91,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TJX",
+          "side": "sell",
+          "quantity": 84.0,
+          "price": 156.92,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SNOW",
+          "side": "sell",
+          "quantity": 25.0,
+          "price": 142.78,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SBUX",
+          "side": "sell",
+          "quantity": 105.0,
+          "price": 96.84,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "NET",
+          "side": "sell",
+          "quantity": 66.0,
+          "price": 208.53,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "GE",
+          "side": "sell",
+          "quantity": 31.0,
+          "price": 288.94,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DHR",
+          "side": "sell",
+          "quantity": 49.0,
+          "price": 179.4,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DDOG",
+          "side": "sell",
+          "quantity": 69.0,
+          "price": 131.33,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "sell",
+          "quantity": 14.0,
+          "price": 455.61,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRM",
+          "side": "sell",
+          "quantity": 37.0,
+          "price": 181.98,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "C",
+          "side": "sell",
+          "quantity": 94.0,
+          "price": 128.36,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "BKNG",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 175.4,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AVGO",
+          "side": "sell",
+          "quantity": 21.0,
+          "price": 400.98,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AMT",
+          "side": "sell",
+          "quantity": 55.0,
+          "price": 176.582727,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ADBE",
+          "side": "sell",
+          "quantity": 31.0,
+          "price": 243.068387,
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-02",
+      "portfolio_value": 100339.04,
+      "trades": [
+        {
+          "symbol": "AMT",
+          "side": "buy",
+          "quantity": 55.0,
+          "price": 171.290909,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "GE",
+          "side": "buy",
+          "quantity": 31.0,
+          "price": 286.45,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AVGO",
+          "side": "buy",
+          "quantity": 21.0,
+          "price": 307.087143,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DHR",
+          "side": "buy",
+          "quantity": 49.0,
+          "price": 189.34,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DDOG",
+          "side": "buy",
+          "quantity": 115.0,
+          "price": 116.525305,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "NET",
+          "side": "buy",
+          "quantity": 66.0,
+          "price": 203.78,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 390.793333,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ADBE",
+          "side": "sell",
+          "quantity": 7.0,
+          "price": 241.0,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SBUX",
+          "side": "buy",
+          "quantity": 105.0,
+          "price": 88.594285,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRM",
+          "side": "buy",
+          "quantity": 37.0,
+          "price": 183.712703,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "KLAC",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 1451.0,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "sell",
+          "quantity": 34.0,
+          "price": 102.76,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "IBM",
+          "side": "sell",
+          "quantity": 15.0,
+          "price": 242.674667,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MSFT",
+          "side": "sell",
+          "quantity": 21.0,
+          "price": 366.5,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TGT",
+          "side": "sell",
+          "quantity": 59.0,
+          "price": 119.08678,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TJX",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 161.566667,
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-01",
+      "portfolio_value": 99400.0,
+      "trades": [
+        {
+          "symbol": "ZS",
+          "side": "buy",
+          "quantity": 77.0,
+          "price": 137.21,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TJX",
+          "side": "buy",
+          "quantity": 81.0,
+          "price": 162.32,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TGT",
+          "side": "buy",
+          "quantity": 59.0,
+          "price": 121.18,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SNOW",
+          "side": "buy",
+          "quantity": 68.0,
+          "price": 154.65,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MSFT",
+          "side": "buy",
+          "quantity": 21.0,
+          "price": 371.42,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "buy",
+          "quantity": 34.0,
+          "price": 106.923824,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "KLAC",
+          "side": "buy",
+          "quantity": 6.0,
+          "price": 1533.28,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "IBM",
+          "side": "buy",
+          "quantity": 15.0,
+          "price": 244.81,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "buy",
+          "quantity": 17.0,
+          "price": 394.11,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "C",
+          "side": "buy",
+          "quantity": 94.0,
+          "price": 115.64,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "BKNG",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 4233.47,
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ADBE",
+          "side": "buy",
+          "quantity": 38.0,
+          "price": 242.41,
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    }
+  ],
+  "corporate_action_adjustments": {
+    "2026-04-06": 12653.869262695312,
+    "2026-04-07": 12454.21142578125,
+    "2026-04-08": 12999.320068359375,
+    "2026-04-09": 12683.31591796875,
+    "2026-04-10": 12457.802856445312,
+    "2026-04-13": 12729.997924804688,
+    "2026-04-14": 13007.938842773438,
+    "2026-04-15": 13336.154296875,
+    "2026-04-16": 13254.997192382812,
+    "2026-04-17": 13790.05224609375,
+    "2026-04-20": 13791.4892578125,
+    "2026-04-21": 13707.460327148438,
+    "2026-04-22": 12884.408569335938,
+    "2026-04-23": 12694.088012695312,
+    "2026-04-24": 12945.456298828125,
+    "2026-04-27": 12749.388793945312,
+    "2026-04-28": 12628.800000000001,
+    "2026-04-29": 12628.800000000001,
+    "2026-04-30": 12628.800000000001,
+    "2026-05-01": 12628.800000000001,
+    "2026-05-04": 12628.800000000001,
+    "2026-05-05": 12628.800000000001,
+    "2026-05-06": 12628.800000000001,
+    "2026-05-07": 12628.800000000001,
+    "2026-05-08": 12628.800000000001,
+    "2026-05-11": 12628.800000000001,
+    "2026-05-12": 12628.800000000001,
+    "2026-05-13": 12628.800000000001,
+    "2026-05-14": 12628.800000000001,
+    "2026-05-15": 12628.800000000001,
+    "2026-05-18": 12628.800000000001,
+    "2026-05-19": 12628.800000000001,
+    "2026-05-20": 12628.800000000001,
+    "2026-05-21": 12628.800000000001,
+    "2026-05-22": 12628.800000000001,
+    "2026-05-26": 12628.800000000001,
+    "2026-05-27": 12628.800000000001,
+    "2026-05-28": 12628.800000000001,
+    "2026-05-29": 12628.800000000001,
+    "2026-06-01": 12628.800000000001,
+    "2026-06-02": 12628.800000000001,
+    "2026-06-03": 12628.800000000001,
+    "2026-06-04": 12628.800000000001,
+    "2026-06-05": 12628.800000000001,
+    "2026-06-08": 12628.800000000001,
+    "2026-06-09": 12628.800000000001,
+    "2026-06-10": 12628.800000000001,
+    "2026-06-11": 12628.800000000001,
+    "2026-06-12": 12628.800000000001,
+    "2026-06-15": 12628.800000000001,
+    "2026-06-16": 12628.800000000001,
+    "2026-06-17": 12628.800000000001,
+    "2026-06-18": 12628.800000000001,
+    "2026-06-22": 12628.800000000001,
+    "2026-06-23": 12628.800000000001,
+    "2026-06-24": 12628.800000000001,
+    "2026-06-25": 12628.800000000001,
+    "2026-06-26": 12628.800000000001,
+    "2026-06-29": 12628.800000000001,
+    "2026-06-30": 12628.800000000001,
+    "2026-07-01": 12628.800000000001,
+    "2026-07-02": 12628.800000000001,
+    "2026-07-06": 12628.800000000001,
+    "2026-07-07": 12628.800000000001,
+    "2026-07-08": 12628.800000000001,
+    "2026-07-09": 12628.800000000001,
+    "2026-07-10": 12628.800000000001,
+    "2026-07-13": 12628.800000000001,
+    "2026-07-14": 12628.800000000001,
+    "2026-07-15": 12628.800000000001,
+    "2026-07-16": 12628.800000000001,
+    "2026-07-17": 12628.800000000001,
+    "2026-07-20": 12628.800000000001,
+    "2026-07-21": 12628.800000000001
+  },
+  "annual_risk_free_rate": 0.04
+}
