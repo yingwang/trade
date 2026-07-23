@@ -1328,7 +1328,6 @@
     "C": 126.24,
     "TGT": 135.65,
     "CAT": 869.1,
-    "GOOGL": 382.81,
     "UNH": 419.11,
     "FCX": 61.66,
     "GS": 1023.76,
@@ -1337,11 +1336,19 @@
     "SLB": 46.61
   },
   "daily_tracker": {
-    "trade_date": "2026-07-15",
-    "total_value_traded": 9154.990012,
+    "trade_date": "2026-07-23",
+    "total_value_traded": 7702.83,
     "total_realised_pnl": 0.0,
     "orders_submitted": 1,
     "orders_filled": 1,
-    "orders_rejected": 0
-  }
+    "orders_rejected": 0,
+    "processed_client_order_ids": [
+      "qts-stop-dac97b225ebfa41c73f6d006"
+    ],
+    "processed_fill_values": {
+      "qts-stop-dac97b225ebfa41c73f6d006": 7702.83
+    }
+  },
+  "stop_loss_attempts": {},
+  "schema_version": 2
 }
