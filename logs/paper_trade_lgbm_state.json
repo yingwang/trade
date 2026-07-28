@@ -1106,7 +1106,6 @@
     }
   ],
   "entry_prices": {
-    "LRCX": 317.75,
     "NOW": 100.588333,
     "FCX": 65.6,
     "TXN": 290.04,
@@ -1119,11 +1118,19 @@
     "NXPI": 278.42
   },
   "daily_tracker": {
-    "trade_date": "2026-07-14",
-    "total_value_traded": 5430.0,
+    "trade_date": "2026-07-28",
+    "total_value_traded": 4574.36,
     "total_realised_pnl": 0.0,
     "orders_submitted": 1,
     "orders_filled": 1,
-    "orders_rejected": 0
-  }
+    "orders_rejected": 0,
+    "processed_client_order_ids": [
+      "qts-stop-7801b6772463b12abcc25e46"
+    ],
+    "processed_fill_values": {
+      "qts-stop-7801b6772463b12abcc25e46": 4574.36
+    }
+  },
+  "stop_loss_attempts": {},
+  "schema_version": 2
 }
