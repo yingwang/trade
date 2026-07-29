@@ -1111,24 +1111,24 @@
     "TXN": 290.04,
     "ZS": 137.38,
     "ADBE": 205.421765,
-    "AMD": 535.99,
     "AVGO": 374.47,
-    "MCHP": 89.08,
     "MPWR": 1329.46,
     "NXPI": 278.42
   },
   "daily_tracker": {
-    "trade_date": "2026-07-28",
-    "total_value_traded": 4574.36,
+    "trade_date": "2026-07-29",
+    "total_value_traded": 11286.29,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 1,
-    "orders_filled": 1,
+    "orders_submitted": 2,
+    "orders_filled": 2,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-stop-7801b6772463b12abcc25e46"
+      "qts-stop-184d87164b5a4820c89c4b41",
+      "qts-stop-44dddf2c60a2f5ac76698a57"
     ],
     "processed_fill_values": {
-      "qts-stop-7801b6772463b12abcc25e46": 4574.36
+      "qts-stop-184d87164b5a4820c89c4b41": 5723.200000000001,
+      "qts-stop-44dddf2c60a2f5ac76698a57": 5563.09
     }
   },
   "stop_loss_attempts": {},
