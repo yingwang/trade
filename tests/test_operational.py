@@ -577,6 +577,27 @@ class TestDailyTrackerPersistence:
 # ── Market-data timing and live quality gate ───────────────────────────────
 
 class TestMarketDataTiming:
+    def test_price_fetch_retains_same_download_volume(self, config):
+        from quant.data.market_data import MarketData
+
+        dates = pd.bdate_range("2026-01-01", periods=2)
+        columns = pd.MultiIndex.from_product(
+            [["Close", "Open", "Volume"], ["AAAA", "BENCH"]]
+        )
+        data = pd.DataFrame(1.0, index=dates, columns=columns)
+        data[("Volume", "AAAA")] = [1_000_000.0, 2_000_000.0]
+        data[("Volume", "BENCH")] = [3_000_000.0, 4_000_000.0]
+        market_data = MarketData(config)
+
+        with patch("quant.data.market_data.yf.download", return_value=data):
+            prices = market_data.fetch_prices(
+                start="2026-01-01", end="2026-01-02"
+            )
+
+        assert market_data.last_volumes_ is not None
+        assert market_data.last_volumes_.index.equals(prices.index)
+        assert market_data.last_volumes_.loc[dates[1], "AAAA"] == 2_000_000.0
+
     def test_explicit_end_date_is_inclusive(self):
         from quant.data.market_data import MarketData
 

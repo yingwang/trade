@@ -84,6 +84,50 @@ class TestBacktestEngine:
 
         assert r_low.equity_curve.iloc[-1] > r_high.equity_curve.iloc[-1]
 
+    def test_market_impact_uses_actual_share_volume(self, config):
+        cfg = {
+            **config,
+            "portfolio": {**config["portfolio"], "transaction_cost_bps": 0},
+            "backtest": {
+                **config["backtest"],
+                "slippage_bps": 0,
+                "market_impact_coeff": 10,
+            },
+        }
+        engine = BacktestEngine(cfg)
+        quantities = pd.Series({"AAAA": 1_000.0})
+        prices = pd.Series({"AAAA": 100.0})
+
+        low_liquidity = engine._cost(
+            100_000,
+            1_000_000,
+            quantities=quantities,
+            prices=prices,
+            volumes=pd.Series({"AAAA": 10_000.0}),
+        )
+        high_liquidity = engine._cost(
+            100_000,
+            1_000_000,
+            quantities=quantities,
+            prices=prices,
+            volumes=pd.Series({"AAAA": 10_000_000.0}),
+        )
+
+        assert low_liquidity > high_liquidity
+
+    def test_missing_volume_uses_turnover_fallback(self, config):
+        engine = BacktestEngine(config)
+        expected = engine._cost(100_000, 1_000_000)
+        actual = engine._cost(
+            100_000,
+            1_000_000,
+            quantities=pd.Series({"AAAA": 1_000.0}),
+            prices=pd.Series({"AAAA": 100.0}),
+            volumes=pd.Series({"AAAA": np.nan}),
+        )
+
+        assert actual == pytest.approx(expected)
+
 
 class TestBacktestReport:
     def test_monthly_returns_table(self, synthetic_prices):

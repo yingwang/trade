@@ -194,13 +194,17 @@ class MultiFactorStrategy:
         #    equity curve doesn't show a flat warm-up period
         backtest_prices = prices.loc[start:] if start else prices
         execution_prices = self.data.last_open_prices_
+        volumes = self.data.last_volumes_
         if execution_prices is not None and start:
             execution_prices = execution_prices.loc[start:]
+        if volumes is not None and start:
+            volumes = volumes.loc[start:]
         result = self.backtest_engine.run(
             backtest_prices,
             target_weights,
             self.data.benchmark,
             execution_prices=execution_prices,
+            volumes=volumes,
             delisting_returns=(
                 self.delisting_returns.events
                 if self.delisting_returns is not None else None

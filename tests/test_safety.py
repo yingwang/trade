@@ -99,6 +99,43 @@ class TestPreTradeCheck:
         assert not ok
         assert "ADV" in reason
 
+    def test_covered_stop_exit_bypasses_entry_throttles(self):
+        self.checker.daily.total_value_traded = self.config.max_daily_trade_value
+        order = Order(
+            symbol="SMALL",
+            side="sell",
+            quantity=20_000,
+            order_type="market",
+            purpose="stop_loss",
+        )
+        ok, reason = self.checker.validate(
+            order,
+            price=0.50,
+            portfolio_value=10_000,
+            current_positions={"SMALL": 10_000},
+            avg_daily_volume=1_000,
+        )
+
+        assert (ok, reason) == (True, "passed")
+
+    def test_oversized_stop_exit_does_not_bypass_limits(self):
+        order = Order(
+            symbol="AAPL",
+            side="sell",
+            quantity=1_000,
+            order_type="market",
+            purpose="stop_loss",
+        )
+        ok, reason = self.checker.validate(
+            order,
+            price=100,
+            portfolio_value=1_000_000,
+            current_positions={"AAPL": 50_000},
+        )
+
+        assert not ok
+        assert "exceeds max" in reason
+
     def test_daily_cumulative_limit(self):
         checker = PreTradeCheck(SafetyConfig(
             max_single_order_value=100_000,

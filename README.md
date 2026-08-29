@@ -47,7 +47,7 @@ point-in-time universe file and delisting-return file described in
 | **Max Drawdown** | 25% | 回测层面的风险监控指标；实盘的对应保护是日亏损熔断与每日止损 |
 | **Stop Loss** | 15% | 单只股票止损线，回测与实盘均每日检查 |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
-| **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数(2.5) × √(参与率) |
+| **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数(2.5) × √(成交股数/当日成交量)；缺失成交量时退回换手率代理 |
 
 ### Signal Pipeline / 信号管道
 
@@ -243,7 +243,7 @@ risk:
 
 backtest:
   rebalance_anchor_date: "2000-01-03"  # 各报告窗口共用固定再平衡相位
-  market_impact_coeff: 2.5   # Almgren-Chriss 市场冲击系数（小账户适配）
+  market_impact_coeff: 2.5   # Almgren-Chriss 市场冲击系数（按逐股成交量参与率）
   risk_free_rate: 0.04       # Sharpe/Sortino 按超额收益计算
 ```
 

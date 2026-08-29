@@ -65,17 +65,68 @@ class BacktestEngine:
         except (TypeError, ValueError):
             return False
 
-    def _cost(self, trade_value: float, portfolio_value: float) -> float:
+    def _cost(
+        self,
+        trade_value: float,
+        portfolio_value: float,
+        *,
+        quantities: pd.Series | None = None,
+        prices: pd.Series | None = None,
+        volumes: pd.Series | None = None,
+    ) -> float:
+        """Return fixed costs plus square-root market impact.
+
+        When same-session share volume is available, participation is measured
+        per symbol as executed shares / daily volume. Missing volume falls back
+        to the former conservative portfolio-turnover proxy.
+        """
         if trade_value <= 0:
             return 0.0
         fixed = trade_value * (self.txn_cost_bps + self.slippage_bps) / 10_000.0
-        participation = trade_value / portfolio_value if portfolio_value > 0 else 0.0
-        impact = (
-            trade_value
-            * self.impact_coeff
-            * np.sqrt(max(0.0, participation))
-            / 10_000.0
-        )
+        impact = 0.0
+        volume_priced_notional = 0.0
+
+        if quantities is not None and prices is not None and volumes is not None:
+            qty = pd.to_numeric(quantities, errors="coerce").abs()
+            px = pd.to_numeric(prices.reindex(qty.index), errors="coerce")
+            volume = pd.to_numeric(volumes.reindex(qty.index), errors="coerce")
+            valid = (
+                qty.notna()
+                & px.notna()
+                & volume.notna()
+                & (qty > 0)
+                & (px > 0)
+                & (volume > 0)
+                & np.isfinite(qty)
+                & np.isfinite(px)
+                & np.isfinite(volume)
+            )
+            if valid.any():
+                notionals = qty[valid] * px[valid]
+                participation = qty[valid] / volume[valid]
+                impact = float(
+                    (
+                        notionals
+                        * self.impact_coeff
+                        * np.sqrt(participation)
+                        / 10_000.0
+                    ).sum()
+                )
+                volume_priced_notional = min(
+                    float(trade_value), float(notionals.sum())
+                )
+
+        fallback_notional = max(0.0, float(trade_value) - volume_priced_notional)
+        if fallback_notional > 0:
+            fallback_participation = (
+                fallback_notional / portfolio_value if portfolio_value > 0 else 0.0
+            )
+            impact += (
+                fallback_notional
+                * self.impact_coeff
+                * np.sqrt(max(0.0, fallback_participation))
+                / 10_000.0
+            )
         return float(fixed + impact)
 
     def run(
@@ -85,8 +136,9 @@ class BacktestEngine:
         benchmark_col: str = "SPY",
         execution_prices: pd.DataFrame | None = None,
         delisting_returns: pd.DataFrame | None = None,
+        volumes: pd.DataFrame | None = None,
     ) -> BacktestResult:
-        """Run a backtest over adjusted closes and optional next-bar opens."""
+        """Run over adjusted closes, optional next-bar opens, and share volume."""
 
         result = BacktestResult()
         if prices is None or prices.empty:
@@ -113,6 +165,14 @@ class BacktestEngine:
             execution = execution.combine_first(close_raw)
             execution_label = "next_open"
 
+        volume_data = (
+            volumes.reindex(index=dates, columns=symbols).apply(
+                pd.to_numeric, errors="coerce"
+            )
+            if volumes is not None
+            else None
+        )
+
         cash = self.initial_capital
         holdings = pd.Series(0.0, index=symbols, dtype=float)
         entry_prices = pd.Series(np.nan, index=symbols, dtype=float)
@@ -136,6 +196,7 @@ class BacktestEngine:
         for date in dates:
             close_px = valuation.loc[date]
             exec_px = execution.loc[date]
+            volume_px = volume_data.loc[date] if volume_data is not None else None
 
             # A delisting return is a terminal payoff, not an exchange fill.
             # Apply the supplied event directly and remove the holding; without
@@ -176,6 +237,7 @@ class BacktestEngine:
             # activity. Missing bars remain pending.
             executed_stops: list[str] = []
             stop_value = 0.0
+            stop_quantities = pd.Series(0.0, index=symbols, dtype=float)
             for symbol in sorted(pending_stops):
                 qty = float(holdings.get(symbol, 0.0))
                 price = exec_px.get(symbol)
@@ -187,12 +249,19 @@ class BacktestEngine:
                 value = qty * float(price)
                 cash += value
                 stop_value += value
+                stop_quantities[symbol] += qty
                 holdings[symbol] = 0.0
                 entry_prices[symbol] = np.nan
                 executed_stops.append(symbol)
 
             if stop_value > 0:
-                stop_cost = self._cost(stop_value, portfolio_at_open)
+                stop_cost = self._cost(
+                    stop_value,
+                    portfolio_at_open,
+                    quantities=stop_quantities,
+                    prices=exec_px,
+                    volumes=volume_px,
+                )
                 cash -= stop_cost
                 result.trades.append({
                     "date": date,
@@ -243,6 +312,7 @@ class BacktestEngine:
 
                 traded_symbols: list[str] = []
                 trade_value = 0.0
+                executed_quantities = pd.Series(0.0, index=symbols, dtype=float)
                 new_positions: dict[str, float] = {}
 
                 for side in ("sell", "buy"):
@@ -274,13 +344,20 @@ class BacktestEngine:
                             if was_flat:
                                 new_positions[symbol] = float(price)
                         trade_value += value
+                        executed_quantities[symbol] += qty
                         traded_symbols.append(symbol)
 
                 for symbol, price in new_positions.items():
                     entry_prices[symbol] = price
 
                 if trade_value > 0:
-                    cost = self._cost(trade_value, portfolio_at_open)
+                    cost = self._cost(
+                        trade_value,
+                        portfolio_at_open,
+                        quantities=executed_quantities,
+                        prices=exec_px,
+                        volumes=volume_px,
+                    )
                     cash -= cost
                     result.trades.append({
                         "date": date,

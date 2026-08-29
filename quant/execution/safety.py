@@ -242,13 +242,22 @@ class PreTradeCheck:
             else current_position_value + order_value
         )
         risk_reducing = projected_position < current_position_value
+        # A genuine urgent liquidation must not be trapped by entry-oriented
+        # size, turnover, penny-stock, or liquidity throttles. Limit the bypass
+        # to a covered sell so an incorrectly oversized order still fails safe.
+        covered_exit = (
+            order.side == "sell"
+            and order.purpose in {"stop_loss", "emergency"}
+            and order_value <= current_position_value * 1.01
+            and risk_reducing
+        )
         if not math.isfinite(portfolio_value) or portfolio_value <= 0:
             if not risk_reducing:
                 return False, "Portfolio value is not finite and positive"
             portfolio_value = 0.0
 
         # 1. Min price check
-        if price < self.config.min_price:
+        if not covered_exit and price < self.config.min_price:
             reason = (
                 f"Price ${price:.2f} below minimum ${self.config.min_price:.2f} "
                 f"for {order.symbol}"
@@ -257,7 +266,8 @@ class PreTradeCheck:
             return False, reason
 
         # 2. Single order value limit
-        if check_order_limits and order_value > self.config.max_single_order_value:
+        if (not covered_exit and check_order_limits
+                and order_value > self.config.max_single_order_value):
             reason = (
                 f"Order value ${order_value:,.0f} exceeds max "
                 f"${self.config.max_single_order_value:,.0f} for {order.symbol}"
@@ -266,7 +276,8 @@ class PreTradeCheck:
             return False, reason
 
         # 3. Single order share limit
-        if check_order_limits and abs(order.quantity) > self.config.max_single_order_shares:
+        if (not covered_exit and check_order_limits
+                and abs(order.quantity) > self.config.max_single_order_shares):
             reason = (
                 f"Order quantity {abs(order.quantity):.0f} exceeds max "
                 f"{self.config.max_single_order_shares} shares for {order.symbol}"
@@ -276,7 +287,7 @@ class PreTradeCheck:
 
         # 4. Daily cumulative value limit
         projected_daily = self.daily.total_value_traded + order_value
-        if projected_daily > self.config.max_daily_trade_value:
+        if not covered_exit and projected_daily > self.config.max_daily_trade_value:
             reason = (
                 f"Daily trade value would reach ${projected_daily:,.0f}, "
                 f"exceeding limit ${self.config.max_daily_trade_value:,.0f}"
@@ -300,7 +311,7 @@ class PreTradeCheck:
                 return False, reason
 
         # 6. Liquidity / ADV check
-        if check_adv and avg_daily_volume is not None:
+        if not covered_exit and check_adv and avg_daily_volume is not None:
             try:
                 avg_daily_volume = float(avg_daily_volume)
             except (TypeError, ValueError):

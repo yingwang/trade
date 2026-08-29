@@ -50,7 +50,7 @@ data/   signals/   portfolio/   execution/   backtest/
 - **`quant/strategy.py`** — Multi-factor orchestrator: `run_backtest()`, `get_current_signal()`, `get_current_portfolio(capital, prev_weights)`
 - **`quant/signals/lgbm_strategy.py`** — LightGBM orchestrator, same interface plus `prev_scores`; live path hard-fails instead of falling back to constant scores
 - **`quant/signals/lgbm_model.py`** — Date-grouped LambdaRank model + `purged_train_val_split`, missingness-aware inputs, Rank IC/ICIR and baseline-skill diagnostics
-- **`quant/data/market_data.py`** — yfinance wrapper for prices and fundamentals
+- **`quant/data/market_data.py`** — yfinance wrapper for prices, same-download opens/volumes, and fundamentals
 - **`quant/data/quality.py`** — `DataQualityChecker` (logging, backtest path) and `enforce_live_data_quality` (hard gate, live path — drops dead symbols, aborts on breadth collapse)
 - **`quant/signals/factors.py`** — Alpha factor calculations. Factors are industry-neutralized and winsorized to ±3σ. `factor_weights` in config is the single source of truth: unlisted factors are 0, no hidden defaults
 - **`quant/portfolio/optimizer.py`** — Constrained MVO with Ledoit-Wolf shrinkage. `detect_regime()` (SPY vol), `apply_vol_scaling()` (0.8x–1.8x), and `enforce_turnover_cap()` — the real 40% cap, applied to final weights including exit legs and leverage changes
@@ -67,13 +67,14 @@ Raw prices → live quality gate → factor scores (momentum 50%, high_proximity
 
 - Max 12 positions, 3%–12% per stock, max 50% per sector
 - Rebalance every 21 trading days; 40% cap on TOTAL turnover (exit legs and vol-scaling included; excess blends toward the previous portfolio)
-- Transaction cost: 10 bps + Almgren-Chriss market impact; Sharpe/Sortino vs 4% risk-free rate
+- Transaction cost: 10 bps + per-symbol volume-participation Almgren-Chriss market impact (turnover fallback when volume is missing); Sharpe/Sortino vs 4% risk-free rate
 - Quality and value factors are **disabled** — yfinance only provides current snapshots, causing look-ahead bias in backtests
 
 ## Live Operation (GitHub Actions)
 
 - `rebalance.yml` and `rebalance-lgbm.yml` run every weekday and share a repository-wide concurrency group; state is cached AND committed to main `[skip ci]`, with `git pull --rebase` before push
 - Market-closed days exit before submitting anything; stop-losses are checked on every daily run, not only rebalance days
+- Covered stop-loss/emergency sells bypass entry-oriented size, daily-turnover, penny-stock, and ADV throttles; oversized sells remain blocked
 - Entry prices back the stop-loss and are recorded only when a position is newly established (adds don't reset the base) — same semantics as the backtest engine
 - The LGBM account persists `prev_scores` in its state file so the score-level turnover penalty is active across runs
 - `update-site.yml` regenerates dashboards nightly onto gh-pages; site/data on main is gitignored (never commit generated snapshots)

@@ -28,6 +28,10 @@ class MarketData:
         # Backtests use it to execute a close-generated signal at the next
         # session's open without performing an inconsistent second fetch.
         self.last_open_prices_: pd.DataFrame | None = None
+        # Share volume from that same download feeds the backtest market-impact
+        # model. Keeping it alongside prices avoids a second, potentially
+        # differently adjusted data request.
+        self.last_volumes_: pd.DataFrame | None = None
 
     # ------------------------------------------------------------------
     # Price data
@@ -91,6 +95,11 @@ class MarketData:
         if isinstance(data.columns, pd.MultiIndex):
             prices = data["Close"]
             opens = data["Open"] if "Open" in data.columns.get_level_values(0) else None
+            volumes = (
+                data["Volume"]
+                if "Volume" in data.columns.get_level_values(0)
+                else None
+            )
         else:
             prices = data[["Close"]].rename(columns={"Close": all_symbols[0]})
             opens = (
@@ -98,11 +107,21 @@ class MarketData:
                 if "Open" in data.columns
                 else None
             )
+            volumes = (
+                data[["Volume"]].rename(columns={"Volume": all_symbols[0]})
+                if "Volume" in data.columns
+                else None
+            )
 
         prices = prices.dropna(how="all")
         self.last_open_prices_ = (
             opens.reindex(index=prices.index, columns=prices.columns)
             if opens is not None
+            else None
+        )
+        self.last_volumes_ = (
+            volumes.reindex(index=prices.index, columns=prices.columns)
+            if volumes is not None
             else None
         )
         return prices
