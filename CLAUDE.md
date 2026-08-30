@@ -56,6 +56,7 @@ data/   signals/   portfolio/   execution/   backtest/
 - **`quant/portfolio/optimizer.py`** — Constrained MVO with Ledoit-Wolf shrinkage. `detect_regime()` (SPY vol), `apply_vol_scaling()` (0.8x–1.8x), and `enforce_turnover_cap()` — the real 40% cap, applied to final weights including exit legs and leverage changes
 - **`quant/execution/safety.py`** — `PreTradeCheck` limits; `DailyTracker` counters persist across same-day runs via the state file
 - **`quant/backtest/engine.py`** — Event-driven daily simulator: T-close signal / next-session-open execution, pending missing-bar orders, next-bar stop-losses, delisting returns, margin interest, market impact, and corrected risk metrics
+- **`quant/attribution.py`** — Actual-account attribution against SPY. Reconstructs holdings from fills; uses strictly lagged returns-based ETF factors for market/style/industry, keeps selection/cash/implementation-shortfall explicit, exposes reconciliation residual, and Carino-links terminal contributions
 - **`paper_trade_common.py`** — All live-trading logic (market-closed gate, daily stop-loss check, kill-switch, entry-price semantics, state/lock handling). The two entry scripts are thin wrappers whose module-level names (STATE_FILE, ExecutionLogger, ...) exist for tests to patch
 - **`config.yaml`** — All strategy parameters; `config_etf.yaml` — ETF robustness-control universe (not a survivorship-bias estimate)
 
@@ -78,6 +79,7 @@ Raw prices → live quality gate → factor scores (momentum 50%, high_proximity
 - Entry prices back the stop-loss and are recorded only when a position is newly established (adds don't reset the base) — same semantics as the backtest engine
 - The LGBM account persists `prev_scores` in its state file so the score-level turnover penalty is active across runs
 - `update-site.yml` regenerates dashboards nightly onto gh-pages; site/data on main is gitignored (never commit generated snapshots)
+- Both dashboards publish `attribution.json`: actual equity is the truth set, paper cash earns 0%, and any unexplained P&L stays visible as a reconciliation residual rather than being folded into stock selection
 - `honest-backtest.yml` / `readme-backtest.yml` are manual, read-only backtest runners for the ETF control and README tables
 
 ## Testing

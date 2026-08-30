@@ -189,6 +189,13 @@ dashboard:
     multifactor: {}
     lgbm: {}
 
+attribution:
+  # Actual paper-account attribution. Factor loadings for day T use only the
+  # preceding window; unexplained account P&L is reported separately.
+  lookback_days: 252
+  min_observations: 60
+  annual_cash_return: 0.0  # Alpaca paper cash does not earn interest
+
 safety:
   max_single_order_value: 50000     # $50k max per order
   max_single_order_shares: 10000    # 10k shares max per order

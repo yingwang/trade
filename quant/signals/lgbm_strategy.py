@@ -131,6 +131,7 @@ class LGBMStrategy:
         # Live-path outputs, exposed for persistence / site generation
         self.last_scores_: Optional[pd.Series] = None
         self.last_prices_: Optional[pd.DataFrame] = None
+        self.last_fundamentals_: Optional[pd.DataFrame] = None
 
     def _should_retrain(self) -> bool:
         """Decide whether to retrain the model at this rebalance."""
@@ -579,6 +580,7 @@ class LGBMStrategy:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
             fundamentals = pd.DataFrame()
+        self.last_fundamentals_ = fundamentals
 
         self.signal_gen.generate(
             prices,
@@ -665,6 +667,7 @@ class LGBMStrategy:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
             fundamentals = pd.DataFrame()
+        self.last_fundamentals_ = fundamentals
 
         sector_map = None
         if not fundamentals.empty and "sector" in fundamentals.columns:

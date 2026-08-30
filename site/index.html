@@ -35,6 +35,14 @@
         <div id="actual-chart" class="chart"></div>
       </section>
 
+      <section id="attribution-section" style="display:none">
+        <h2>Actual Alpha Attribution / 实盘超额收益归因</h2>
+        <p class="meta" style="margin-bottom:12px">Account equity is the source of truth. Lagged ETF-factor regressions and reconstructed fills split actual return versus SPY; unexplained P&amp;L remains visible as reconciliation residual.</p>
+        <div id="attribution-metrics" class="cards"></div>
+        <div id="attribution-chart" class="chart"></div>
+        <div id="attribution-detail-chart" class="chart"></div>
+      </section>
+
       <section id="live-positions-section" style="display:none">
         <h2>Live Positions / 实盘持仓</h2>
         <div id="live-account-info" class="info-bar"></div>
@@ -144,10 +152,12 @@
       fetch('data/backtest.json').then(r => r.json()),
       fetch('data/factors.json').then(r => r.json()),
       fetch('data/trades.json').then(r => r.json()),
-    ]).then(([portfolio, backtest, factors, trades]) => {
+      fetch('data/attribution.json').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([portfolio, backtest, factors, trades, attribution]) => {
       renderPortfolio(portfolio);
       renderFactors(factors);
       renderActualPerformance(trades);
+      renderAttribution(attribution);
       renderLivePositions(trades);
       renderPerformance(backtest);
       renderTrades(trades);
@@ -229,6 +239,77 @@
         yaxis: { title: 'Equity ($)', gridcolor: '#333', tickformat: '$,.0f' },
         margin: { l: 80, r: 20, t: 10, b: 40 },
         legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(0,0,0,0.5)' },
+      }, { responsive: true });
+    }
+
+    function renderAttribution(data) {
+      if (!data || data.status !== 'ok' || !data.summary) return;
+      const section = document.getElementById('attribution-section');
+      section.style.display = 'block';
+      const summary = data.summary;
+      const diagnostics = data.diagnostics || {};
+      const pct = value => `${value >= 0 ? '+' : ''}${(value * 100).toFixed(2)}pp`;
+      const cardItems = [
+        { label: 'Actual Alpha vs SPY', value: pct(summary.actual_alpha ?? 0) },
+        { label: 'Six Explained Effects', value: pct(summary.explained_alpha ?? 0) },
+        { label: 'Reconciliation Residual', value: pct(summary.reconciliation_residual ?? 0) },
+        { label: 'Position Price Coverage', value: `${((diagnostics.price_coverage ?? 0) * 100).toFixed(1)}%` },
+      ];
+      document.getElementById('attribution-metrics').innerHTML = cardItems.map(it => `
+        <div class="card">
+          <div class="card-value ${String(it.value).startsWith('-') ? 'negative' : 'positive'}">${it.value}</div>
+          <div class="card-label">${it.label}</div>
+        </div>`).join('');
+
+      const componentLabels = {
+        market_beta: 'Market Beta / 市场',
+        style: 'Style Factors / 风格',
+        industry: 'Industry / 行业',
+        stock_selection: 'Stock Selection / 选股',
+        cash_drag: 'Cash Drag / 现金拖累',
+        trading_costs: 'Trading Costs / 交易成本',
+        reconciliation_residual: 'Residual / 对账残差',
+      };
+      const componentKeys = Object.keys(componentLabels);
+      const componentValues = componentKeys.map(key => data.components?.[key] ?? 0);
+      Plotly.newPlot('attribution-chart', [{
+        type: 'bar', orientation: 'h',
+        y: componentKeys.map(key => componentLabels[key]),
+        x: componentValues,
+        marker: { color: componentValues.map(value => value >= 0 ? '#66bb6a' : '#ef5350') },
+        hovertemplate: '%{y}<br>%{x:.2%}<extra></extra>',
+      }], {
+        title: `Linked contribution, ${summary.period_start} to ${summary.period_end} / Carino 链接贡献`,
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { title: 'Contribution to active return', tickformat: '.1%', gridcolor: '#333', zerolinecolor: '#888' },
+        margin: { l: 190, r: 30, t: 55, b: 45 },
+        showlegend: false,
+      }, { responsive: true });
+
+      const details = [
+        ...Object.entries(data.style_breakdown || {}).map(([name, value]) => [`Style: ${name}`, value]),
+        ...Object.entries(data.industry_breakdown || {}).map(([name, value]) => [`Industry: ${name}`, value]),
+      ].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+      const detailContainer = document.getElementById('attribution-detail-chart');
+      if (!details.length) {
+        detailContainer.innerHTML = '<p class="meta">Style and industry proxy history is not yet available.</p>';
+        return;
+      }
+      Plotly.newPlot('attribution-detail-chart', [{
+        type: 'bar',
+        x: details.map(item => item[0]),
+        y: details.map(item => item[1]),
+        marker: { color: details.map(item => item[1] >= 0 ? '#4fc3f7' : '#ff9800') },
+        hovertemplate: '%{x}<br>%{y:.2%}<extra></extra>',
+      }], {
+        title: 'Style and industry detail / 风格与行业明细',
+        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0' },
+        xaxis: { tickangle: -35, gridcolor: '#333' },
+        yaxis: { tickformat: '.1%', gridcolor: '#333', zerolinecolor: '#888' },
+        margin: { l: 75, r: 25, t: 50, b: 145 },
+        showlegend: false,
       }, { responsive: true });
     }
 

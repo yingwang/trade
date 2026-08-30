@@ -6,6 +6,16 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 **[Live Performance Dashboard / 实时表现看板 →](https://yingwang.github.io/trade/)**
 
+The dashboard includes a nightly actual-account alpha attribution for both
+paper strategies. Account equity is the truth set; filled orders reconstruct
+holdings and strictly lagged ETF regressions split return versus SPY into
+market beta, style, industry, stock selection, cash drag, and implementation
+shortfall. A separate reconciliation residual exposes deposits, dividends,
+missing history, or broker/data discrepancies. Carino linking makes terminal
+contributions add exactly to geometric active return.
+
+看板每天对两个模拟账户做真实收益归因：以账户净值为准，以成交重建持仓，再用严格滞后的 ETF 因子回归拆分市场 beta、风格、行业、个股选择、现金拖累与执行成本。无法由六项解释的差额单列为对账残差，不藏入“选股”；期末贡献经 Carino 链接后与几何超额收益严格相加一致。
+
 ---
 
 ## Backtest Performance / 回测表现
@@ -174,6 +184,7 @@ trade/
 ├── quant/
 │   ├── strategy.py             # 多因子策略调度器
 │   ├── strategy_ensemble.py    # 多因子 + LightGBM 集成（研究用）
+│   ├── attribution.py          # 实际账户 alpha 归因 + Carino 对账
 │   ├── data/
 │   │   ├── market_data.py      # Yahoo Finance 数据获取
 │   │   └── quality.py          # 数据质量检查 + 实盘质量闸门 + 时点数据管理

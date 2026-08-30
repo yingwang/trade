@@ -44,6 +44,10 @@ class MultiFactorStrategy:
         self.pit_universe, self.delisting_returns = load_point_in_time_bundle(config)
         # Live-path price snapshot, exposed for site generation reuse
         self.last_prices_ = None
+        # The matching live fundamental snapshot is reused by actual-return
+        # attribution for sector labels. It is never fed into historical
+        # signal rows or represented as point-in-time data.
+        self.last_fundamentals_ = None
 
     def run_backtest(self, start: str = None, end: str = None) -> BacktestResult:
         """Full backtest pipeline."""
@@ -231,6 +235,7 @@ class MultiFactorStrategy:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
             fundamentals = pd.DataFrame()
+        self.last_fundamentals_ = fundamentals
 
         eligibility = None
         if self.pit_universe is not None:
@@ -280,6 +285,7 @@ class MultiFactorStrategy:
             fundamentals = self.data.fetch_fundamentals()
         except Exception:
             fundamentals = pd.DataFrame()
+        self.last_fundamentals_ = fundamentals
 
         # Extract sector map
         sector_map = None

@@ -5,13 +5,14 @@ Produces JSON data files in site/lgbm/data/ that are loaded by the
 LightGBM dashboard. Run daily after US market close (via the
 update-site.yml workflow — do not run locally against the live account).
 
-Outputs 6 JSON files:
+Outputs 7 JSON files:
   - portfolio.json   — current LightGBM portfolio recommendation
   - backtest.json    — historical backtest performance
   - factors.json     — factor score breakdown (from underlying factor inputs)
   - trades.json      — trade history from Alpaca (LGBM account)
   - feature_importance.json — LightGBM feature importance ranking
   - training_history.json   — model training metadata
+  - attribution.json — actual alpha reconciled to market/style/sector effects
 """
 
 import json
@@ -29,7 +30,7 @@ matplotlib.use("Agg")
 
 from quant.utils.config import load_config
 from quant.signals.lgbm_strategy import LGBMStrategy
-from site_common import fetch_trade_history
+from site_common import fetch_trade_history, generate_actual_attribution
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -267,6 +268,15 @@ def main():
     logger.info("Generating factor data...")
     factors = generate_factor_data(strategy, current_portfolio)
 
+    logger.info("Generating actual alpha attribution...")
+    attribution = generate_actual_attribution(
+        trades,
+        strategy.last_prices_,
+        strategy.last_fundamentals_,
+        config,
+        benchmark=strategy.data.benchmark,
+    )
+
     logger.info("Generating LightGBM backtest data...")
     backtest = generate_backtest_data(strategy)
 
@@ -286,6 +296,7 @@ def main():
         ("trades", trades),
         ("feature_importance", feature_importance),
         ("training_history", training_history),
+        ("attribution", attribution),
     ]:
         path = OUTPUT_DIR / f"{name}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))

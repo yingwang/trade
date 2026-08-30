@@ -21,7 +21,7 @@ matplotlib.use("Agg")
 
 from quant.utils.config import load_config
 from quant.strategy import MultiFactorStrategy
-from site_common import fetch_trade_history
+from site_common import fetch_trade_history, generate_actual_attribution
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -177,12 +177,26 @@ def main():
     logger.info("Generating factor data...")
     factors = generate_factor_data(strategy, current_portfolio)
 
+    logger.info("Generating actual alpha attribution...")
+    attribution = generate_actual_attribution(
+        trades,
+        strategy.last_prices_,
+        strategy.last_fundamentals_,
+        config,
+        benchmark=strategy.data.benchmark,
+    )
+
     logger.info("Generating backtest data...")
     backtest = generate_backtest_data(strategy)
 
     # Write JSON files
-    for name, data in [("portfolio", portfolio), ("backtest", backtest),
-                       ("factors", factors), ("trades", trades)]:
+    for name, data in [
+        ("portfolio", portfolio),
+        ("backtest", backtest),
+        ("factors", factors),
+        ("trades", trades),
+        ("attribution", attribution),
+    ]:
         path = OUTPUT_DIR / f"{name}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
         logger.info("Wrote %s (%d bytes)", path, path.stat().st_size)

@@ -6,6 +6,8 @@ The split correction in particular is easy to get wrong and was duplicated;
 it now lives here once, with guards that the original copies lacked.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import math
@@ -32,6 +34,32 @@ STOCK_SPLITS = {
         "date": split.first_adjusted_session.isoformat(),
     }
     for split in KNOWN_STOCK_SPLITS.values()
+}
+
+# Transparent, investable returns proxies for the actual-account attribution.
+# Each style factor is a long/short ETF spread; sector effects use the relevant
+# Select Sector (or equivalent) ETF in excess of SPY.  Stock loadings are
+# estimated only from data preceding the attributed day.
+ATTRIBUTION_STYLE_PROXIES = {
+    "size": ("IWM", "SPY"),
+    "value": ("IWD", "IWF"),
+    "momentum": ("MTUM", "SPY"),
+    "quality": ("QUAL", "SPY"),
+    "low_volatility": ("USMV", "SPY"),
+}
+
+ATTRIBUTION_SECTOR_PROXIES = {
+    "Basic Materials": "XLB",
+    "Communication Services": "XLC",
+    "Consumer Cyclical": "XLY",
+    "Consumer Defensive": "XLP",
+    "Energy": "XLE",
+    "Financial Services": "XLF",
+    "Healthcare": "XLV",
+    "Industrials": "XLI",
+    "Real Estate": "XLRE",
+    "Technology": "XLK",
+    "Utilities": "XLU",
 }
 
 
@@ -353,6 +381,186 @@ def fetch_trade_history(
     return parse_local_trade_logs(state_file)
 
 
+def generate_actual_attribution(
+    trades: dict,
+    asset_prices,
+    fundamentals,
+    config: dict,
+    benchmark: str = "SPY",
+) -> dict:
+    """Build the actual-alpha attribution payload used by both dashboards.
+
+    This runs only in the nightly site workflow, after the strategy has already
+    fetched its adjusted universe prices and current sector snapshot.  A
+    separate compact ETF download supplies investable style/sector returns.
+    Failure to fetch a proxy does not invent data: that factor remains zero and
+    its stock return stays in security selection or reconciliation residual.
+    """
+
+    from quant.attribution import attribute_actual_performance
+
+    portfolio_history = [
+        dict(row) for row in (trades.get("portfolio_history", []) or [])
+    ]
+    current_equity = trades.get("account", {}).get("equity")
+    if portfolio_history and current_equity is not None:
+        # Match the actual-performance panel: the broker's current account
+        # equity is the authoritative final observation.
+        portfolio_history[-1]["equity"] = float(current_equity)
+    if len([row for row in portfolio_history if row.get("equity") is not None]) < 2:
+        return {
+            "status": "insufficient_data",
+            "summary": {"trading_days": 0},
+            "diagnostics": {"reason": "Need at least two actual equity values"},
+            "components": {},
+            "style_breakdown": {},
+            "industry_breakdown": {},
+            "daily": [],
+        }
+
+    try:
+        import pandas as pd
+        import yfinance as yf
+
+        history_dates = pd.to_datetime(
+            [row["date"] for row in portfolio_history if row.get("equity") is not None]
+        )
+        start = (history_dates.min() - pd.Timedelta(days=550)).strftime("%Y-%m-%d")
+        end = (history_dates.max() + pd.Timedelta(days=2)).strftime("%Y-%m-%d")
+        proxy_symbols = sorted(
+            {benchmark}
+            | {
+                symbol
+                for pair in ATTRIBUTION_STYLE_PROXIES.values()
+                for symbol in pair
+            }
+            | set(ATTRIBUTION_SECTOR_PROXIES.values())
+        )
+        downloaded = yf.download(
+            proxy_symbols,
+            start=start,
+            end=end,
+            auto_adjust=True,
+            progress=False,
+        )
+        if isinstance(downloaded.columns, pd.MultiIndex):
+            proxy_prices = downloaded["Close"]
+        elif "Close" in downloaded:
+            proxy_prices = downloaded[["Close"]].rename(
+                columns={"Close": proxy_symbols[0]}
+            )
+        else:
+            proxy_prices = pd.DataFrame()
+    except Exception as exc:
+        logger.warning("Could not fetch attribution ETF proxies: %s", exc)
+        import pandas as pd
+
+        proxy_prices = pd.DataFrame()
+
+    # Reuse SPY from the exact strategy download if the proxy request failed or
+    # returned a shorter calendar.  combine_first preserves proxy observations.
+    if asset_prices is not None and benchmark in asset_prices:
+        benchmark_frame = asset_prices[[benchmark]]
+        proxy_prices = proxy_prices.combine_first(benchmark_frame)
+
+    sector_map = None
+    if fundamentals is not None and not fundamentals.empty and "sector" in fundamentals:
+        sector_map = fundamentals["sector"]
+
+    attribution_config = config.get("attribution", {})
+    result = attribute_actual_performance(
+        portfolio_history=portfolio_history,
+        rebalances=_attribution_rebalances(
+            trades.get("rebalances", []) or []
+        ),
+        current_positions=trades.get("positions", []) or [],
+        asset_prices=asset_prices,
+        proxy_prices=proxy_prices,
+        sector_map=sector_map,
+        benchmark=benchmark,
+        style_proxies=ATTRIBUTION_STYLE_PROXIES,
+        sector_proxies=ATTRIBUTION_SECTOR_PROXIES,
+        lookback=int(attribution_config.get("lookback_days", 252)),
+        min_observations=int(attribution_config.get("min_observations", 60)),
+        # Alpaca paper cash earns no interest.  This keeps the cash-drag term
+        # tied to actual account economics rather than the backtest's 4% hurdle.
+        annual_cash_return=float(attribution_config.get("annual_cash_return", 0.0)),
+    )
+    payload = result.to_dict()
+    payload.setdefault("methodology", {})
+    payload["methodology"] = {
+        "benchmark": benchmark,
+        "equity_truth": "Alpaca portfolio history; final point uses current account equity",
+        "style_proxies": {
+            name: f"{long_symbol}-{short_symbol}"
+            for name, (long_symbol, short_symbol) in ATTRIBUTION_STYLE_PROXIES.items()
+        },
+        "sector_proxies": ATTRIBUTION_SECTOR_PROXIES,
+        "lookback_days": int(attribution_config.get("lookback_days", 252)),
+        "min_observations": int(attribution_config.get("min_observations", 60)),
+        "cash_return": float(attribution_config.get("annual_cash_return", 0.0)),
+        "trading_costs": "implementation shortfall versus prior adjusted close",
+        "sector_classification": "current yfinance sector snapshot",
+        "linking": "Carino",
+    }
+    return payload
+
+
+def _attribution_rebalances(rebalances: list[dict]) -> list[dict]:
+    """Return fills in the split-adjusted units used by Yahoo prices.
+
+    Alpaca paper accounts may retain old share units through a split.  The
+    dashboard already corrects the corresponding equity curve; attribution
+    must apply the same economic units or the correction would appear as an
+    enormous unexplained residual.  Post-split buys are consumed first, just
+    like ``_split_sold_credit``: only the unmatched part of a later sell is a
+    sale of stale pre-split shares.
+    """
+
+    events = []
+    for rebalance in rebalances:
+        for sequence, raw_trade in enumerate(rebalance.get("trades", []) or []):
+            trade = dict(raw_trade)
+            timestamp = _parse_timestamp(trade.get("filled_at"))
+            date = str(rebalance.get("date", ""))[:10]
+            events.append((timestamp, date, sequence, trade))
+    events.sort(
+        key=lambda item: (
+            item[0] or datetime.min.replace(tzinfo=timezone.utc),
+            item[1],
+            item[2],
+        )
+    )
+
+    post_split_bought = defaultdict(float)
+    by_date = defaultdict(list)
+    for _, date, _, trade in events:
+        symbol = str(trade.get("symbol", "")).upper()
+        split = STOCK_SPLITS.get(symbol)
+        if split is not None:
+            ratio = float(split["ratio"])
+            quantity = float(trade.get("quantity", trade.get("qty", 0)) or 0)
+            price = float(trade.get("price", 0) or 0)
+            side = str(trade.get("side", "")).lower()
+            if date < split["first_adjusted_session"]:
+                trade["quantity"] = quantity * ratio
+                if price > 0:
+                    trade["price"] = price / ratio
+            elif side == "buy":
+                post_split_bought[symbol] += quantity
+            elif side == "sell":
+                covered = min(quantity, post_split_bought[symbol])
+                post_split_bought[symbol] -= covered
+                stale_quantity = quantity - covered
+                trade["quantity"] = covered + stale_quantity * ratio
+        by_date[date].append(trade)
+
+    return [
+        {"date": date, "trades": trades}
+        for date, trades in sorted(by_date.items(), reverse=True)
+    ]
+
+
 def _fetch_trades_from_alpaca(
     api_key,
     secret_key,
@@ -445,12 +653,18 @@ def _fetch_trades_from_alpaca(
         # Group orders by date into "rebalances"
         by_date = defaultdict(list)
         for o in filled_orders:
-            date = _eastern_date(o.filled_at or o.submitted_at)
+            fill_timestamp = _parse_timestamp(o.filled_at or o.submitted_at)
+            date = _eastern_date(fill_timestamp)
             by_date[date].append({
                 "symbol": o.symbol,
                 "side": _enum_value(o.side),
                 "quantity": float(o.filled_qty),
                 "price": float(o.filled_avg_price) if o.filled_avg_price else 0,
+                "filled_at": (
+                    fill_timestamp.isoformat()
+                    if fill_timestamp is not None
+                    else None
+                ),
                 "slippage_bps": 0,
                 "status": str(_enum_value(o.status)),
             })
