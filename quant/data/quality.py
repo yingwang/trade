@@ -241,6 +241,8 @@ def enforce_live_data_quality(
     benchmark: str = None,
     min_valid_frac: float = 0.8,
     min_history_days: int = 200,
+    as_of=None,
+    max_staleness_days: int = 5,
 ) -> pd.DataFrame:
     """Hard quality gate for the live/paper trading path.
 
@@ -257,10 +259,29 @@ def enforce_live_data_quality(
          the benchmark column itself is unusable — both indicate a broken
          data feed rather than isolated bad symbols.
 
+      4. With ``as_of`` given, aborts when the newest bar is more than
+         ``max_staleness_days`` calendar days old: a complete but stale
+         download passes every other check and would trade yesterday's
+         signal at today's prices.  Five days spans any holiday weekend.
+
     Returns the pruned price DataFrame on success.
     """
     if prices is None or prices.empty:
         raise RuntimeError("Live data quality gate: price fetch returned no data")
+
+    if as_of is not None:
+        newest = pd.Timestamp(pd.to_datetime(prices.index).max())
+        if newest.tzinfo is not None:
+            newest = newest.tz_convert(None)
+        cutoff = pd.Timestamp(as_of)
+        if cutoff.tzinfo is not None:
+            cutoff = cutoff.tz_convert(None)
+        age_days = (cutoff.normalize() - newest.normalize()).days
+        if age_days > int(max_staleness_days):
+            raise RuntimeError(
+                f"Live data quality gate: newest price bar is {newest.date()} "
+                f"({age_days} days before {cutoff.date()}); refusing to trade on stale data"
+            )
 
     checker = DataQualityChecker()
     report = checker.run_all_checks(prices)

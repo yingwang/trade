@@ -34,6 +34,10 @@ class Order:
     purpose: str = "rebalance"     # rebalance / stop_loss / emergency
     requested_quantity: float = None
     filled_quantity: float = 0.0
+    # Identifier of the rebalance attempt this order belongs to. It enters the
+    # idempotency key so that a same-day rerun of a *new* attempt can never be
+    # matched to a fill from an earlier, abandoned one.
+    batch: str = ""
 
     def __post_init__(self):
         self.side = str(self.side).lower()
@@ -174,6 +178,7 @@ def generate_rebalance_orders(
     prices: dict[str, float],
     order_type: str = "market",
     limit_offset_bps: float = 0,
+    batch: str = "",
 ) -> list[Order]:
     """Generate the orders needed to move from current to target portfolio.
 
@@ -226,6 +231,7 @@ def generate_rebalance_orders(
             order_type=otype,
             limit_price=limit_price,
             signal_price=price,
+            batch=batch,
         )
         orders.append(order)
 

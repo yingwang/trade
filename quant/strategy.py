@@ -232,7 +232,8 @@ class MultiFactorStrategy:
     def get_current_signal(self) -> pd.Series:
         """Get the latest composite signal for live/paper trading decisions."""
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark
+            self.data.fetch_prices(), benchmark=self.data.benchmark,
+            as_of=pd.Timestamp.now(),
         )
         returns = MarketData.compute_returns(prices)
         try:
@@ -281,7 +282,8 @@ class MultiFactorStrategy:
 
         # Hard quality gate: never generate live orders from a broken fetch
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark
+            self.data.fetch_prices(), benchmark=self.data.benchmark,
+            as_of=pd.Timestamp.now(),
         )
         self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)

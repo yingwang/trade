@@ -565,7 +565,8 @@ class LGBMStrategy:
         silently degrading to constant fallback scores.
         """
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark
+            self.data.fetch_prices(), benchmark=self.data.benchmark,
+            as_of=pd.Timestamp.now(),
         )
         returns = MarketData.compute_returns(prices)
         eligibility = None
@@ -652,7 +653,8 @@ class LGBMStrategy:
             capital = self.config["backtest"]["initial_capital"]
 
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark
+            self.data.fetch_prices(), benchmark=self.data.benchmark,
+            as_of=pd.Timestamp.now(),
         )
         self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)

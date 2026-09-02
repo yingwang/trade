@@ -720,3 +720,91 @@ class TestStaticSectorTable:
         from quant.utils.config import static_sector_map
 
         assert static_sector_map({"universe": {"symbols": ["A"]}}) is None
+
+
+
+class TestBatchThreeHardening:
+    def test_rebalance_outcome_classification(self):
+        from paper_trade_common import classify_rebalance_outcome
+
+        filled = [{"status": "filled"}, {"status": "filled"}]
+        assert classify_rebalance_outcome(filled, 0)[0] is True
+        # Deterministic rejections close the cycle: repeating changes nothing.
+        settled = [{"status": "filled"}, {"status": "rejected"}]
+        done, reason = classify_rebalance_outcome(settled, 0)
+        assert done is True and "rejected" in reason
+        # An open or unknown order keeps it pending, but not forever.
+        stuck = [{"status": "filled"}, {"status": "unknown"}, {"status": "not_submitted"}]
+        assert classify_rebalance_outcome(stuck, 0)[0] is False
+        assert classify_rebalance_outcome(stuck, 1)[0] is False
+        done, reason = classify_rebalance_outcome(stuck, 2)
+        assert done is True and "abandoned" in reason
+
+    def test_should_rebalance_follows_the_anchored_schedule(self):
+        from datetime import datetime
+        from paper_trade_common import should_rebalance
+
+        # 21-business-day schedule from 2000-01-03: 2026-08-31 and 2026-09-29 are on it.
+        state = {"last_rebalance": "2026-08-31T18:00:00"}
+        assert should_rebalance(state, 21, anchor="2000-01-03", today=datetime(2026, 9, 2)) is False
+        assert should_rebalance(state, 21, anchor="2000-01-03", today=datetime(2026, 9, 29)) is True
+        # A missed day is caught up on the next run instead of sliding the phase.
+        assert should_rebalance(state, 21, anchor="2000-01-03", today=datetime(2026, 10, 2)) is True
+        state = {"last_rebalance": "2026-09-29T18:00:00"}
+        assert should_rebalance(state, 21, anchor="2000-01-03", today=datetime(2026, 10, 2)) is False
+
+    def test_rejected_stop_loss_does_not_count_as_stopped(self):
+        import pandas as pd
+        from paper_trade_common import check_stop_losses
+        from quant.execution.broker import Order
+
+        class Broker:
+            def get_positions(self):
+                return pd.Series({"AAA": 10.0, "BBB": 10.0})
+
+            def get_current_prices(self, symbols):
+                return {"AAA": 50.0, "BBB": 50.0}
+
+            def submit_order(self, order):
+                order.status = "rejected" if order.symbol == "AAA" else "filled"
+                order.filled_quantity = 0.0 if order.symbol == "AAA" else 10.0
+                order.filled_price = None if order.symbol == "AAA" else 50.0
+                order.order_id = "x"
+                return order
+
+        class Opt:
+            stop_loss_pct = 0.15
+
+        state = {"entry_prices": {"AAA": 100.0, "BBB": 100.0}, "trade_history": []}
+        stopped = check_stop_losses(Broker(), Opt(), state, dry_run=False)
+        assert stopped == ["BBB"]
+        assert state["trade_history"][-1]["stop_loss"] is True
+        assert [t["symbol"] for t in state["trade_history"][-1]["trades"]] == ["BBB"]
+        # The rejected one keeps its stop base; the filled one is cleared.
+        assert "AAA" in state["entry_prices"]
+
+    def test_batch_id_changes_the_idempotency_key(self):
+        from quant.execution.alpaca_broker import AlpacaBroker
+        from quant.execution.broker import Order
+
+        a = Order(symbol="AAA", side="buy", quantity=5, order_type="market", batch="2026-09-02T14:00:00")
+        b = Order(symbol="AAA", side="buy", quantity=5, order_type="market", batch="2026-09-02T15:30:00")
+        c = Order(symbol="AAA", side="buy", quantity=5, order_type="market")
+        ids = {AlpacaBroker._base_client_order_id(o) for o in (a, b, c)}
+        assert len(ids) == 3
+
+    def test_stale_data_is_refused_when_as_of_is_given(self):
+        import numpy as np
+        import pandas as pd
+        import pytest
+        from quant.data.quality import enforce_live_data_quality
+
+        dates = pd.bdate_range("2025-01-01", periods=260)
+        prices = pd.DataFrame(100 + np.cumsum(np.random.default_rng(0).normal(0, 1, (260, 3)), axis=0),
+                              index=dates, columns=["AAA", "BBB", "SPY"])
+        last = dates[-1]
+        enforce_live_data_quality(prices, benchmark="SPY", as_of=last + pd.Timedelta(days=4))
+        with pytest.raises(RuntimeError, match="stale"):
+            enforce_live_data_quality(prices, benchmark="SPY", as_of=last + pd.Timedelta(days=9))
+        # Without as_of the gate is unchanged (fixtures with old dates still pass).
+        enforce_live_data_quality(prices, benchmark="SPY")

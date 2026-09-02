@@ -130,6 +130,12 @@ class AlpacaBroker(BaseBroker):
             "type": order.order_type,
             "limit": order.limit_price,
         }
+        # A rebalance attempt's own id.  Without it, an attempt started later
+        # the same day that happened to want the same symbol/side/quantity was
+        # matched to the earlier attempt's fill and recorded as done without
+        # sending anything.
+        if getattr(order, "batch", ""):
+            payload["batch"] = str(order.batch)
         digest = hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()[:24]
@@ -717,6 +723,50 @@ class AlpacaBroker(BaseBroker):
         )
         if method:
             method()
+
+    def open_orders(self) -> list:
+        """Orders the broker still considers open (accepted, new, partially filled)."""
+        client = self._client()
+        try:
+            from alpaca.trading.enums import QueryOrderStatus
+            from alpaca.trading.requests import GetOrdersRequest
+
+            return list(client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN)))
+        except ImportError:
+            method = getattr(client, "list_orders", None) or getattr(client, "get_orders", None)
+            if method is None:
+                return []
+            try:
+                return list(method(status="open"))
+            except TypeError:
+                return list(method())
+
+    def sweep_open_orders(self, timeout_seconds: float = 30.0) -> int:
+        """Cancel whatever is still open from an earlier run and confirm it is gone.
+
+        A run that starts on top of an unconfirmed open order (a timed-out
+        cancel from yesterday, a slice of an interrupted TWAP) would size its
+        own orders against positions that are about to change.  Returns the
+        number of orders still open after the sweep; the caller must not trade
+        while that is non-zero.
+        """
+        pending = self.open_orders()
+        if not pending:
+            return 0
+        logger.warning(
+            "Sweeping %d open order(s) left by an earlier run: %s",
+            len(pending),
+            [f"{_attr(o, 'symbol', '?')} {_attr(o, 'side', '?')} {_attr(o, 'qty', '?')}" for o in pending],
+        )
+        self.cancel_all_orders()
+        deadline = self._monotonic() + float(timeout_seconds)
+        remaining = self.open_orders()
+        while remaining and self._monotonic() < deadline:
+            self._sleep(2.0)
+            remaining = self.open_orders()
+        if remaining:
+            logger.error("%d order(s) still open after the sweep", len(remaining))
+        return len(remaining)
 
     def close_all_positions(self):
         method = getattr(self._client(), "close_all_positions", None)

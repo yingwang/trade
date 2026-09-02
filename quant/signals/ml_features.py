@@ -45,10 +45,16 @@ def compute_rsi(prices: pd.DataFrame, window: int = 14) -> pd.DataFrame:
 
 def compute_macd(prices: pd.DataFrame,
                  fast: int = 12, slow: int = 26, signal: int = 9) -> dict[str, pd.DataFrame]:
-    """MACD line, signal line, and histogram."""
+    """MACD line, signal line, and histogram, as fractions of price.
+
+    The raw MACD is in price units, so a $1,000 stock's value dwarfs a $50
+    stock's regardless of trend strength and the feature drifts with the
+    price level; dividing by price makes it comparable across the
+    cross-section.
+    """
     ema_fast = prices.ewm(span=fast, adjust=False).mean()
     ema_slow = prices.ewm(span=slow, adjust=False).mean()
-    macd_line = ema_fast - ema_slow
+    macd_line = (ema_fast - ema_slow) / prices.replace(0, np.nan)
     signal_line = macd_line.ewm(span=signal, adjust=False).mean()
     histogram = macd_line - signal_line
     return {

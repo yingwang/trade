@@ -126,21 +126,70 @@ def release_lock(lock_file: Path):
         lock_file.unlink()
 
 
-def should_rebalance(state: dict, freq_days: int = 21) -> bool:
-    """Check if enough time has passed since last rebalance.
+def should_rebalance(
+    state: dict,
+    freq_days: int = 21,
+    anchor: Optional[str] = None,
+    today: Optional[datetime] = None,
+) -> bool:
+    """Whether a rebalance is due.
 
-    Uses a conservative calendar-day approximation: multiply calendar days
-    by 5/7 to estimate trading days. This slightly overestimates trading days
-    (ignores holidays), which means we rebalance slightly early rather than
-    late -- a safer default.
+    With ``anchor`` the live path follows the same fixed business-day schedule
+    as the backtest (see quant/backtest/calendar.py): a rebalance is due once a
+    scheduled date on or before today lies after the last rebalance, so both
+    paths trade on the same phase and a missed day is caught up on the next
+    run rather than sliding the whole schedule.  Without an anchor the old
+    calendar-day rule applies: calendar days times 5/7 as an estimate of
+    trading days, which rebalances slightly early rather than late.
     """
     last = state.get("last_rebalance")
     if last is None:
         return True
     last_date = datetime.fromisoformat(last)
-    days_passed = (datetime.now() - last_date).days
+    now = today or datetime.now()
+    if anchor:
+        scheduled = pd.bdate_range(start=pd.Timestamp(anchor), end=pd.Timestamp(now).normalize(),
+                                   freq=f"{int(freq_days)}B")
+        if len(scheduled) == 0:
+            return False
+        latest = scheduled[-1]
+        return pd.Timestamp(last_date).normalize() < latest
+    days_passed = (now - last_date).days
     trading_days = days_passed * 5 / 7
     return trading_days >= freq_days
+
+
+# Attempts an incomplete rebalance may make before it is declared settled:
+# without a bound, one order that keeps failing turned the 21-day cycle into
+# a daily re-optimization with up to 40% turnover each time.
+MAX_PENDING_REBALANCE_ATTEMPTS = 3
+
+
+def classify_rebalance_outcome(filled: list, attempts: int,
+                               max_attempts: int = MAX_PENDING_REBALANCE_ATTEMPTS) -> tuple[bool, str]:
+    """Decide whether a rebalance attempt closes the cycle.
+
+    Returns (completed, reason).  Every order filled: completed.  Every order
+    either filled or deterministically rejected (safety layer, broker reject),
+    with nothing left open, unknown or unsubmitted: completed as well; a reject
+    is final for the day and repeating the whole optimization tomorrow would
+    not change it.  Anything uncertain keeps the rebalance pending, but only
+    up to ``max_attempts``; after that it is settled with a warning so the
+    schedule is not hijacked by one stuck order.
+    """
+    statuses = [str(t.get("status", "")) for t in filled]
+    if statuses and all(s == "filled" for s in statuses):
+        return True, "all orders filled"
+    uncertain = [s for s in statuses if s in {"unknown", "submitted", "partial_fill_open", "not_submitted"}]
+    if not uncertain:
+        rejected = sum(1 for s in statuses if s == "rejected")
+        return True, f"settled with {rejected} rejected order(s); nothing left open"
+    if attempts + 1 >= max_attempts:
+        return True, (
+            f"abandoned after {attempts + 1} attempts with {len(uncertain)} "
+            "uncertain order(s); the next scheduled rebalance repairs the drift"
+        )
+    return False, f"{len(uncertain)} order(s) uncertain; attempt {attempts + 1} of {max_attempts}"
 
 
 def show_status(broker, banner: str = "PAPER TRADING STATUS"):
@@ -264,7 +313,10 @@ def check_stop_losses(
         logger.info("DRY RUN: would sell stopped positions: %s", stopped)
         return stopped
 
-    for sym in stopped:
+    triggered = list(stopped)
+    stopped = []
+    executed_records = []
+    for sym in triggered:
         shares = positions[sym]
         order = Order(
             symbol=sym,
@@ -276,6 +328,26 @@ def check_stop_losses(
         )
         result = broker.submit_order(order)
         logger.info("Stop-loss sell %s: %s (qty=%d)", sym, result.status, shares)
+        # A rejected sell changed nothing: it must neither freeze the day's
+        # rebalance nor count as an exit.  Anything that went out (filled,
+        # partial, or of unknown fate) does.
+        if result.status != "rejected":
+            stopped.append(sym)
+        filled_qty = float(getattr(result, "filled_quantity", 0) or 0)
+        if filled_qty > 0:
+            executed_records.append({
+                "time": datetime.now().isoformat(),
+                "symbol": sym,
+                "side": "sell",
+                "qty": filled_qty,
+                "requested_qty": float(shares),
+                "status": result.status,
+                "price": result.filled_price,
+                "signal_price": result.signal_price,
+                "order_id": result.order_id,
+                "client_order_id": getattr(result, "client_order_id", ""),
+                "purpose": "stop_loss",
+            })
         attempts[sym] = {
             "time": datetime.now().isoformat(),
             "status": result.status,
@@ -310,6 +382,17 @@ def check_stop_losses(
 
     state["entry_prices"] = entry_prices
     state["stop_loss_attempts"] = attempts
+    # Stop-loss exits are trades too; without this they existed only in the
+    # event log and the local trade history missed every risk exit.
+    if executed_records:
+        state.setdefault("trade_history", []).append({
+            "date": datetime.now().isoformat(),
+            "completed": True,
+            "stop_loss": True,
+            "trades": executed_records,
+        })
+        if persist_callback is not None:
+            persist_callback(state)
 
     return stopped
 
@@ -346,7 +429,8 @@ def run_rebalance(strategy, broker, config, dry_run=False,
                   banner: str = "TARGET PORTFOLIO",
                   exec_logger_cls=ExecutionLogger,
                   prev_scores: Optional[pd.Series] = None,
-                  order_result_callback: Optional[Callable[[dict], None]] = None):
+                  order_result_callback: Optional[Callable[[dict], None]] = None,
+                  batch_id: str = ""):
     """Compute target portfolio and execute rebalance trades.
 
     Returns (filled, target_weights) where filled is:
@@ -430,7 +514,7 @@ def run_rebalance(strategy, broker, config, dry_run=False,
 
     # Generate orders (sells first by default via sort in generate_rebalance_orders)
     orders = generate_rebalance_orders(
-        current_positions, target_weights, capital, prices
+        current_positions, target_weights, capital, prices, batch=batch_id
     )
 
     if not orders:
@@ -683,6 +767,19 @@ def run_main(profile: TradeProfile):
                 show_status(broker, profile.status_banner)
                 return
 
+        # Nothing from an earlier run may still be working at the broker when
+        # this one sizes its orders.  Cancel and confirm, or stand down.
+        if not args.dry_run and hasattr(broker, "sweep_open_orders"):
+            still_open = broker.sweep_open_orders()
+            if still_open:
+                logger.error(
+                    "%d order(s) from an earlier run are still open after a cancel "
+                    "sweep; standing down for today rather than trading on top of them",
+                    still_open,
+                )
+                _persist_daily_tracker(profile, broker, state)
+                return
+
         # Stop-losses run on EVERY daily run, not just rebalance days
         stopped = check_stop_losses(
             broker,
@@ -711,8 +808,9 @@ def run_main(profile: TradeProfile):
             show_status(broker, profile.status_banner)
             return
 
-        # Check if rebalance is due
-        if not args.force and not should_rebalance(state, freq):
+        # Check if rebalance is due, on the backtest's fixed schedule
+        anchor = config.get("backtest", {}).get("rebalance_anchor_date")
+        if not args.force and not should_rebalance(state, freq, anchor=anchor):
             days_since = (
                 datetime.now()
                 - datetime.fromisoformat(state["last_rebalance"])
@@ -732,10 +830,13 @@ def run_main(profile: TradeProfile):
         if profile.persist_scores and state.get("prev_scores"):
             prev_scores = pd.Series(state["prev_scores"], dtype=float)
 
-        # Run rebalance
-        pending_records = list(
-            state.get("pending_rebalance", {}).get("trades", [])
-        )
+        # Run rebalance.  A resumed attempt keeps the batch id of the attempt
+        # it continues, so its orders find their own earlier fills; a fresh
+        # attempt gets a new id and can never be matched to an old one.
+        pending = state.get("pending_rebalance", {}) or {}
+        pending_records = list(pending.get("trades", []))
+        pending_attempts = int(pending.get("attempts", 0) or 0)
+        batch_id = pending.get("started_at") or datetime.now().isoformat()
 
         def persist_order_result(record: dict):
             pending_records.append(record)
@@ -750,9 +851,8 @@ def run_main(profile: TradeProfile):
                     {record["symbol"]: record.get("price", 0)},
                 )
             state["pending_rebalance"] = {
-                "started_at": state.get("pending_rebalance", {}).get(
-                    "started_at", datetime.now().isoformat()
-                ),
+                "started_at": batch_id,
+                "attempts": pending_attempts,
                 "status": "in_progress",
                 "trades": pending_records,
             }
@@ -765,6 +865,7 @@ def run_main(profile: TradeProfile):
             order_result_callback=(
                 persist_order_result if not args.dry_run else None
             ),
+            batch_id=batch_id if not args.dry_run else "",
         )
 
         rebalance_completed = False
@@ -789,25 +890,26 @@ def run_main(profile: TradeProfile):
                 and float(t.get("qty", 0) or 0) > 0
                 for t in filled
             )
-            all_completed = all(t["status"] == "filled" for t in filled)
+            all_completed, outcome = classify_rebalance_outcome(filled, pending_attempts)
 
             if any_executed:
                 prices = broker.get_current_prices(target_weights.index.tolist())
                 update_entry_prices(state, filled, broker, prices)
 
             if all_completed:
+                logger.info("Rebalance closed: %s", outcome)
                 state["last_rebalance"] = datetime.now().isoformat()
                 rebalance_completed = True
                 state.pop("pending_rebalance", None)
             else:
                 logger.warning(
-                    "Rebalance incomplete — last_rebalance not updated; "
-                    "the next run will recompute and repair the remaining drift"
+                    "Rebalance incomplete (%s); last_rebalance not updated, the "
+                    "next run recomputes and repairs the remaining drift",
+                    outcome,
                 )
                 state["pending_rebalance"] = {
-                    "started_at": state.get("pending_rebalance", {}).get(
-                        "started_at", datetime.now().isoformat()
-                    ),
+                    "started_at": batch_id,
+                    "attempts": pending_attempts + 1,
                     "updated_at": datetime.now().isoformat(),
                     "status": "incomplete",
                     "trades": pending_records,
@@ -817,6 +919,7 @@ def run_main(profile: TradeProfile):
             state["trade_history"].append({
                 "date": datetime.now().isoformat(),
                 "completed": all_completed,
+                "outcome": outcome,
                 "trades": pending_records,
             })
             save_state(profile.state_file, state)
