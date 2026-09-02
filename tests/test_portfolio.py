@@ -600,3 +600,71 @@ class TestRiskMonitor:
         result = RiskMonitor.compute_factor_exposures(weights, returns)
         assert result["betas"] == {}
         assert np.isnan(result["r_squared"])
+
+
+class TestLeveragedPreviousWeights:
+    """The in-optimizer turnover terms must compare composition, not gross."""
+
+    def test_leveraged_prev_weights_do_not_break_optimization(self, config, caplog):
+        import logging
+        config = dict(config)
+        config["portfolio"] = dict(config["portfolio"], max_turnover_per_rebalance=0.40)
+        opt = PortfolioOptimizer(config)
+        selected = ["A", "B", "C", "D", "E", "F"]
+        scores = pd.Series({s: v for s, v in zip(selected, [1.5, 1.2, 1.0, 0.8, 0.6, 0.4])})
+        rng = np.random.default_rng(0)
+        rets = pd.DataFrame(rng.normal(0, 0.01, (300, 6)), columns=selected)
+        cov = opt.compute_covariance(rets, method="sample")
+        # Previous book at 1.5x gross with three names that are not selected now.
+        prev = pd.Series({"A": 0.3, "B": 0.3, "C": 0.3, "X": 0.2, "Y": 0.2, "Z": 0.2})
+        with caplog.at_level(logging.WARNING):
+            weights = opt.optimize_weights(selected, scores, cov, prev_weights=prev)
+        assert "did not converge" not in caplog.text
+        assert "score-proportional" not in caplog.text
+        assert weights.sum() == pytest.approx(1.0, abs=1e-6)
+
+
+class TestTurnoverCapExitStubs:
+    """Exits the blend would leave below min_weight are sold in full, within budget."""
+
+    def _opt(self, config):
+        config = dict(config)
+        config["portfolio"] = dict(
+            config["portfolio"],
+            max_turnover_per_rebalance=0.40,
+            min_position_weight=0.03,
+        )
+        return PortfolioOptimizer(config)
+
+    def test_small_exit_is_liquidated_and_cap_holds(self, config):
+        opt = self._opt(config)
+        prev = pd.Series({"A": 0.30, "B": 0.30, "C": 0.30, "D": 0.04})
+        new = pd.Series({"A": 0.25, "B": 0.25, "E": 0.25, "F": 0.25})
+        result = opt.enforce_turnover_cap(new, prev)
+        # D: blending alone would leave 0.04 * (1 - lam) > 0; it is sold outright.
+        assert "D" not in result.index
+        union = result.index.union(prev.index)
+        turnover = float((result.reindex(union).fillna(0) - prev.reindex(union).fillna(0)).abs().sum())
+        assert turnover <= 0.40 + 1e-9
+
+    def test_large_exit_still_blends(self, config):
+        opt = self._opt(config)
+        prev = pd.Series({"A": 0.50, "B": 0.50})
+        new = pd.Series({"A": 0.50, "C": 0.50})
+        result = opt.enforce_turnover_cap(new, prev)
+        # B is worth 50%: it cannot be sold within a 40% budget, so it is only reduced.
+        assert result["B"] > 0.03
+        union = result.index.union(prev.index)
+        turnover = float((result.reindex(union).fillna(0) - prev.reindex(union).fillna(0)).abs().sum())
+        assert turnover <= 0.40 + 1e-9
+
+
+class TestPositionCapMargin:
+    def test_optimizer_cap_sits_below_safety_limit(self, config):
+        config = dict(config)
+        config["safety"] = {"max_position_pct_of_portfolio": 0.20}
+        config["portfolio"] = dict(config["portfolio"], max_position_weight=0.25)
+        opt = PortfolioOptimizer(config)
+        assert opt._effective_position_cap() == pytest.approx(0.19)
+        scaled = opt.apply_hard_exposure_limits(pd.Series({"A": 0.24, "B": 0.10}))
+        assert scaled["A"] <= 0.19 + 1e-12

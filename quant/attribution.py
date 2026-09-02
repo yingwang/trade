@@ -194,12 +194,15 @@ def _reconstruct_holdings(
     symbols = current.index.union(
         pd.Index(trades["symbol"].unique()) if not trades.empty else pd.Index([])
     )
-    relevant = trades[trades["date"] <= dates.max()] if not trades.empty else trades
     # The boundary condition is holdings at the end of the first equity date.
-    # Derive it from today's broker positions by reversing only later fills;
-    # older fills may pre-date Alpaca's returned equity window and are already
-    # embodied in that boundary holding.
-    later = relevant[relevant["date"] > dates.min()] if not relevant.empty else relevant
+    # Derive it from today's broker positions by reversing every later fill,
+    # including fills after the last equity date: the equity history ends the
+    # previous session while the positions are current, so today's trades are
+    # already in the positions and must be reversed out too (leaving them in
+    # produced negative opening holdings for every symbol traded today).
+    # Older fills may pre-date Alpaca's returned equity window and are already
+    # embodied in the boundary holding.
+    later = trades[trades["date"] > dates.min()] if not trades.empty else trades
     net_later = pd.Series(0.0, index=symbols, dtype=float)
     for row in later.itertuples(index=False):
         net_later.loc[row.symbol] += row.quantity if row.side == "buy" else -row.quantity
@@ -208,10 +211,13 @@ def _reconstruct_holdings(
     negative_opening = opening[opening < -1e-6]
     holdings = opening.copy()
     rows = []
+    # Only fills inside the equity window are replayed; those after it belong
+    # to a day the equity history does not cover yet.
+    relevant = later[later["date"] <= dates.max()] if not later.empty else later
     by_date = {
         date: frame
-        for date, frame in later.groupby("date")
-    } if not later.empty else {}
+        for date, frame in relevant.groupby("date")
+    } if not relevant.empty else {}
     for index, date in enumerate(dates):
         if index == 0:
             rows.append(holdings.copy())
@@ -224,12 +230,19 @@ def _reconstruct_holdings(
         rows.append(holdings.copy())
 
     history = pd.DataFrame(rows, index=dates).reindex(columns=symbols).fillna(0.0)
+    # The reconstruction must land on today's positions once the fills after
+    # the window are applied on top of the last in-window holdings.
+    after = later[later["date"] > dates.max()] if not later.empty else later
+    net_after = pd.Series(0.0, index=symbols, dtype=float)
+    for row in after.itertuples(index=False):
+        net_after.loc[row.symbol] += row.quantity if row.side == "buy" else -row.quantity
     final_error = (
-        history.iloc[-1].reindex(symbols).fillna(0.0)
+        history.iloc[-1].reindex(symbols).fillna(0.0) + net_after
         - current.reindex(symbols).fillna(0.0)
     ) if len(history) else pd.Series(dtype=float)
     diagnostics = {
         "trade_count": int(len(relevant)),
+        "trades_after_window": int(len(after)),
         "opening_positions_inferred": int((opening.abs() > 1e-9).sum()),
         "negative_opening_positions": sorted(negative_opening.index.tolist()),
         "holdings_reconciled": bool(

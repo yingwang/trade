@@ -169,11 +169,20 @@ class PortfolioOptimizer:
         ).dropna().sort_values(ascending=False)
         return valid.head(self.max_positions).index
 
+    # The pre-trade check re-evaluates each order against equity and prices
+    # fetched moments later than the target was computed; a target sitting
+    # exactly on the safety limit is rejected by any intraday tick against it.
+    SAFETY_CAP_MARGIN = 0.95
+
     def _effective_position_cap(self) -> float:
-        """Hard per-position cap shared by optimization and post-processing."""
+        """Hard per-position cap shared by optimization and post-processing.
+
+        Sits just below the broker-side safety limit so an order sized to it
+        survives the safety layer's own re-check with fresher prices.
+        """
         cap = float(self.max_weight)
         if self.max_position_pct_safety is not None:
-            cap = min(cap, float(self.max_position_pct_safety))
+            cap = min(cap, float(self.max_position_pct_safety) * self.SAFETY_CAP_MARGIN)
         return max(0.0, cap)
 
     @staticmethod
@@ -268,9 +277,21 @@ class PortfolioOptimizer:
                            np.min(eigenvalues))
             return self._score_proportional(selected, scores, sector_map)
 
-        # Previous weights for turnover penalty
+        # Previous weights for the turnover penalty and constraint. The
+        # candidate weights sum to target_gross (1.0 in the usual case) while the
+        # previous weights carry the account's actual gross exposure, anywhere
+        # between 0.8x and 1.8x after vol scaling.  Compared raw, the L1 distance
+        # can never drop below |target_gross - gross_prev|: with a 40% cap that
+        # made the constraint infeasible whenever the leverage gap plus any name
+        # change exceeded it, SLSQP failed, and the optimizer silently fell back
+        # to score-proportional weights.  Scale the previous weights to the same
+        # gross so both terms measure the change in composition only; gross
+        # changes are charged by enforce_turnover_cap on the final weights.
         if prev_weights is not None:
-            w_prev = prev_weights.reindex(selected).fillna(0).values
+            w_prev = prev_weights.reindex(selected).fillna(0).values.astype(float)
+            prev_gross = float(np.abs(prev_weights).sum())
+            if prev_gross > 1e-12:
+                w_prev = w_prev * (target_gross / prev_gross)
         else:
             w_prev = np.full(n, target_gross / n)
 
@@ -620,6 +641,38 @@ class PortfolioOptimizer:
         lam = self.max_turnover / turnover
         blended = w_old + lam * (w_new - w_old)
 
+        # Exit legs.  Blending alone sells an exiting position down
+        # geometrically, (1 - lam) of it surviving each rebalance, so a
+        # concentrated book accumulated a long tail of holdings far below the
+        # mandate's minimum weight, some held against their own signal.  An
+        # exit that the blend would leave below min_weight is sold in full
+        # instead, smallest first, as far as the turnover budget allows; the
+        # entry and adjustment legs then share whatever budget remains, so the
+        # total stays at the cap.
+        exits = union[(w_new.reindex(union).fillna(0.0) <= 1e-12) & (w_old > 1e-12)]
+        exit_stubs = blended.loc[exits][
+            (blended.loc[exits] > 0) & (blended.loc[exits] < self.min_weight)
+        ].sort_values()
+        liquidated = []
+        exit_turnover = float((blended.loc[exits] - w_old.loc[exits]).abs().sum())
+        for symbol, remaining in exit_stubs.items():
+            extra = float(remaining)
+            if exit_turnover + extra > self.max_turnover + 1e-9:
+                break
+            blended.loc[symbol] = 0.0
+            exit_turnover += extra
+            liquidated.append(symbol)
+        others = union.difference(exits)
+        other_full = float((w_new.loc[others] - w_old.loc[others]).abs().sum())
+        budget = max(self.max_turnover - exit_turnover, 0.0)
+        if other_full > 1e-12:
+            lam_other = min(lam, budget / other_full)
+            blended.loc[others] = w_old.loc[others] + lam_other * (
+                w_new.loc[others] - w_old.loc[others]
+            )
+        else:
+            lam_other = lam
+
         stubs = blended[(blended > 0) & (blended < min_stub_weight)].index
         if len(stubs) > 0:
             blended.loc[stubs] = 0.0
@@ -627,10 +680,12 @@ class PortfolioOptimizer:
 
         logger.info(
             "Turnover cap engaged: target turnover %.1f%% > cap %.1f%%, "
-            "blending toward previous portfolio (lam=%.2f, %d transitional "
-            "position(s), %d stub(s) liquidated)",
-            turnover * 100, self.max_turnover * 100, lam,
-            int((~blended.index.isin(weights.index)).sum()), len(stubs),
+            "blending toward previous portfolio (lam=%.2f, entries/adjustments "
+            "lam=%.2f, %d transitional position(s), %d exit(s) sold in full, "
+            "%d stub(s) liquidated)",
+            turnover * 100, self.max_turnover * 100, lam, lam_other,
+            int((~blended.index.isin(weights.index)).sum()), len(liquidated),
+            len(stubs),
         )
         return self.apply_hard_exposure_limits(
             blended,
@@ -657,7 +712,7 @@ class PortfolioOptimizer:
         limited = limited.clip(lower=0.0)
 
         if self.max_position_pct_safety is not None:
-            limited = limited.clip(upper=float(self.max_position_pct_safety))
+            limited = limited.clip(upper=self._effective_position_cap())
 
         if gross_exposure_cap is None:
             gross_exposure_cap = self.max_leverage
@@ -667,7 +722,7 @@ class PortfolioOptimizer:
             limited *= gross_exposure_cap / gross
 
         final_position_cap = (
-            float(self.max_position_pct_safety)
+            self._effective_position_cap()
             if self.max_position_pct_safety is not None
             else max(float(limited.sum()), float(limited.max()))
         )

@@ -217,3 +217,39 @@ def test_dashboard_payload_wires_actual_history_and_proxy_download(monkeypatch):
     assert payload["summary"]["actual_alpha"] == pytest.approx(
         -payload["summary"]["benchmark_return"]
     )
+
+
+def test_fills_after_the_last_equity_date_reconcile_holdings():
+    """Today's fills are already in the broker positions but not yet in the
+    equity history; they must be reversed out of the opening boundary, not
+    left in it (which produced negative opening holdings)."""
+    dates = pd.bdate_range("2026-01-05", periods=3)
+    prices = pd.DataFrame(
+        {"SPY": [100.0, 101.0, 102.0], "AAAA": [50.0, 51.0, 52.0]},
+        index=dates,
+    )
+    after_window = (dates[-1] + pd.offsets.BDay(1)).strftime("%Y-%m-%d")
+    rebalances = [
+        {
+            "date": dates[1].strftime("%Y-%m-%d"),
+            "trades": [{"symbol": "AAAA", "side": "buy", "quantity": 10, "price": 51.0}],
+        },
+        {
+            "date": after_window,
+            "trades": [{"symbol": "AAAA", "side": "sell", "quantity": 4, "price": 53.0}],
+        },
+    ]
+    result = attribute_actual_performance(
+        portfolio_history=_history(dates, [1_000.0, 1_000.0, 1_010.0]),
+        rebalances=rebalances,
+        current_positions=[{"symbol": "AAAA", "qty": 6}],
+        asset_prices=prices,
+        proxy_prices=prices[["SPY"]],
+        sector_map={},
+        min_observations=1,
+    )
+    assert result.diagnostics["negative_opening_positions"] == []
+    assert result.diagnostics["holdings_reconciled"] is True
+    assert result.diagnostics["trades_after_window"] == 1
+    # Holdings inside the window: 0 on day 0, 10 from day 1 on (the sale is after the window).
+    assert result.daily.loc[dates[2], "stock_selection"] != 0.0 or result.daily.loc[dates[2], "market_beta"] != 0.0
