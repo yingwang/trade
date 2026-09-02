@@ -135,19 +135,24 @@ class MultiFactorStrategy:
             not_before=not_before,
         )
 
-        target_weights = {}
-        prev_weights = None  # Track previous weights for turnover penalty
-
-        for date in rebalance_dates:
+        # Targets are produced on demand while the engine runs, from the
+        # portfolio's actual weights at that close (drift, stop-loss exits and
+        # partial fills included), which is what the live path hands the
+        # optimizer as prev_weights.  Building every target up front from the
+        # previous target instead let the backtest's turnover cap and penalty
+        # act on a book that never existed.
+        def compute_target(date, prev_weights):
             if date not in signals.index:
-                continue
+                return None
+            if prev_weights is not None and len(prev_weights) == 0:
+                prev_weights = None
 
             day_scores = signals.loc[date].dropna()
             if self.pit_universe is not None:
                 members = self.pit_universe.members_as_of(date)
                 day_scores = day_scores[day_scores.index.isin(members)]
             if day_scores.empty:
-                continue
+                return None
 
             selected = self.optimizer.select_top_stocks(day_scores)
 
@@ -192,11 +197,7 @@ class MultiFactorStrategy:
                 gross_exposure_cap=regime_cap,
                 sector_map=sector_map,
             )
-
-            target_weights[str(date.date())] = weights
-            prev_weights = weights  # Save for next rebalance turnover penalty
-
-        logger.info("Generated %d rebalance points", len(target_weights))
+            return weights
 
         # 4. Run backtest — trim prices to requested start date so the
         #    equity curve doesn't show a flat warm-up period
@@ -209,7 +210,7 @@ class MultiFactorStrategy:
             volumes = volumes.loc[start:]
         result = self.backtest_engine.run(
             backtest_prices,
-            target_weights,
+            {},
             self.data.benchmark,
             execution_prices=execution_prices,
             volumes=volumes,
@@ -217,7 +218,10 @@ class MultiFactorStrategy:
                 self.delisting_returns.events
                 if self.delisting_returns is not None else None
             ),
+            target_provider=compute_target,
+            rebalance_dates=rebalance_dates,
         )
+        logger.info("Generated %d rebalance points", len(result.targets))
         result.metrics["Point-in-Time Universe"] = self.pit_universe is not None
         result.metrics["Point-in-Time Fundamentals"] = False
         result.metrics["Survivorship Bias Warning"] = self.pit_universe is None

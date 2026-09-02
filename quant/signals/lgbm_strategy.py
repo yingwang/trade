@@ -404,15 +404,17 @@ class LGBMStrategy:
             anchor=bt_cfg.get("rebalance_anchor_date", "2000-01-03"),
             not_before=not_before,
         )
-        rebalance_date_indices = [int(dates.get_loc(date)) for date in rebalance_dates]
-
-        target_weights = {}
-        prev_weights = None
         self._rebalance_count = 0
         self._prev_scores = None
 
-        for date_idx in rebalance_date_indices:
-            date = dates[date_idx]
+        # Called by the engine at each rebalance close with the actual book
+        # (see BacktestEngine.run); training and scoring happen in date order.
+        def compute_target(date, prev_weights):
+            if date not in dates:
+                return None
+            date_idx = int(dates.get_loc(date))
+            if prev_weights is not None and len(prev_weights) == 0:
+                prev_weights = None
 
             # Train model if needed
             if self._should_retrain():
@@ -443,23 +445,23 @@ class LGBMStrategy:
                         date.date(),
                         e,
                     )
-                    continue
+                    return None
             else:
                 logger.error(
                     "LightGBM model unavailable at %s; skipping this rebalance "
                     "instead of selecting symbols by column order",
                     date.date(),
                 )
-                continue
+                return None
 
             if scores.empty:
-                continue
+                return None
 
             if self.pit_universe is not None:
                 members = self.pit_universe.members_as_of(date)
                 scores = scores[scores.index.isin(members)]
                 if scores.empty:
-                    continue
+                    return None
 
             # Apply turnover penalty to stabilize scores across rebalances
             scores = self._apply_turnover_penalty(scores, self._prev_scores)
@@ -472,7 +474,7 @@ class LGBMStrategy:
             selected_in_ret = [s for s in selected if s in ret_window.columns
                                and ret_window[s].notna().sum() > 20]
             if len(selected_in_ret) < 2:
-                continue
+                return None
 
             if len(ret_window) > 20:
                 cov = _ledoit_wolf_shrinkage(ret_window[selected_in_ret].fillna(0))
@@ -513,11 +515,7 @@ class LGBMStrategy:
                 gross_exposure_cap=regime_cap,
                 sector_map=sector_map,
             )
-
-            target_weights[str(date.date())] = weights
-            prev_weights = weights
-
-        logger.info("LightGBM strategy generated %d rebalance points", len(target_weights))
+            return weights
 
         # 5. Run backtest -- trim prices to requested start date
         backtest_prices = prices.loc[start:] if start else prices
@@ -529,7 +527,7 @@ class LGBMStrategy:
             volumes = volumes.loc[start:]
         result = self.backtest_engine.run(
             backtest_prices,
-            target_weights,
+            {},
             self.data.benchmark,
             execution_prices=execution_prices,
             volumes=volumes,
@@ -537,7 +535,10 @@ class LGBMStrategy:
                 self.delisting_returns.events
                 if self.delisting_returns is not None else None
             ),
+            target_provider=compute_target,
+            rebalance_dates=rebalance_dates,
         )
+        logger.info("LightGBM strategy generated %d rebalance points", len(result.targets))
         result.metrics["Point-in-Time Universe"] = self.pit_universe is not None
         result.metrics["Point-in-Time Fundamentals"] = False
         result.metrics["Survivorship Bias Warning"] = self.pit_universe is None

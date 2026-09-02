@@ -318,5 +318,6 @@ backtest:
   end_date: null  # null = today
   initial_capital: 1000000
   slippage_bps: 5
-  market_impact_coeff: 2.5  # bps per sqrt(participation_rate) — Almgren-Chriss simplified (lowered for small accounts)
+  market_impact_coeff: 2.5  # bps per sqrt(turnover): fallback when a symbol has no volume data
+  market_impact_sigma_coeff: 1.0  # square-root law: impact = coeff x daily sigma x sqrt(shares / 20d ADV)
   risk_free_rate: 0.04  # annual; Sharpe/Sortino use excess returns (0 made Sharpe look ~0.2 better at 2026 cash rates)

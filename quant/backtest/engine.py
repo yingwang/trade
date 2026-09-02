@@ -21,6 +21,8 @@ class BacktestResult:
     positions_history: list = field(default_factory=list)
     trades: list = field(default_factory=list)
     metrics: dict = field(default_factory=dict)
+    # Targets produced during the run by a target_provider, keyed by signal date.
+    targets: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         lines = ["=" * 60, "BACKTEST RESULTS", "=" * 60]
@@ -57,6 +59,17 @@ class BacktestEngine:
         )
         self.risk_free_rate = (1.0 + self.annual_risk_free_rate) ** (1.0 / 252.0) - 1.0
         self.impact_coeff = float(bt_cfg.get("market_impact_coeff", 2.5))
+        # Square-root impact in units of the symbol's daily volatility:
+        # impact = sigma_coeff * sigma_daily * sqrt(shares / ADV).  The former
+        # form charged impact_coeff basis points times sqrt(participation),
+        # which at 100% participation came to 2.5 bps, two orders of magnitude
+        # below the empirical law; the cost model was effectively a flat 15 bps.
+        # Zero keeps impact off when the bps coefficient is zero (tests).
+        self.impact_sigma_coeff = float(
+            bt_cfg.get("market_impact_sigma_coeff", 1.0 if self.impact_coeff > 0 else 0.0)
+        )
+        # Fallback daily volatility when none is supplied for a symbol.
+        self.default_daily_sigma = 0.02
 
     @staticmethod
     def _valid_price(value) -> bool:
@@ -73,12 +86,15 @@ class BacktestEngine:
         quantities: pd.Series | None = None,
         prices: pd.Series | None = None,
         volumes: pd.Series | None = None,
+        sigmas: pd.Series | None = None,
     ) -> float:
         """Return fixed costs plus square-root market impact.
 
-        When same-session share volume is available, participation is measured
-        per symbol as executed shares / daily volume. Missing volume falls back
-        to the former conservative portfolio-turnover proxy.
+        When share volume is available (the trailing average daily volume,
+        known before the session opens), participation is measured per symbol
+        as executed shares / ADV and impact is sigma_coeff * daily sigma *
+        sqrt(participation) of the notional.  Missing volume falls back to the
+        former conservative portfolio-turnover proxy in basis points.
         """
         if trade_value <= 0:
             return 0.0
@@ -104,12 +120,17 @@ class BacktestEngine:
             if valid.any():
                 notionals = qty[valid] * px[valid]
                 participation = qty[valid] / volume[valid]
+                if sigmas is not None:
+                    sigma = pd.to_numeric(sigmas.reindex(qty.index), errors="coerce")[valid]
+                    sigma = sigma.where(np.isfinite(sigma) & (sigma > 0), self.default_daily_sigma)
+                else:
+                    sigma = pd.Series(self.default_daily_sigma, index=notionals.index)
                 impact = float(
                     (
                         notionals
-                        * self.impact_coeff
+                        * self.impact_sigma_coeff
+                        * sigma
                         * np.sqrt(participation)
-                        / 10_000.0
                     ).sum()
                 )
                 volume_priced_notional = min(
@@ -137,8 +158,20 @@ class BacktestEngine:
         execution_prices: pd.DataFrame | None = None,
         delisting_returns: pd.DataFrame | None = None,
         volumes: pd.DataFrame | None = None,
+        target_provider=None,
+        rebalance_dates=None,
     ) -> BacktestResult:
-        """Run over adjusted closes, optional next-bar opens, and share volume."""
+        """Run over adjusted closes, optional next-bar opens, and share volume.
+
+        Targets come either precomputed in ``target_weights_by_date`` or from
+        ``target_provider(date, current_weights)``, called at the close of each
+        date in ``rebalance_dates`` with the portfolio's actual weights
+        (holdings marked at that close over portfolio value).  The provider
+        form is what the strategies use: the optimizer's turnover machinery
+        then sees the drifted, stopped-out, partially filled book it will
+        really trade from, exactly as the live path does, instead of the
+        previous period's paper target.
+        """
 
         result = BacktestResult()
         if prices is None or prices.empty:
@@ -172,6 +205,17 @@ class BacktestEngine:
             if volumes is not None
             else None
         )
+        # Liquidity and volatility as known before each session: trailing
+        # 20-day average volume and daily return volatility, shifted one bar.
+        adv_data = (
+            volume_data.rolling(20, min_periods=5).mean().shift(1)
+            if volume_data is not None
+            else None
+        )
+        sigma_data = valuation.pct_change(fill_method=None).rolling(20, min_periods=5).std().shift(1)
+        provider_dates = set()
+        if target_provider is not None and rebalance_dates is not None:
+            provider_dates = {pd.Timestamp(d) for d in rebalance_dates}
 
         cash = self.initial_capital
         holdings = pd.Series(0.0, index=symbols, dtype=float)
@@ -196,7 +240,8 @@ class BacktestEngine:
         for date in dates:
             close_px = valuation.loc[date]
             exec_px = execution.loc[date]
-            volume_px = volume_data.loc[date] if volume_data is not None else None
+            volume_px = adv_data.loc[date] if adv_data is not None else None
+            sigma_px = sigma_data.loc[date]
 
             # A delisting return is a terminal payoff, not an exchange fill.
             # Apply the supplied event directly and remove the holding; without
@@ -261,6 +306,7 @@ class BacktestEngine:
                     quantities=stop_quantities,
                     prices=exec_px,
                     volumes=volume_px,
+                    sigmas=sigma_px,
                 )
                 cash -= stop_cost
                 result.trades.append({
@@ -357,6 +403,7 @@ class BacktestEngine:
                         quantities=executed_quantities,
                         prices=exec_px,
                         volumes=volume_px,
+                        sigmas=sigma_px,
                     )
                     cash -= cost
                     result.trades.append({
@@ -380,17 +427,31 @@ class BacktestEngine:
                 if (remaining.abs() < 0.5).all() and not unpriced_target:
                     pending_target = None
 
+            portfolio_value = float(cash + (holdings * close_px).fillna(0).sum())
+
             # The current close creates a target for a future bar; it never
             # executes on the signal close. A newer target supersedes any stale
             # unfilled target, mirroring a real strategy recomputation.
+            new_target = None
             if date in rebalance_targets:
+                new_target = rebalance_targets[date].copy()
+            elif date in provider_dates:
+                current_weights = (
+                    (holdings * close_px).fillna(0.0) / portfolio_value
+                    if portfolio_value > 0
+                    else pd.Series(0.0, index=symbols, dtype=float)
+                )
+                current_weights = current_weights[current_weights > 1e-12]
+                provided = target_provider(date, current_weights)
+                if provided is not None and len(provided) > 0:
+                    new_target = pd.Series(provided, dtype=float).reindex(symbols).fillna(0.0)
+                    result.targets[date] = pd.Series(provided, dtype=float)
+            if new_target is not None:
                 if pending_target is not None:
                     logger.warning("Superseding an unfinished rebalance target on %s", date.date())
-                pending_target = rebalance_targets[date].copy()
+                pending_target = new_target
                 blocked = pending_target.index.intersection(blocked_reentries)
                 pending_target.loc[blocked] = 0.0
-
-            portfolio_value = float(cash + (holdings * close_px).fillna(0).sum())
 
             # Detect at close, execute next bar.  Already pending symbols are
             # left untouched until a real execution price appears.

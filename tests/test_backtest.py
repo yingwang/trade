@@ -141,3 +141,53 @@ class TestBacktestReport:
         assert "VaR 95%" in report
         assert "CVaR 95%" in report
         assert report["VaR 95%"] < 0  # VaR should be negative
+
+
+
+class TestTargetProvider:
+    def test_provider_sees_actual_drifted_weights(self, config, synthetic_prices):
+        """The engine hands the provider the book as it stands at that close,
+        not the previous target: after drift the weights differ from the
+        target that produced them, and the sum is the invested fraction."""
+        engine = BacktestEngine(config)
+        dates = synthetic_prices.index
+        symbols = [c for c in synthetic_prices.columns if c != "BENCH"]
+        first, second = dates[10], dates[40]
+        seen = {}
+
+        def provider(date, current_weights):
+            seen[date] = current_weights.copy()
+            return pd.Series({symbols[0]: 0.5, symbols[1]: 0.5})
+
+        result = engine.run(
+            synthetic_prices, {}, benchmark_col="BENCH",
+            target_provider=provider, rebalance_dates=[first, second],
+        )
+        assert set(seen) == {first, second}
+        assert seen[first].empty
+        held = seen[second]
+        # Only the two targeted names can be held (one may have been stopped out
+        # by the synthetic path), and what is held has drifted off the 50/50 target.
+        assert len(held) >= 1 and set(held.index) <= {symbols[0], symbols[1]}
+        assert 0.3 < held.sum() < 1.0
+        assert not np.allclose(held.reindex([symbols[0], symbols[1]]).fillna(0.0).values, 0.5)
+        assert set(result.targets) == {first, second}
+        assert not result.equity_curve.empty
+
+
+class TestImpactModel:
+    def test_impact_scales_with_volatility_and_participation(self, config):
+        cfg = {
+            **config,
+            "portfolio": {**config["portfolio"], "transaction_cost_bps": 0},
+            "backtest": {**config["backtest"], "slippage_bps": 0, "market_impact_coeff": 1,
+                         "market_impact_sigma_coeff": 1.0},
+        }
+        engine = BacktestEngine(cfg)
+        q = pd.Series({"AAAA": 1_000.0}); p = pd.Series({"AAAA": 100.0})
+        calm = engine._cost(100_000, 1e6, quantities=q, prices=p,
+                            volumes=pd.Series({"AAAA": 100_000.0}), sigmas=pd.Series({"AAAA": 0.01}))
+        wild = engine._cost(100_000, 1e6, quantities=q, prices=p,
+                            volumes=pd.Series({"AAAA": 100_000.0}), sigmas=pd.Series({"AAAA": 0.04}))
+        assert calm == pytest.approx(100.0)
+        assert wild == pytest.approx(400.0)
