@@ -677,8 +677,27 @@ class AlpacaBroker(BaseBroker):
             })
         return details
 
+    # Optional run-time split lookup (symbols -> {symbol: StockSplit}), set by
+    # the trading entry point from the market-data layer.  Memoized per
+    # process: the guard runs before every order.
+    split_lookup = None
+    _recent_splits_cache: dict | None = None
+
+    def _recent_splits(self, symbols: list[str]) -> dict:
+        if self.split_lookup is None:
+            return {}
+        if self._recent_splits_cache is None:
+            try:
+                self._recent_splits_cache = dict(self.split_lookup(sorted(symbols)) or {})
+            except Exception as exc:
+                logger.warning("Split lookup failed; using the static table only: %s", exc)
+                self._recent_splits_cache = {}
+        return self._recent_splits_cache
+
     def assert_corporate_actions_reconciled(self) -> None:
-        assert_corporate_actions_reconciled(self.get_position_details())
+        details = self.get_position_details()
+        extra = self._recent_splits([str(d.get("symbol", "")) for d in details])
+        assert_corporate_actions_reconciled(details, extra_splits=extra)
 
     def get_portfolio_value(self) -> float:
         return float(_attr(self._client().get_account(), "equity"))

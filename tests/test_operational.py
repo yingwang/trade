@@ -808,3 +808,17 @@ class TestBatchThreeHardening:
             enforce_live_data_quality(prices, benchmark="SPY", as_of=last + pd.Timedelta(days=9))
         # Without as_of the gate is unchanged (fixtures with old dates still pass).
         enforce_live_data_quality(prices, benchmark="SPY")
+
+
+
+class TestRunTimeSplitGuard:
+    def test_extra_splits_extend_the_static_table(self):
+        from datetime import date
+        from quant.data.corporate_actions import StockSplit, unresolved_splits
+
+        recent = {"XYZ": StockSplit("XYZ", 10.0, date(2026, 8, 20), date(2026, 8, 20))}
+        stale = [{"symbol": "XYZ", "qty": 10, "avg_entry_price": 900.0, "current_price": 95.0}]
+        fresh = [{"symbol": "XYZ", "qty": 100, "avg_entry_price": 92.0, "current_price": 95.0}]
+        assert unresolved_splits(stale, as_of=date(2026, 9, 2)) == []            # not in the static table
+        assert [s.symbol for s in unresolved_splits(stale, as_of=date(2026, 9, 2), extra_splits=recent)] == ["XYZ"]
+        assert unresolved_splits(fresh, as_of=date(2026, 9, 2), extra_splits=recent) == []

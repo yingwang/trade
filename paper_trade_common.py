@@ -701,6 +701,9 @@ def run_main(profile: TradeProfile):
         paper=True,
         safety_config=safety_config,
     )
+    # Every held symbol is checked for a recent split, not only the ones in
+    # the static table.
+    broker.split_lookup = getattr(strategy.data, "fetch_recent_splits", None)
 
     if args.status:
         show_status(broker, profile.status_banner)

@@ -63,14 +63,23 @@ def unresolved_splits(
     positions: Iterable[Mapping[str, object]],
     *,
     as_of: date | None = None,
+    extra_splits: Mapping[str, StockSplit] | None = None,
 ) -> list[StockSplit]:
-    """Return known splits whose position data is still on the old scale."""
+    """Return known splits whose position data is still on the old scale.
+
+    ``extra_splits`` extends the static table with splits discovered at run
+    time (see MarketData.fetch_recent_splits), so the guard covers every held
+    symbol and not only the ones someone remembered to list here.
+    """
 
     today = as_of or date.today()
+    table: dict[str, StockSplit] = dict(KNOWN_STOCK_SPLITS)
+    for symbol, split in (extra_splits or {}).items():
+        table.setdefault(str(symbol).upper(), split)
     unresolved: list[StockSplit] = []
     for raw in positions:
         symbol = str(raw.get("symbol", "")).upper()
-        split = KNOWN_STOCK_SPLITS.get(symbol)
+        split = table.get(symbol)
         if split is None or today < split.first_adjusted_session:
             continue
         try:
@@ -106,10 +115,11 @@ def assert_corporate_actions_reconciled(
     positions: Iterable[Mapping[str, object]],
     *,
     as_of: date | None = None,
+    extra_splits: Mapping[str, StockSplit] | None = None,
 ) -> None:
     """Abort automated trading when a known split has stale broker units."""
 
-    unresolved = unresolved_splits(positions, as_of=as_of)
+    unresolved = unresolved_splits(positions, as_of=as_of, extra_splits=extra_splits)
     if not unresolved:
         return
     details = ", ".join(f"{s.symbol} {s.ratio:g}-for-1" for s in unresolved)

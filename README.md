@@ -37,7 +37,10 @@ have been removed rather than presented as current evidence. Run the manual
 Even after rerunning, the default static stock universe must be labelled as
 survivorship-biased. A bias-reduced run requires both the optional
 point-in-time universe file and delisting-return file described in
-`quant/data/point_in_time.py`.
+`quant/data/point_in_time.py`. The static list was also assembled in 2026 and
+includes names that only listed in 2018 to 2020 (SNOW, CRWD, DDOG, NET, ZS),
+so any backtest window that starts before their listing carries hindsight in
+its universe selection as well as in its survivorship.
 
 ---
 
@@ -48,16 +51,16 @@ point-in-time universe file and delisting-return file described in
 | Parameter / 参数 | Value / 值 | Description / 说明 |
 |---------|-------|-------------|
 | **Alpha Signals** | 5 factors | 动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10% |
-| **Positions** | 12 | 集中持仓，高信念选股 |
+| **Positions** | 12 (target) | 目标组合 12 只；实际账户在过渡期可多于 12 只，大额退出腿分几期卖出 |
 | **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
 | **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
 | **Rebalance** | Every 21 trading days | 3周再平衡，降低换手成本 |
-| **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡 |
+| **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡，混合后低于 3% 的退出仓在预算内整只卖出 |
 | **Max Sector** | 50% | 允许科技股集中但有上限 |
 | **Max Drawdown** | 25% | 回测层面的风险监控指标；实盘的对应保护是日亏损熔断与每日止损 |
 | **Stop Loss** | 15% | 单只股票止损线，回测与实盘均每日检查 |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
-| **Cost Model** | Almgren-Chriss | 动态市场冲击成本 = 固定15bps + 冲击系数(2.5) × √(成交股数/当日成交量)；缺失成交量时退回换手率代理 |
+| **Cost Model** | Square-root impact | 固定 15bps + 系数 × 个股 20 日波动率 × √(成交股数 / 20 日 ADV)，两者均取前一日已知值；缺失成交量时退回换手率代理 |
 
 ### Signal Pipeline / 信号管道
 

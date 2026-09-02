@@ -126,6 +126,46 @@ class MarketData:
         )
         return prices
 
+    def fetch_recent_splits(self, symbols: list[str], lookback_days: int = 90) -> dict:
+        """Stock splits in the last ``lookback_days`` for the given symbols.
+
+        Feeds the corporate-action guard for every held symbol instead of the
+        hand-maintained table alone.  Returns an empty mapping on failure, in
+        which case the static table still applies; a failure is logged, never
+        turned into a guess.
+        """
+        from quant.data.corporate_actions import StockSplit
+
+        found: dict = {}
+        if not symbols:
+            return found
+        cutoff = pd.Timestamp(datetime.now(MARKET_TZ).date()) - pd.Timedelta(days=int(lookback_days))
+        for symbol in symbols:
+            try:
+                splits = yf.Ticker(symbol).splits
+            except Exception as exc:
+                logger.warning("Could not fetch split history for %s: %s", symbol, exc)
+                continue
+            if splits is None or len(splits) == 0:
+                continue
+            index = pd.to_datetime(splits.index)
+            if getattr(index, "tz", None) is not None:
+                index = index.tz_convert(None)
+            recent = [(ts, float(ratio)) for ts, ratio in zip(index, splits.values) if ts >= cutoff and ratio > 1]
+            if not recent:
+                continue
+            ts, ratio = max(recent)
+            found[symbol] = StockSplit(
+                symbol=symbol,
+                ratio=ratio,
+                effective_date=ts.date(),
+                first_adjusted_session=ts.date(),
+            )
+        if found:
+            logger.info("Recent splits for held symbols: %s",
+                        {s: sp.ratio for s, sp in found.items()})
+        return found
+
     def fetch_adv(self, symbols: list[str], window: int = 30) -> dict[str, float]:
         """Average daily share volume over the trailing `window` trading days.
 
