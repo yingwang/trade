@@ -24,15 +24,64 @@ contributions add exactly to geometric active return.
 >
 > **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10%），12只集中持仓，22%目标波动率，3周再平衡+40%总换手上限（含退出腿与杠杆变化），快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。Sharpe/Sortino 按 4% 无风险利率计算。基本面因子因yfinance前视偏差已禁用。
 
-### Results pending rerun / 结果待重跑
+### Multi-Factor Strategy / 多因子策略
 
-The previous tables and chart were generated before the next-session-open
-execution model, corrected Sortino definition, fixed rebalance calendar,
-continuous-window reporting, and final exposure limits were introduced. They
-have been removed rather than presented as current evidence. Run the manual
-`README Backtest Refresh` workflow to publish a new traceable set of results.
+Recomputed 2026-09-02 by the `README Backtest Refresh` workflow (Actions run [33640431917](https://github.com/yingwang/trade/actions/runs/33640431917)) on commit `4274423`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, and Sharpe/Sortino against a 4% risk-free rate.
 
-旧表格和净值图生成于本轮回测时序、Sortino、固定再平衡日历、连续窗口及最终风险上限修复之前，因此不再作为当前结果展示。请运行手动 `README Backtest Refresh` workflow 后再发布可追溯的新结果。
+由 `README Backtest Refresh` workflow 于 2026-09-02 重算（Actions run 33640431917，commit `4274423`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与实盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，Sharpe/Sortino 按 4% 无风险利率计算。
+
+#### 5-Year Backtest (2021-09-02 → 2026-09-02)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+110.5%** | +80.3% | **+30.1pp** |
+| **CAGR / 年化收益** | **+16.1%** | — | — |
+| **Sharpe Ratio** | **0.71** | — | — |
+| **Sortino Ratio** | **1.02** | — | — |
+| **Max Drawdown / 最大回撤** | -16.7% | — | — |
+| **Information Ratio** | **0.22** | — | — |
+
+#### 3-Year Backtest (2023-09-02 → 2026-09-02)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+84.7%** | +76.5% | **+8.3pp** |
+| **CAGR / 年化收益** | **+22.9%** | — | — |
+| **Sharpe Ratio** | **1.00** | — | — |
+| **Sortino Ratio** | **1.47** | — | — |
+| **Max Drawdown / 最大回撤** | -16.7% | — | — |
+| **Information Ratio** | **0.15** | — | — |
+
+#### 1-Year Backtest (2025-09-02 → 2026-09-02)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+39.5%** | +20.6% | **+18.9pp** |
+| **CAGR / 年化收益** | **+39.5%** | — | — |
+| **Sharpe Ratio** | **1.45** | — | — |
+| **Sortino Ratio** | **2.21** | — | — |
+| **Max Drawdown / 最大回撤** | -12.8% | — | — |
+| **Information Ratio** | **1.01** | — | — |
+
+#### Performance Chart / 净值曲线 (5-Year)
+
+![5-Year Backtest](backtest_5yr.png)
+
+The July 2026 tables (5-year +193.6%, Sharpe 0.87, max drawdown -28.9%) were produced before the sector table existed on the backtest path, with targets chained from the previous target rather than the traded book, and with an impact model that charged almost nothing; about half of that excess return does not survive those corrections. The drawdown falls because the 50% sector cap and industry neutralization now actually apply.
+
+2026 年 7 月的表格（五年 +193.6%，Sharpe 0.87，最大回撤 -28.9%）产生于回测路径尚无行业表、目标组合从上期目标而非实际持仓链式推导、冲击成本几乎为零的版本；上述修正之后，其中约一半的超额收益不复存在。最大回撤下降，是因为 50% 行业上限和行业中性化此时才真正起作用。
+
+### LightGBM Strategy / LightGBM 策略
+
+Same run, same windows. The ranking model does not beat the benchmark in any window of the honest backtest; the paper account's excess return since April 2026 is, by the dashboard's attribution, sector exposure rather than selection. Treat this strategy as research until that changes.
+
+同一次运行、同样的窗口。排序模型在诚实回测的任何窗口内都没有跑赢基准；模拟账户自 2026 年 4 月以来的超额收益，按看板归因，来自行业暴露而非选股。在这一点改变之前，这条策略应视为研究项目。
+
+| Window / 窗口 | Strategy / 策略 | SPY | Difference / 差异 | Sharpe | Max DD |
+|---|:---:|:---:|:---:|:---:|:---:|
+| 5-Year (2021-09-02 → 2026-09-02) | +53.6% | +80.3% | -26.7pp | 0.45 | -21.4% |
+| 3-Year (2023-09-02 → 2026-09-02) | +49.3% | +76.5% | -27.2pp | 1.00 | -8.5% |
+| 1-Year (2025-09-02 → 2026-09-02) | +12.0% | +20.6% | -8.6pp | 0.81 | -6.6% |
 
 Even after rerunning, the default static stock universe must be labelled as
 survivorship-biased. A bias-reduced run requires both the optional
