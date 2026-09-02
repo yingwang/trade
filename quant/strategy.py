@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from quant.data.market_data import MarketData
+from quant.utils.config import static_sector_map
 from quant.data.point_in_time import load_point_in_time_bundle
 from quant.data.quality import (
     DataQualityChecker,
@@ -99,8 +100,11 @@ class MultiFactorStrategy:
         )
 
         # Extract sector map for sector constraints (if available)
-        sector_map = None
-        if not fundamentals.empty and "sector" in fundamentals.columns:
+        # The configured static sector table is the classification for both
+        # the backtest and the live path; the yfinance snapshot is only a
+        # fallback for configs without one (the ETF control universe).
+        sector_map = static_sector_map(self.config)
+        if sector_map is None and not fundamentals.empty and "sector" in fundamentals.columns:
             sector_map = fundamentals["sector"]
 
         # 2. Generate signals
@@ -288,8 +292,11 @@ class MultiFactorStrategy:
         self.last_fundamentals_ = fundamentals
 
         # Extract sector map
-        sector_map = None
-        if not fundamentals.empty and "sector" in fundamentals.columns:
+        # The configured static sector table is the classification for both
+        # the backtest and the live path; the yfinance snapshot is only a
+        # fallback for configs without one (the ETF control universe).
+        sector_map = static_sector_map(self.config)
+        if sector_map is None and not fundamentals.empty and "sector" in fundamentals.columns:
             sector_map = fundamentals["sector"]
 
         eligibility = None

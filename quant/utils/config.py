@@ -23,6 +23,24 @@ def _number(section: dict, key: str, *, minimum=None, maximum=None) -> float:
     return value
 
 
+def static_sector_map(config: dict):
+    """The universe's sector table from config, as a Series, or None if absent.
+
+    When present it is the single sector classification for signals, sector
+    caps and attribution on both the backtest and the live path.
+    """
+    import pandas as pd
+
+    universe = config.get("universe", {}) if isinstance(config, dict) else {}
+    table = universe.get("sectors") if isinstance(universe, dict) else None
+    if not table:
+        return None
+    return pd.Series(
+        {str(symbol).strip().upper(): str(sector).strip() for symbol, sector in table.items()},
+        dtype="object",
+    )
+
+
 def validate_config(config: dict) -> dict:
     """Validate risk-critical configuration before any data or orders run."""
     if not isinstance(config, dict):
@@ -48,6 +66,16 @@ def validate_config(config: dict) -> dict:
         raise ValueError("universe.benchmark must be a ticker string")
     if benchmark.strip().upper() in set(normalized):
         raise ValueError("universe.benchmark must not also appear in universe.symbols")
+    sectors = universe.get("sectors")
+    if sectors is not None:
+        if not isinstance(sectors, dict) or any(
+            not isinstance(sector, str) or not sector.strip() for sector in sectors.values()
+        ):
+            raise ValueError("universe.sectors must map each ticker to a non-empty sector name")
+        table = {str(symbol).strip().upper() for symbol in sectors}
+        uncovered = sorted(set(normalized) - table)
+        if uncovered:
+            raise ValueError(f"universe.sectors is missing entries for: {uncovered}")
 
     data = config["data"]
     _number(data, "lookback_years", minimum=1)

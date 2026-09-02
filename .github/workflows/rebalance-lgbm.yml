@@ -7,7 +7,11 @@ on:
     # don't race each other's state pushes to main.
     # (History: moved earlier from 18:00 UTC because GH Actions scheduler
     # delay, often 2h+, was pushing runs past the 16:00 ET close.)
-    - cron: '10 15 * * 1-5'
+    # Three attempts a day, staggered 10 min behind rebalance.yml (see the
+    # note there on scheduler delay); each attempt is idempotent.
+    - cron: '17 14 * * 1-5'
+    - cron: '47 15 * * 1-5'
+    - cron: '17 17 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -76,11 +80,23 @@ jobs:
           esac
 
       - name: Run paper_trade_lgbm.py
-        run: python paper_trade_lgbm.py ${{ steps.flags.outputs.args }}
+        run: |
+          set -o pipefail
+          python paper_trade_lgbm.py ${{ steps.flags.outputs.args }} 2>&1 | tee run.log
         env:
           PYTHONPATH: .
           ALPACA_LGBM_API_KEY: ${{ secrets.ALPACA_LGBM_API_KEY }}
           ALPACA_LGBM_SECRET_KEY: ${{ secrets.ALPACA_LGBM_SECRET_KEY }}
+
+      # A scheduled run that arrives after the close did nothing; say so
+      # where it can be seen instead of passing silently.
+      - name: Flag a scheduled run that missed market hours
+        if: github.event_name == 'schedule'
+        run: |
+          if grep -q "Market is closed" run.log; then
+            echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance today from this attempt"
+            echo "Scheduled run at $(date -u +%H:%M) UTC found the market closed." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Persist state for next run
       - name: Save trade state
@@ -91,8 +107,10 @@ jobs:
           key: trade-state-lgbm-${{ github.run_number }}
 
       # Commit updated trade logs and state back to repo
+      # always(): a run that traded and then failed must still land its
+      # state and event log on main; the cache alone is not a record.
       - name: Commit trade logs
-        if: github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
+        if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

@@ -8,7 +8,16 @@ on:
     # rebalance-lgbm.yml so the two workflows don't race each other's pushes.
     # With GH Actions' typical 1-2h+ scheduler delay the run still lands
     # mid-session with hours of runway before the 16:00 ET close.
-    - cron: '0 15 * * 1-5'
+    # Three attempts a day, off the hour. GitHub's scheduler routinely runs
+    # a job five to nine hours late; three of five scheduled runs in late
+    # August landed after the 16:00 ET close, hit the market-closed gate and
+    # exited green, so those days had no stop-loss check at all. The first
+    # attempt that finds the market open does the work; later ones are
+    # idempotent (last_rebalance, the daily tracker and the stop-loss state
+    # all persist) and exit at once.
+    - cron: '7 14 * * 1-5'
+    - cron: '37 15 * * 1-5'
+    - cron: '7 17 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -80,11 +89,23 @@ jobs:
           esac
 
       - name: Run paper_trade.py
-        run: python paper_trade.py ${{ steps.flags.outputs.args }}
+        run: |
+          set -o pipefail
+          python paper_trade.py ${{ steps.flags.outputs.args }} 2>&1 | tee run.log
         env:
           PYTHONPATH: .
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+
+      # A scheduled run that arrives after the close did nothing; say so
+      # where it can be seen instead of passing silently.
+      - name: Flag a scheduled run that missed market hours
+        if: github.event_name == 'schedule'
+        run: |
+          if grep -q "Market is closed" run.log; then
+            echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance today from this attempt"
+            echo "Scheduled run at $(date -u +%H:%M) UTC found the market closed." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Persist state for next run
       - name: Save trade state
@@ -95,8 +116,10 @@ jobs:
           key: trade-state-${{ github.run_number }}
 
       # Commit updated trade logs and state back to repo
+      # always(): a run that traded and then failed must still land its
+      # state and event log on main; the cache alone is not a record.
       - name: Commit trade logs
-        if: github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
+        if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

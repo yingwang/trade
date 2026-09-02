@@ -88,6 +88,7 @@ class LGBMRankingModel:
         random_state: int = 42,
         label_horizon: int = 21,
         relevance_levels: int = 10,
+        training_stride: int = 5,
     ):
         self.params = {
             "num_leaves": num_leaves,
@@ -102,6 +103,12 @@ class LGBMRankingModel:
             "random_state": random_state,
         }
         self.label_horizon = max(1, int(label_horizon))
+        # Days between training cross-sections.  One per label horizon (21)
+        # left a 504-day window with 23 queries of 100 stocks, far too few for
+        # a 92-feature ranker: 137 live retrains stopped at a median of 5
+        # boosting rounds.  Overlapping labels are tolerable for the trees;
+        # validation stays purged and embargoed.
+        self.training_stride = max(1, int(training_stride))
         self.relevance_levels = max(2, min(int(relevance_levels), 31))
         self.model = None
         self.feature_importance_: Optional[pd.Series] = None
@@ -232,11 +239,11 @@ class LGBMRankingModel:
         if not LGBM_AVAILABLE and not SKLEARN_FALLBACK:
             return {"status": "no_backend_available"}
 
-        # Daily forward labels overlap heavily.  Keep one independent-ish
-        # training query per prediction horizon while retaining every
-        # validation date for stable IC diagnostics.
+        # Daily forward labels overlap; sample training queries every
+        # training_stride days (see __init__) while retaining every validation
+        # date for stable IC diagnostics.
         X_tr, y_tr, train_groups, _ = self._prepare_panel_data(
-            X_train, y_train, stride=self.label_horizon
+            X_train, y_train, stride=self.training_stride
         )
         X_va, y_va, val_groups, val_keys = self._prepare_panel_data(
             X_val, y_val, stride=1
@@ -280,9 +287,16 @@ class LGBMRankingModel:
                 "callbacks": callbacks,
             }
             if use_validation:
+                # One stopping metric.  With ndcg@1/3/5/10 all monitored and
+                # first_metric_only left False, the first of the four to stall
+                # for 20 rounds ended training, and ndcg@1 over 100-stock
+                # groups is close to noise: the live model stopped after a
+                # handful of rounds nearly every day.  ndcg@10 covers the
+                # names the portfolio actually buys.
                 callbacks.append(
                     lgb.early_stopping(
                         stopping_rounds=self.params["early_stopping_rounds"],
+                        first_metric_only=True,
                         verbose=False,
                     )
                 )
@@ -290,7 +304,7 @@ class LGBMRankingModel:
                     eval_set=[(X_va, self._relevance_labels(y_va))],
                     eval_group=[val_groups],
                     eval_names=["validation"],
-                    eval_at=[1, 3, 5, 10],
+                    eval_at=[10],
                 )
             self.model.fit(**fit_kwargs)
         else:
@@ -320,7 +334,7 @@ class LGBMRankingModel:
             "n_train": len(X_tr),
             "train_groups": len(train_groups),
             "train_rmse": float(np.sqrt(np.mean((y_tr - train_pred) ** 2))),
-            "training_stride": self.label_horizon,
+            "training_stride": self.training_stride,
         }
         if use_validation:
             val_pred = self._groupwise_percentiles(

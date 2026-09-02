@@ -463,8 +463,10 @@ def generate_actual_attribution(
         benchmark_frame = asset_prices[[benchmark]]
         proxy_prices = proxy_prices.combine_first(benchmark_frame)
 
-    sector_map = None
-    if fundamentals is not None and not fundamentals.empty and "sector" in fundamentals:
+    from quant.utils.config import static_sector_map
+
+    sector_map = static_sector_map(config)
+    if sector_map is None and fundamentals is not None and not fundamentals.empty and "sector" in fundamentals:
         sector_map = fundamentals["sector"]
 
     attribution_config = config.get("attribution", {})

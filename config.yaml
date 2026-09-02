@@ -116,6 +116,112 @@ universe:
     # Real Estate (2)
     - AMT
     - PLD
+  # Static sector table, one entry per universe symbol, in yfinance's sector
+  # vocabulary. Both the backtest and the live path neutralize factors and
+  # cap sector exposure with this table, so they compute the same signal;
+  # the live path used to depend on a daily yfinance .info snapshot that
+  # the backtest never had (and that drifted whenever yfinance rate-limited).
+  sectors:
+    AAPL: Technology
+    MSFT: Technology
+    NVDA: Technology
+    AVGO: Technology
+    ORCL: Technology
+    CRM: Technology
+    ADBE: Technology
+    AMD: Technology
+    INTC: Technology
+    QCOM: Technology
+    CSCO: Technology
+    INTU: Technology
+    NOW: Technology
+    IBM: Technology
+    TXN: Technology
+    PANW: Technology
+    CRWD: Technology
+    SNOW: Technology
+    DDOG: Technology
+    ZS: Technology
+    NET: Technology
+    AMAT: Technology
+    LRCX: Technology
+    MU: Technology
+    KLAC: Technology
+    ADI: Technology
+    MRVL: Technology
+    NXPI: Technology
+    MCHP: Technology
+    "ON": Technology
+    MPWR: Technology
+    GOOGL: Communication Services
+    META: Communication Services
+    AMZN: Consumer Cyclical
+    TSLA: Consumer Cyclical
+    HD: Consumer Cyclical
+    MCD: Consumer Cyclical
+    NKE: Consumer Cyclical
+    TJX: Consumer Cyclical
+    LOW: Consumer Cyclical
+    SBUX: Consumer Cyclical
+    BKNG: Consumer Cyclical
+    JPM: Financial Services
+    BAC: Financial Services
+    WFC: Financial Services
+    GS: Financial Services
+    MS: Financial Services
+    C: Financial Services
+    USB: Financial Services
+    PNC: Financial Services
+    TFC: Financial Services
+    SCHW: Financial Services
+    V: Financial Services
+    MA: Financial Services
+    AXP: Financial Services
+    COF: Financial Services
+    BLK: Financial Services
+    JNJ: Healthcare
+    UNH: Healthcare
+    LLY: Healthcare
+    ABBV: Healthcare
+    MRK: Healthcare
+    TMO: Healthcare
+    ABT: Healthcare
+    DHR: Healthcare
+    BMY: Healthcare
+    AMGN: Healthcare
+    GILD: Healthcare
+    VRTX: Healthcare
+    REGN: Healthcare
+    ISRG: Healthcare
+    ELV: Healthcare
+    WMT: Consumer Defensive
+    COST: Consumer Defensive
+    TGT: Consumer Defensive
+    PG: Consumer Defensive
+    KO: Consumer Defensive
+    PEP: Consumer Defensive
+    MDLZ: Consumer Defensive
+    CL: Consumer Defensive
+    XOM: Energy
+    CVX: Energy
+    COP: Energy
+    EOG: Energy
+    SLB: Energy
+    CAT: Industrials
+    BA: Industrials
+    GE: Industrials
+    RTX: Industrials
+    HON: Industrials
+    UPS: Industrials
+    LMT: Industrials
+    DE: Industrials
+    LIN: Basic Materials
+    APD: Basic Materials
+    FCX: Basic Materials
+    NEE: Utilities
+    DUK: Utilities
+    AMT: Real Estate
+    PLD: Real Estate
   benchmark: SPY
 
 data:

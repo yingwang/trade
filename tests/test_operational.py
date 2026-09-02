@@ -690,3 +690,33 @@ class TestLiveQualityGate:
         prices = self._prices(n_days=60)  # a half-fetched window
         with pytest.raises(RuntimeError, match="quality gate"):
             enforce_live_data_quality(prices, benchmark="BENCH")
+
+
+
+class TestStaticSectorTable:
+    def test_production_config_covers_every_symbol_with_one_table(self):
+        from quant.utils.config import load_config, static_sector_map, validate_config
+
+        config = validate_config(load_config("config.yaml"))
+        table = static_sector_map(config)
+        assert table is not None
+        assert set(table.index) == {s.upper() for s in config["universe"]["symbols"]}
+        assert table.notna().all()
+
+    def test_missing_entries_are_rejected(self):
+        from quant.utils.config import validate_config
+
+        import copy
+        from quant.utils.config import load_config
+
+        config = copy.deepcopy(load_config("config.yaml"))
+        config["universe"]["sectors"].pop("AAPL")
+        import pytest
+
+        with pytest.raises(ValueError, match="AAPL"):
+            validate_config(config)
+
+    def test_absent_table_means_none(self):
+        from quant.utils.config import static_sector_map
+
+        assert static_sector_map({"universe": {"symbols": ["A"]}}) is None
