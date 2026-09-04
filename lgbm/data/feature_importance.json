@@ -1,0 +1,105 @@
+{
+  "features": [
+    {
+      "feature": "momentum",
+      "importance": 20.5633,
+      "importance_pct": 25.2
+    },
+    {
+      "feature": "high_proximity",
+      "importance": 12.8865,
+      "importance_pct": 15.79
+    },
+    {
+      "feature": "short_term_reversal",
+      "importance": 8.524,
+      "importance_pct": 10.45
+    },
+    {
+      "feature": "vol_contraction",
+      "importance": 6.6883,
+      "importance_pct": 8.2
+    },
+    {
+      "feature": "trend_persistence",
+      "importance": 3.6812,
+      "importance_pct": 4.51
+    },
+    {
+      "feature": "rsi_14",
+      "importance": 3.4768,
+      "importance_pct": 4.26
+    },
+    {
+      "feature": "macd_line",
+      "importance": 3.3419,
+      "importance_pct": 4.1
+    },
+    {
+      "feature": "macd_signal",
+      "importance": 3.162,
+      "importance_pct": 3.87
+    },
+    {
+      "feature": "macd_histogram",
+      "importance": 3.0807,
+      "importance_pct": 3.78
+    },
+    {
+      "feature": "bb_width",
+      "importance": 3.0014,
+      "importance_pct": 3.68
+    },
+    {
+      "feature": "atr_proxy_14",
+      "importance": 2.2092,
+      "importance_pct": 2.71
+    },
+    {
+      "feature": "updown_bias_21",
+      "importance": 2.093,
+      "importance_pct": 2.56
+    },
+    {
+      "feature": "ret_5d",
+      "importance": 1.9784,
+      "importance_pct": 2.42
+    },
+    {
+      "feature": "ret_10d",
+      "importance": 1.6286,
+      "importance_pct": 2.0
+    },
+    {
+      "feature": "ret_21d",
+      "importance": 1.6091,
+      "importance_pct": 1.97
+    },
+    {
+      "feature": "ret_63d",
+      "importance": 1.3122,
+      "importance_pct": 1.61
+    },
+    {
+      "feature": "vol_5d",
+      "importance": 1.2013,
+      "importance_pct": 1.47
+    },
+    {
+      "feature": "vol_10d",
+      "importance": 1.164,
+      "importance_pct": 1.43
+    },
+    {
+      "feature": "vol_21d",
+      "importance": 0.0,
+      "importance_pct": 0.0
+    },
+    {
+      "feature": "vol_63d",
+      "importance": 0.0,
+      "importance_pct": 0.0
+    }
+  ],
+  "updated_at": "2026-09-04 19:00 EDT"
+}

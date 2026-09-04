@@ -1,0 +1,105 @@
+{
+  "updated_at": "2026-09-04 18:55 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 43.0,
+  "cash_pct": 57.0,
+  "account_equity_basis": 126091.14,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 11.01,
+      "dollars": 13877.0,
+      "shares": 84,
+      "price": 164.44,
+      "score": 1.1643
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 9.76,
+      "dollars": 12312.0,
+      "shares": 12,
+      "price": 1016.59,
+      "score": 1.5184
+    },
+    {
+      "symbol": "BAC",
+      "weight_pct": 3.94,
+      "dollars": 4966.0,
+      "shares": 79,
+      "price": 62.68,
+      "score": 0.8053
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 3.53,
+      "dollars": 4455.0,
+      "shares": 18,
+      "price": 245.6,
+      "score": 0.3058
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 3.12,
+      "dollars": 3938.0,
+      "shares": 8,
+      "price": 477.57,
+      "score": 0.7896
+    },
+    {
+      "symbol": "USB",
+      "weight_pct": 2.87,
+      "dollars": 3615.0,
+      "shares": 57,
+      "price": 63.37,
+      "score": 0.8179
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 2.78,
+      "dollars": 3510.0,
+      "shares": 13,
+      "price": 258.51,
+      "score": 0.8072
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 2.55,
+      "dollars": 3221.0,
+      "shares": 16,
+      "price": 200.79,
+      "score": 1.1632
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 2.01,
+      "dollars": 2535.0,
+      "shares": 34,
+      "price": 72.73,
+      "score": 1.2136
+    },
+    {
+      "symbol": "BKNG",
+      "weight_pct": 0.59,
+      "dollars": 738.0,
+      "shares": 3,
+      "price": 193.29,
+      "score": 1.1278
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 0.43,
+      "dollars": 537.0,
+      "shares": 1,
+      "price": 333.26,
+      "score": 0.9862
+    },
+    {
+      "symbol": "KO",
+      "weight_pct": 0.42,
+      "dollars": 530.0,
+      "shares": 6,
+      "price": 88.07,
+      "score": 0.9826
+    }
+  ]
+}

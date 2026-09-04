@@ -1,0 +1,114 @@
+{
+  "updated_at": "2026-09-04 18:57 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 37.1,
+  "cash_pct": 62.9,
+  "account_equity_basis": 131812.96,
+  "positions": [
+    {
+      "symbol": "ZS",
+      "weight_pct": 6.03,
+      "dollars": 7948.0,
+      "shares": 46,
+      "price": 169.8,
+      "score": 0.9239
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 5.21,
+      "dollars": 6864.0,
+      "shares": 48,
+      "price": 141.26,
+      "score": 0.9208
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 5.0,
+      "dollars": 6593.0,
+      "shares": 18,
+      "price": 354.08,
+      "score": 0.9174
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 4.16,
+      "dollars": 5483.0,
+      "shares": 16,
+      "price": 333.26,
+      "score": 0.9226
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 3.44,
+      "dollars": 4537.0,
+      "shares": 16,
+      "price": 278.92,
+      "score": 0.9219
+    },
+    {
+      "symbol": "BA",
+      "weight_pct": 3.05,
+      "dollars": 4015.0,
+      "shares": 18,
+      "price": 212.25,
+      "score": 0.1204
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 2.62,
+      "dollars": 3458.0,
+      "shares": 21,
+      "price": 158.78,
+      "score": 0.9216
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 2.37,
+      "dollars": 3120.0,
+      "shares": 3,
+      "price": 1016.59,
+      "score": 0.9249
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 1.65,
+      "dollars": 2181.0,
+      "shares": 11,
+      "price": 185.6,
+      "score": 0.9199
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 0.88,
+      "dollars": 1165.0,
+      "shares": 12,
+      "price": 95.8,
+      "score": 0.9135
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 0.88,
+      "dollars": 1165.0,
+      "shares": 2,
+      "price": 477.57,
+      "score": 0.9176
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 0.88,
+      "dollars": 1165.0,
+      "shares": 5,
+      "price": 212.93,
+      "score": 0.9152
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 0.88,
+      "dollars": 1165.0,
+      "shares": 3,
+      "price": 307.65,
+      "score": 0.9153
+    }
+  ]
+}

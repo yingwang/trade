@@ -1,0 +1,95 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "trend_persistence"
+  ],
+  "stocks": {
+    "TGT": {
+      "momentum": 2.113,
+      "high_proximity": 1.251,
+      "short_term_reversal": -0.58,
+      "vol_contraction": -0.846,
+      "trend_persistence": 0.002
+    },
+    "MU": {
+      "momentum": 2.914,
+      "high_proximity": 0.638,
+      "short_term_reversal": -1.873,
+      "vol_contraction": 0.754,
+      "trend_persistence": 0.457
+    },
+    "BAC": {
+      "momentum": 1.675,
+      "high_proximity": 0.62,
+      "short_term_reversal": -0.055,
+      "vol_contraction": -0.733,
+      "trend_persistence": -0.775
+    },
+    "PNC": {
+      "momentum": 0.309,
+      "high_proximity": 0.316,
+      "short_term_reversal": -0.445,
+      "vol_contraction": -0.119,
+      "trend_persistence": 1.443
+    },
+    "AMD": {
+      "momentum": 1.267,
+      "high_proximity": 0.52,
+      "short_term_reversal": -0.604,
+      "vol_contraction": 0.552,
+      "trend_persistence": 0.573
+    },
+    "USB": {
+      "momentum": 1.292,
+      "high_proximity": 0.661,
+      "short_term_reversal": -0.472,
+      "vol_contraction": -0.468,
+      "trend_persistence": 1.338
+    },
+    "AMZN": {
+      "momentum": 0.989,
+      "high_proximity": 1.043,
+      "short_term_reversal": 0.31,
+      "vol_contraction": 0.778,
+      "trend_persistence": -0.048
+    },
+    "RTX": {
+      "momentum": 1.707,
+      "high_proximity": 0.479,
+      "short_term_reversal": 0.879,
+      "vol_contraction": 0.493,
+      "trend_persistence": 0.768
+    },
+    "FCX": {
+      "momentum": 1.865,
+      "high_proximity": 0.466,
+      "short_term_reversal": 1.327,
+      "vol_contraction": -0.524,
+      "trend_persistence": 1.073
+    },
+    "BKNG": {
+      "momentum": 1.492,
+      "high_proximity": 0.733,
+      "short_term_reversal": 1.854,
+      "vol_contraction": 0.06,
+      "trend_persistence": 0.438
+    },
+    "PANW": {
+      "momentum": 1.468,
+      "high_proximity": 0.666,
+      "short_term_reversal": 2.046,
+      "vol_contraction": -1.578,
+      "trend_persistence": 0.723
+    },
+    "KO": {
+      "momentum": 0.839,
+      "high_proximity": 1.08,
+      "short_term_reversal": 0.491,
+      "vol_contraction": 1.028,
+      "trend_persistence": 1.951
+    }
+  }
+}
