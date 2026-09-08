@@ -1635,6 +1635,26 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-09-08T19:56:49.856837",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-09-08T19:56:49.781007",
+          "symbol": "ON",
+          "side": "sell",
+          "qty": 13.0,
+          "requested_qty": 13.0,
+          "status": "filled",
+          "price": 71.012308,
+          "signal_price": 71.015,
+          "order_id": "e5bb0d58-f05f-49b4-863f-09b867bbdb42",
+          "client_order_id": "qts-stop-f306065c040cf1e3b5dca2be",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -1651,7 +1671,6 @@
     "MCHP": 75.23,
     "NET": 282.11,
     "NVDA": 193.1,
-    "ON": 84.14,
     "PANW": 321.14,
     "TSLA": 305.359333,
     "UPS": 103.23,
@@ -1662,59 +1681,17 @@
     "ORCL": 140.61
   },
   "daily_tracker": {
-    "trade_date": "2026-09-01",
-    "total_value_traded": 49088.309984,
+    "trade_date": "2026-09-08",
+    "total_value_traded": 923.1600040000001,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 22,
-    "orders_filled": 22,
+    "orders_submitted": 1,
+    "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-0049e3666a458d29e4e5590b",
-      "qts-reba-0df8244ee3c0ac28c75c85bb",
-      "qts-reba-0e4ccee8ac993703682a8269",
-      "qts-reba-3415b15a2664271fe350b2e8",
-      "qts-reba-39fdf3b6f24e0982974ea751",
-      "qts-reba-3c30b6c683f8b8523bb4cf17",
-      "qts-reba-5eb9a02fac72409f869b635d",
-      "qts-reba-6ba8a1017ed57c0277da98d1",
-      "qts-reba-7084f557a5bc3fe1e24dfef0",
-      "qts-reba-7774d743a0be48630db8f7fb",
-      "qts-reba-7c21d78586b9490c452d2713",
-      "qts-reba-81df089c65b57c38ec7266f3",
-      "qts-reba-859da4f97e8d4c173d39003b",
-      "qts-reba-a715f76a4067f15818b86c7f",
-      "qts-reba-a885a6063aceab8b8dc47b90",
-      "qts-reba-aac5429071a9fcf18e3b88c9",
-      "qts-reba-ca1dde9262f9b0a7cc036360",
-      "qts-reba-d5f384bc7377ec1f3bfa0844",
-      "qts-reba-ee1c38816f40d015ca4103d5",
-      "qts-reba-f0abe1eb12a542d979709294",
-      "qts-reba-f51702d9fb72ef356d4caa1c",
-      "qts-reba-fcecb79129e41dddd8fe2105"
+      "qts-stop-f306065c040cf1e3b5dca2be"
     ],
     "processed_fill_values": {
-      "qts-reba-0049e3666a458d29e4e5590b": 497.63,
-      "qts-reba-0df8244ee3c0ac28c75c85bb": 1442.76,
-      "qts-reba-0e4ccee8ac993703682a8269": 3000.409986,
-      "qts-reba-3415b15a2664271fe350b2e8": 2049.7999999999997,
-      "qts-reba-39fdf3b6f24e0982974ea751": 1758.68,
-      "qts-reba-3c30b6c683f8b8523bb4cf17": 2212.56,
-      "qts-reba-5eb9a02fac72409f869b635d": 1314.1200000000001,
-      "qts-reba-6ba8a1017ed57c0277da98d1": 9692.81,
-      "qts-reba-7084f557a5bc3fe1e24dfef0": 2952.8100000000004,
-      "qts-reba-7774d743a0be48630db8f7fb": 1439.5,
-      "qts-reba-7c21d78586b9490c452d2713": 1439.7,
-      "qts-reba-81df089c65b57c38ec7266f3": 1436.3,
-      "qts-reba-859da4f97e8d4c173d39003b": 1087.8,
-      "qts-reba-a715f76a4067f15818b86c7f": 3594.64,
-      "qts-reba-a885a6063aceab8b8dc47b90": 2307.0,
-      "qts-reba-aac5429071a9fcf18e3b88c9": 1860.29,
-      "qts-reba-ca1dde9262f9b0a7cc036360": 1350.88,
-      "qts-reba-d5f384bc7377ec1f3bfa0844": 2484.4799980000003,
-      "qts-reba-ee1c38816f40d015ca4103d5": 2444.26,
-      "qts-reba-f0abe1eb12a542d979709294": 2214.48,
-      "qts-reba-f51702d9fb72ef356d4caa1c": 1784.4,
-      "qts-reba-fcecb79129e41dddd8fe2105": 723.0
+      "qts-stop-f306065c040cf1e3b5dca2be": 923.1600040000001
     }
   },
   "stop_loss_attempts": {},
