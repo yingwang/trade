@@ -147,6 +147,13 @@ class PortfolioOptimizer:
         self.turnover_penalty = pcfg.get("turnover_penalty",
                                          self.txn_cost_bps / 10000 * 5)
         self.max_turnover = pcfg.get("max_turnover_per_rebalance", 1.0)
+        # Share of the turnover budget that liquidating exits may take. Selling an
+        # exit stub outright is worth doing, but it must not crowd out the entry
+        # legs: with the whole budget available to exits the book sells more than
+        # it buys at every rebalance and bleeds exposure.
+        self.exit_turnover_share = float(
+            pcfg.get("exit_turnover_share", 0.6)
+        )
 
         # Per-position hard cap from the safety config: leverage scaling must
         # not push any single position past what pre-trade checks allow,
@@ -655,9 +662,15 @@ class PortfolioOptimizer:
         ].sort_values()
         liquidated = []
         exit_turnover = float((blended.loc[exits] - w_old.loc[exits]).abs().sum())
+        # Liquidating exits draws on its own share of the budget.  Letting it draw
+        # on all of it starves the entry legs: on 15 September 2026 the live book
+        # wanted 110% invested, the blend ran at lam=0.36 and the entries at
+        # lam=0.04, which lands at 41% invested and sinks a little further every
+        # rebalance.  Whatever the exits leave unused still goes to the entries.
+        exit_budget = self.max_turnover * self.exit_turnover_share
         for symbol, remaining in exit_stubs.items():
             extra = float(remaining)
-            if exit_turnover + extra > self.max_turnover + 1e-9:
+            if exit_turnover + extra > exit_budget + 1e-9:
                 break
             blended.loc[symbol] = 0.0
             exit_turnover += extra

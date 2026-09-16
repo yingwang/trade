@@ -268,6 +268,9 @@ portfolio:
   rebalance_frequency_days: 21  # 3-week cycle — reduces turnover while keeping signals fresh
   transaction_cost_bps: 10    # 10 basis points per trade
   max_turnover_per_rebalance: 0.40  # cap single-rebalance turnover at 40%
+  # Share of that budget liquidating exits may use; the rest is reserved for
+  # entries so the book cannot sell more than it buys every cycle.
+  exit_turnover_share: 0.60
   alpha_scale: 0.05             # one cross-sectional z-score = 5% annual alpha
   risk_aversion: 1.0            # alpha and annualized covariance share a horizon
 

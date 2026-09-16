@@ -262,6 +262,39 @@ class TestTurnoverCap:
         result = opt.enforce_turnover_cap(new, prev)
         assert self._turnover(result, prev) == pytest.approx(0.40)
 
+    def _opt_share(self, config, cap, share):
+        cfg = {**config, "portfolio": {**config["portfolio"],
+                                       "max_turnover_per_rebalance": cap,
+                                       "exit_turnover_share": share}}
+        return PortfolioOptimizer(cfg)
+
+    def test_exits_cannot_starve_entries(self, config):
+        """A long tail of small holdings replaced by a few large ones. Liquidating
+        the old names outright is worth doing, but when it may draw on the whole
+        budget the entries get nothing and the book loses most of its exposure in
+        one rebalance, then loses more at the next one."""
+        prev = pd.Series({f"OLD{i}": 0.035 for i in range(15)})   # 52.5% invested
+        new = pd.Series({f"NEW{i}": 0.22 for i in range(5)})      # 110% target
+
+        starved = self._opt_share(config, 0.40, 1.0).enforce_turnover_cap(new, prev)
+        assert float(starved.reindex(new.index).fillna(0.0).sum()) == pytest.approx(0.0)
+        assert float(starved.sum()) < 0.3 * float(prev.sum())
+
+        split = self._opt_share(config, 0.40, 0.6).enforce_turnover_cap(new, prev)
+        assert self._turnover(split, prev) <= 0.40 + 1e-9
+        bought = float(split.reindex(new.index).fillna(0.0).sum())
+        assert bought >= 0.40 * (1 - 0.6) - 1e-9
+        assert float(split.sum()) > 0.8 * float(prev.sum())
+
+    def test_exit_share_bounds_liquidation(self, config):
+        """Liquidating exits stays inside its own share of the budget."""
+        opt = self._opt_share(config, 0.40, 0.6)
+        prev = pd.Series({f"OLD{i}": 0.035 for i in range(15)})
+        new = pd.Series({f"NEW{i}": 0.22 for i in range(5)})
+        result = opt.enforce_turnover_cap(new, prev)
+        sold = float((result.reindex(prev.index).fillna(0.0) - prev).abs().sum())
+        assert sold <= 0.40 * opt.exit_turnover_share + 1e-9
+
     def test_no_prev_weights_is_noop(self, config):
         opt = self._opt(config, 0.40)
         new = pd.Series({"A": 0.5, "B": 0.5})

@@ -87,6 +87,9 @@ portfolio:
   rebalance_frequency_days: 21
   transaction_cost_bps: 10
   max_turnover_per_rebalance: 0.40
+  # Share of that budget liquidating exits may use; the rest is reserved for
+  # entries so the book cannot sell more than it buys every cycle.
+  exit_turnover_share: 0.60
   alpha_scale: 0.05
   risk_aversion: 1.0
 
