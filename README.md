@@ -26,41 +26,41 @@ contributions add exactly to geometric active return.
 
 ### Multi-Factor Strategy / 多因子策略
 
-Recomputed 2026-09-02 by the `README Backtest Refresh` workflow (Actions run [33640431917](https://github.com/yingwang/trade/actions/runs/33640431917)) on commit `4274423`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, and Sharpe/Sortino against a 4% risk-free rate.
+Recomputed 2026-09-16 by the `README Backtest Refresh` workflow (Actions run [35091142885](https://github.com/yingwang/trade/actions/runs/35091142885)) on commit `181ac3c`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, the turnover budget split between exits and entries, and Sharpe/Sortino against a 4% risk-free rate.
 
-由 `README Backtest Refresh` workflow 于 2026-09-02 重算（Actions run 33640431917，commit `4274423`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与实盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，Sharpe/Sortino 按 4% 无风险利率计算。
+由 `README Backtest Refresh` workflow 于 2026-09-16 重算（Actions run 35091142885，commit `181ac3c`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与实盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，换手预算在退出腿与买入腿之间分配，Sharpe/Sortino 按 4% 无风险利率计算。
 
-#### 5-Year Backtest (2021-09-02 → 2026-09-02)
-
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+110.5%** | +80.3% | **+30.1pp** |
-| **CAGR / 年化收益** | **+16.1%** | — | — |
-| **Sharpe Ratio** | **0.71** | — | — |
-| **Sortino Ratio** | **1.02** | — | — |
-| **Max Drawdown / 最大回撤** | -16.7% | — | — |
-| **Information Ratio** | **0.22** | — | — |
-
-#### 3-Year Backtest (2023-09-02 → 2026-09-02)
+#### 5-Year Backtest (2021-09-16 → 2026-09-16)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+84.7%** | +76.5% | **+8.3pp** |
-| **CAGR / 年化收益** | **+22.9%** | — | — |
-| **Sharpe Ratio** | **1.00** | — | — |
-| **Sortino Ratio** | **1.47** | — | — |
-| **Max Drawdown / 最大回撤** | -16.7% | — | — |
-| **Information Ratio** | **0.15** | — | — |
+| **Total Return / 总收益** | **+113.7%** | +81.2% | **+32.5pp** |
+| **CAGR / 年化收益** | **+16.5%** | — | — |
+| **Sharpe Ratio** | **0.72** | — | — |
+| **Sortino Ratio** | **1.03** | — | — |
+| **Max Drawdown / 最大回撤** | -17.3% | — | — |
+| **Information Ratio** | **0.24** | — | — |
 
-#### 1-Year Backtest (2025-09-02 → 2026-09-02)
+#### 3-Year Backtest (2023-09-16 → 2026-09-16)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+39.5%** | +20.6% | **+18.9pp** |
-| **CAGR / 年化收益** | **+39.5%** | — | — |
-| **Sharpe Ratio** | **1.45** | — | — |
-| **Sortino Ratio** | **2.21** | — | — |
-| **Max Drawdown / 最大回撤** | -12.8% | — | — |
+| **Total Return / 总收益** | **+88.1%** | +76.6% | **+11.5pp** |
+| **CAGR / 年化收益** | **+23.7%** | — | — |
+| **Sharpe Ratio** | **1.03** | — | — |
+| **Sortino Ratio** | **1.51** | — | — |
+| **Max Drawdown / 最大回撤** | -17.3% | — | — |
+| **Information Ratio** | **0.20** | — | — |
+
+#### 1-Year Backtest (2025-09-16 → 2026-09-16)
+
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益** | **+33.8%** | +16.0% | **+17.8pp** |
+| **CAGR / 年化收益** | **+34.2%** | — | — |
+| **Sharpe Ratio** | **1.26** | — | — |
+| **Sortino Ratio** | **1.89** | — | — |
+| **Max Drawdown / 最大回撤** | -13.0% | — | — |
 | **Information Ratio** | **1.01** | — | — |
 
 #### Performance Chart / 净值曲线 (5-Year)
@@ -79,9 +79,9 @@ Same run, same windows. The ranking model does not beat the benchmark in any win
 
 | Window / 窗口 | Strategy / 策略 | SPY | Difference / 差异 | Sharpe | Max DD |
 |---|:---:|:---:|:---:|:---:|:---:|
-| 5-Year (2021-09-02 → 2026-09-02) | +53.6% | +80.3% | -26.7pp | 0.45 | -21.4% |
-| 3-Year (2023-09-02 → 2026-09-02) | +49.3% | +76.5% | -27.2pp | 1.00 | -8.5% |
-| 1-Year (2025-09-02 → 2026-09-02) | +12.0% | +20.6% | -8.6pp | 0.81 | -6.6% |
+| 5-Year (2021-09-16 → 2026-09-16) | +63.6% | +81.2% | -17.6pp | 0.57 | -20.9% |
+| 3-Year (2023-09-16 → 2026-09-16) | +52.1% | +76.6% | -24.5pp | 1.16 | -8.4% |
+| 1-Year (2025-09-16 → 2026-09-16) | +12.2% | +16.0% | -3.9pp | 1.03 | -5.2% |
 
 Even after rerunning, the default static stock universe must be labelled as
 survivorship-biased. A bias-reduced run requires both the optional
@@ -104,7 +104,7 @@ its universe selection as well as in its survivorship.
 | **Position Bounds** | 3% - 12% | 每只股票的权重范围 |
 | **Target Volatility** | 22% | 接近满仓投资，最小化现金拖累 |
 | **Rebalance** | Every 21 trading days | 3周再平衡，降低换手成本 |
-| **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡，混合后低于 3% 的退出仓在预算内整只卖出 |
+| **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡。预算分两份：退出腿最多用 60%（`exit_turnover_share`），其余留给买入腿，退出腿用不完的仍归买入腿，这样卖出不会挤掉买入 |
 | **Max Sector** | 50% | 允许科技股集中但有上限 |
 | **Max Drawdown** | 25% | 回测层面的风险监控指标；实盘的对应保护是日亏损熔断与每日止损 |
 | **Stop Loss** | 15% | 单只股票止损线，回测与实盘均每日检查 |
