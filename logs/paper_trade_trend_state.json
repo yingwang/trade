@@ -1,0 +1,139 @@
+{
+  "schema_version": 2,
+  "last_rebalance": "2026-09-17T18:22:39.915878",
+  "trade_history": [
+    {
+      "date": "2026-09-17T18:22:39.915890",
+      "completed": true,
+      "outcome": "all orders filled",
+      "trades": [
+        {
+          "time": "2026-09-17T18:22:24.110562",
+          "symbol": "AMD",
+          "side": "buy",
+          "qty": 20.0,
+          "requested_qty": 20.0,
+          "status": "filled",
+          "price": 545.7095,
+          "signal_price": 545.51,
+          "order_id": "c78ef558-5f3f-4d0e-b343-3c3ba44b5f2d",
+          "client_order_id": "qts-reba-14ed88b6cf2eead06f040930",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-09-17T18:22:25.294445",
+          "symbol": "CRWD",
+          "side": "buy",
+          "qty": 41.0,
+          "requested_qty": 41.0,
+          "status": "filled",
+          "price": 245.9,
+          "signal_price": 245.81,
+          "order_id": "67f2c878-293c-484a-b40a-f7f6e5bdab44",
+          "client_order_id": "qts-reba-87f2b1f7c1838f1d228cdbe7",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-09-17T18:22:26.505913",
+          "symbol": "INTC",
+          "side": "buy",
+          "qty": 94.0,
+          "requested_qty": 94.0,
+          "status": "filled",
+          "price": 110.37,
+          "signal_price": 110.38,
+          "order_id": "d2a99db3-2700-48ba-be02-d4d446504114",
+          "client_order_id": "qts-reba-50b6278f153e8b2613a1a6c0",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-09-17T18:22:28.826318",
+          "symbol": "MRVL",
+          "side": "buy",
+          "qty": 35.0,
+          "requested_qty": 35.0,
+          "status": "filled",
+          "price": 240.77,
+          "signal_price": 240.6,
+          "order_id": "b0f01b31-09da-456a-a0c3-e0b97629fa91",
+          "client_order_id": "qts-reba-21dc7d3d435a7703d13d9228",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-09-17T18:22:32.116623",
+          "symbol": "MU",
+          "side": "buy",
+          "qty": 8.0,
+          "requested_qty": 8.0,
+          "status": "filled",
+          "price": 977.04,
+          "signal_price": 976.84,
+          "order_id": "ea8d3375-cdee-475f-9827-646c759ac46c",
+          "client_order_id": "qts-reba-234481640e17f78374f172c2",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-09-17T18:22:36.446262",
+          "symbol": "PANW",
+          "side": "buy",
+          "qty": 31.0,
+          "requested_qty": 31.0,
+          "status": "filled",
+          "price": 372.61,
+          "signal_price": 372.22,
+          "order_id": "ec4fc492-b226-498b-917f-1d0abd95ac7b",
+          "client_order_id": "qts-reba-514f62127a300d8658094d62",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-09-17T18:22:39.770981",
+          "symbol": "SNOW",
+          "side": "buy",
+          "qty": 42.0,
+          "requested_qty": 42.0,
+          "status": "filled",
+          "price": 336.9,
+          "signal_price": 336.61,
+          "order_id": "21db3ec8-1101-4fa3-ba51-9ee962e5019a",
+          "client_order_id": "qts-reba-01c4c6c8bb415bd1e387d875",
+          "reject_reason": ""
+        }
+      ]
+    }
+  ],
+  "entry_prices": {
+    "AMD": 545.7095,
+    "CRWD": 245.9,
+    "INTC": 110.37,
+    "MRVL": 240.77,
+    "MU": 977.04,
+    "PANW": 372.61,
+    "SNOW": 336.9
+  },
+  "daily_tracker": {
+    "trade_date": "2026-09-17",
+    "total_value_traded": 73314.85,
+    "total_realised_pnl": 0.0,
+    "orders_submitted": 7,
+    "orders_filled": 7,
+    "orders_rejected": 0,
+    "processed_client_order_ids": [
+      "qts-reba-01c4c6c8bb415bd1e387d875",
+      "qts-reba-14ed88b6cf2eead06f040930",
+      "qts-reba-21dc7d3d435a7703d13d9228",
+      "qts-reba-234481640e17f78374f172c2",
+      "qts-reba-50b6278f153e8b2613a1a6c0",
+      "qts-reba-514f62127a300d8658094d62",
+      "qts-reba-87f2b1f7c1838f1d228cdbe7"
+    ],
+    "processed_fill_values": {
+      "qts-reba-01c4c6c8bb415bd1e387d875": 14149.8,
+      "qts-reba-14ed88b6cf2eead06f040930": 10914.19,
+      "qts-reba-21dc7d3d435a7703d13d9228": 8426.95,
+      "qts-reba-234481640e17f78374f172c2": 7816.32,
+      "qts-reba-50b6278f153e8b2613a1a6c0": 10374.78,
+      "qts-reba-514f62127a300d8658094d62": 11550.91,
+      "qts-reba-87f2b1f7c1838f1d228cdbe7": 10081.9
+    }
+  }
+}
