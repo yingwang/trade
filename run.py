@@ -80,6 +80,20 @@ def cmd_backtest_trend(args):
     """Run a historical backtest with the trend strategy (config_trend.yaml)."""
     from quant.trend_strategy import TrendStrategy
     config = load_config(args.config)
+    if getattr(args, "override", None):
+        # Parameter sweeps from the workflow without a commit per variant:
+        # a JSON object merged over the config, e.g.
+        # '{"trend": {"trailing_stop": 0.2}, "portfolio": {"target_volatility": 0.4}}'
+        import json
+
+        def _merge(base, extra):
+            for key, value in extra.items():
+                if isinstance(value, dict) and isinstance(base.get(key), dict):
+                    _merge(base[key], value)
+                else:
+                    base[key] = value
+        _merge(config, json.loads(args.override))
+        print(f"Config overrides: {args.override}")
     strategy = TrendStrategy(config)
     result = strategy.run_backtest(start=args.start, end=args.end)
 
@@ -186,6 +200,7 @@ def main():
     bt_trend.add_argument("--start", help="Start date (YYYY-MM-DD)")
     bt_trend.add_argument("--end", help="End date (YYYY-MM-DD)")
     bt_trend.add_argument("--yearly", action="store_true", help="Print calendar-year returns")
+    bt_trend.add_argument("--override", help="JSON object merged over the config (parameter sweeps)")
     bt_trend.add_argument("--plot", action="store_true", help="Generate performance plots")
     bt_trend.add_argument("--plot-output", help="Plot output filename")
     bt_trend.set_defaults(func=cmd_backtest_trend)

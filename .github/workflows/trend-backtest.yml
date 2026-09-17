@@ -16,6 +16,10 @@ on:
         description: 'End date (YYYY-MM-DD); default today'
         required: false
         default: ''
+      overrides:
+        description: 'JSON merged over config_trend.yaml, e.g. {"trend": {"trailing_stop": 0.2}}'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -45,6 +49,8 @@ jobs:
           fi
           ARGS=(--start "$START" --yearly --plot --plot-output backtest_trend.png)
           if [ -n "$END" ]; then ARGS+=(--end "$END"); fi
+          OVERRIDES='${{ github.event.inputs.overrides }}'
+          if [ -n "$OVERRIDES" ]; then ARGS+=(--override "$OVERRIDES"); fi
           python run.py -c config_trend.yaml backtest-trend "${ARGS[@]}" | tee backtest_output.txt
           {
             echo '## Trend backtest'
