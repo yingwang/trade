@@ -14,6 +14,11 @@ on:
         required: false
         default: false
         type: boolean
+      trend:
+        description: 'Also run the trend strategy tables (config_trend.yaml)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -40,8 +45,12 @@ jobs:
           if [ "${{ github.event.inputs.lgbm }}" = "true" ]; then
             LGBM_ARG="--lgbm"
           fi
+          TREND_ARG=""
+          if [ "${{ github.event.inputs.trend }}" = "true" ]; then
+            TREND_ARG="--trend"
+          fi
           set -o pipefail
-          python refresh_backtest_tables.py $LGBM_ARG | tee tables_output.txt
+          python refresh_backtest_tables.py $LGBM_ARG $TREND_ARG | tee tables_output.txt
 
       - name: Render 5-year chart
         env:
