@@ -77,6 +77,43 @@ A third book, on its own Alpaca paper account, built to compete with the two abo
 
 第三个账户走的是另一条路：集中、带杠杆的趋势跟随。在 200 日线之上的股票里按 12-1、6-1、3 个月动量混合排序取前七只，按波动率倒数配权，把组合年化波动定在 35% 并允许最高 1.9 倍毛头寸；大盘破 200 日线、大盘 21 日波动率超过 30%、市场宽度弱于 30% 这三盏警示灯亮一盏毛头寸压到 0.6 倍、亮两盏清仓。每十个交易日按共享的锚定日历调仓，每个交易日检查 20% 移动止损与仓位上限并当天执行。参数由五年窗口上的十二组对照定下：十日调仓代替五日、七只代替十只是两处真正起作用的改动，收紧止损和放松减仓门槛都更差。回测表由 `Trend Backtest` workflow 生成，幸存者偏差的说明与多因子表相同。
 
+Recomputed 2026-09-17 by the `README Backtest Refresh` workflow (Actions run [35218038435](https://github.com/yingwang/trade/actions/runs/35218038435)) on commit `e59fe3e`, the same continuous simulation sliced into windows as the multi-factor tables above. Static universe, so the same survivorship caveat applies, and the concentration (seven names, up to 1.9x gross) makes the numbers more sensitive to it than the multi-factor book's.
+
+由 `README Backtest Refresh` workflow 于 2026-09-17 重算（Actions run 35218038435，commit `e59fe3e`），与上面多因子表同样是一次连续模拟切成三个窗口。股票池是静态的，幸存者偏差的说明同上；这一本只持七只、最高 1.9 倍毛头寸，对这种偏差比多因子那本更敏感。
+
+### 5-Year Backtest (2021-09-17 → 2026-09-17)
+
+| Metric / 指标             | Strategy / 策略 | SPY    | Difference / 差异 |
+| ----------------------- | ------------- | ------ | --------------- |
+| **Total Return / 总收益**  | **+256.8%** | +82.2% | **+174.6pp** |
+| **CAGR / 年化收益**         | **+29.2%** | — | — |
+| **Sharpe Ratio**        | **0.87** | — | — |
+| **Sortino Ratio**       | **1.28** | — | — |
+| **Max Drawdown / 最大回撤** | -26.7% | — | — |
+| **Information Ratio**   | **0.65** | — | — |
+
+### 3-Year Backtest (2023-09-17 → 2026-09-17)
+
+| Metric / 指标             | Strategy / 策略 | SPY    | Difference / 差异 |
+| ----------------------- | ------------- | ------ | --------------- |
+| **Total Return / 总收益**  | **+220.4%** | +75.8% | **+144.6pp** |
+| **CAGR / 年化收益**         | **+47.8%** | — | — |
+| **Sharpe Ratio**        | **1.24** | — | — |
+| **Sortino Ratio**       | **1.88** | — | — |
+| **Max Drawdown / 最大回撤** | -26.7% | — | — |
+| **Information Ratio**   | **0.92** | — | — |
+
+### 1-Year Backtest (2025-09-17 → 2026-09-17)
+
+| Metric / 指标             | Strategy / 策略 | SPY    | Difference / 差异 |
+| ----------------------- | ------------- | ------ | --------------- |
+| **Total Return / 总收益**  | **+65.9%** | +15.7% | **+50.2pp** |
+| **CAGR / 年化收益**         | **+66.5%** | — | — |
+| **Sharpe Ratio**        | **1.49** | — | — |
+| **Sortino Ratio**       | **2.24** | — | — |
+| **Max Drawdown / 最大回撤** | -19.9% | — | — |
+| **Information Ratio**   | **1.46** | — | — |
+
 ### LightGBM Strategy / LightGBM 策略
 
 Same run, same windows. The ranking model does not beat the benchmark in any window of the honest backtest; the paper account's excess return since April 2026 is, by the dashboard's attribution, sector exposure rather than selection. Treat this strategy as research until that changes.
