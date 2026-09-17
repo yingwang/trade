@@ -103,6 +103,15 @@ def main():
             config.get("dashboard", {}).get("split_cash_compensations", {}).get("trend", {})
         ),
     )
+    if trades.get("source") == "local":
+        # The local fallback reads logs/trade_events.jsonl, which belongs to the
+        # first (momentum) account. Publishing it here would show that book's
+        # history as the trend book's, so refuse instead of guessing.
+        raise RuntimeError(
+            "No Alpaca keys for the trend book (ALPACA_CLAUDE_API_KEY / "
+            "ALPACA_CLAUDE_SECRET_KEY); refusing to publish the shared local logs "
+            "as its trade history"
+        )
     trades["annual_risk_free_rate"] = float(config.get("backtest", {}).get("risk_free_rate", 0.0))
     account_equity = trades.get("account", {}).get("equity")
     if os.environ.get("ALPACA_CLAUDE_API_KEY") and account_equity is None:
