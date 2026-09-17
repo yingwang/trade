@@ -33,7 +33,7 @@ Rules, in the order they are applied:
     fixed stop from entry (``risk.stop_loss_pct``) is enforced by the engine and
     the live runner as for the other strategies.
 
-The scheduled rebalance is weekly on the shared anchored calendar. The daily
+The scheduled rebalance is every ten sessions on the shared anchored calendar. The daily
 checks in rule 6 are what the live runner's rebalance trigger asks for; in the
 backtest the engine asks every session and the provider answers None whenever
 there is nothing to do.

@@ -186,3 +186,15 @@ def test_live_portfolio_table_and_trigger(strategy, monkeypatch):
     scheduled = strategy.get_current_portfolio(capital=100_000.0, prev_weights=held)
     assert len(scheduled) <= 3
     assert float(scheduled["weight"].sum()) <= 1.9 + 1e-6
+
+
+def test_shipped_config_validates_and_builds():
+    """config_trend.yaml must pass the shared validator and construct the strategy."""
+    from quant.utils.config import load_config
+    cfg = load_config("config_trend.yaml")
+    strat = TrendStrategy(cfg)
+    assert strat.positions == cfg["portfolio"]["max_positions"]
+    assert strat.max_leverage <= 2.0
+    # The safety cap must leave room for the largest levered position.
+    assert cfg["safety"]["max_position_pct_of_portfolio"] >= strat.max_weight * strat.max_leverage
+

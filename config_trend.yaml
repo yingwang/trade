@@ -1,4 +1,8 @@
 # Third paper account: leveraged trend-following (quant/trend_strategy.py).
+# Parameters settled on 2026-09-17 from a twelve-variant sweep of the five-year
+# window (Trend Backtest workflow): rebalancing every ten sessions instead of
+# five and holding seven names instead of ten were the two changes that
+# mattered; tighter stops and a softer regime cut both hurt.
 # The universe is the same 100 liquid names the factor books use, plus five ETFs
 # that carry trends of their own (semiconductors, gold, energy, financials,
 # utilities). Same survivorship caveat as config.yaml: the list is today's.
@@ -237,8 +241,8 @@ signals:
     momentum: 1.0
 
 trend:
-  positions: 10            # names held
-  rank_buffer: 15          # a holding stays while still inside the top 15
+  positions: 7             # names held: the sweep favoured concentration
+  rank_buffer: 20          # a holding stays while still inside the top 20
   skip_days: 21            # 12-1 and 6-1: the most recent month is skipped
   lookback_long: 252
   lookback_mid: 126
@@ -247,7 +251,7 @@ trend:
   vol_window: 60
   sma_long: 200
   sma_short: 50
-  trailing_stop: 0.15      # exit when 15% below the 60-day high
+  trailing_stop: 0.20      # exit when 20% below the 60-day high
   trailing_window: 60
   benchmark_vol_window: 21
   benchmark_vol_high: 0.30 # SPY 21-day realized vol above 30%: a warning light
@@ -259,11 +263,11 @@ trend:
   deleverage_tolerance: 0.10
 
 portfolio:
-  max_positions: 10
-  max_position_weight: 0.20     # of the unlevered sleeve
+  max_positions: 7
+  max_position_weight: 0.25     # of the unlevered sleeve
   min_position_weight: 0.02
   target_volatility: 0.35       # annualized, before the regime cap
-  rebalance_frequency_days: 5   # weekly on the shared anchored calendar
+  rebalance_frequency_days: 10  # every ten sessions on the shared anchored calendar
   transaction_cost_bps: 10
   max_turnover_per_rebalance: 1.0
   exit_turnover_share: 1.0
@@ -273,7 +277,7 @@ portfolio:
 risk:
   max_drawdown_limit: 0.35
   max_sector_weight: 1.0
-  stop_loss_pct: 0.15           # fixed stop from entry, enforced by engine and runner
+  stop_loss_pct: 0.20           # fixed stop from entry, enforced by engine and runner
 
 leverage:
   max_leverage: 1.9             # Alpaca paper allows 2x overnight; keep room for costs
@@ -299,7 +303,7 @@ safety:
   max_daily_loss: 25000
   max_adv_fraction: 0.01
   min_price: 1.0
-  max_position_pct_of_portfolio: 0.30   # 10 names at up to 1.9x gross
+  max_position_pct_of_portfolio: 0.50   # 7 names at up to 1.9x gross: 0.25 x 1.9 = 0.475
   require_paper_mode: true
 
 backtest:

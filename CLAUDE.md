@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Multi-factor quantitative equity trading system for medium-term US equities. Three strategies run live against three separate Alpaca paper accounts: a 5-factor momentum composite (paper_trade.py), a LightGBM cross-sectional ranking model (paper_trade_lgbm.py), and a leveraged trend-following book (paper_trade_trend.py, `quant/trend_strategy.py`, `config_trend.yaml`) that rebalances weekly and acts on trailing stops and regime lights daily through the runner's `rebalance_trigger`. The two factor books use mean-variance portfolio optimization, dynamic leverage via market regime detection, and automated execution through the Alpaca API, driven by GitHub Actions.
+Multi-factor quantitative equity trading system for medium-term US equities. Three strategies run live against three separate Alpaca paper accounts: a 5-factor momentum composite (paper_trade.py), a LightGBM cross-sectional ranking model (paper_trade_lgbm.py), and a leveraged trend-following book (paper_trade_trend.py, `quant/trend_strategy.py`, `config_trend.yaml`) that rebalances every ten sessions and acts on trailing stops and regime lights daily through the runner's `rebalance_trigger`. The two factor books use mean-variance portfolio optimization, dynamic leverage via market regime detection, and automated execution through the Alpaca API, driven by GitHub Actions.
 
 ## Commands
 
