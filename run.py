@@ -76,6 +76,30 @@ def cmd_backtest(args):
     _plot_backtest_result(result, args, "backtest_results.png")
 
 
+def cmd_backtest_trend(args):
+    """Run a historical backtest with the trend strategy (config_trend.yaml)."""
+    from quant.trend_strategy import TrendStrategy
+    config = load_config(args.config)
+    strategy = TrendStrategy(config)
+    result = strategy.run_backtest(start=args.start, end=args.end)
+
+    print(result.summary())
+    if getattr(args, "yearly", False) and not result.equity_curve.empty:
+        yearly = result.equity_curve.resample("YE").last().pct_change()
+        first_year = result.equity_curve.index[0].year
+        first = result.equity_curve[result.equity_curve.index.year == first_year]
+        yearly.iloc[0] = first.iloc[-1] / first.iloc[0] - 1.0
+        bench = result.benchmark_curve.resample("YE").last().pct_change()
+        bfirst = result.benchmark_curve[result.benchmark_curve.index.year == first_year]
+        if len(bfirst):
+            bench.iloc[0] = bfirst.iloc[-1] / bfirst.iloc[0] - 1.0
+        print("\nYear      Strategy   Benchmark")
+        for date, value in yearly.items():
+            b = bench.get(date, float("nan"))
+            print(f"{date.year}    {value:+8.1%}    {b:+8.1%}")
+    _plot_backtest_result(result, args, "backtest_trend.png")
+
+
 def cmd_backtest_lgbm(args):
     """Run a historical backtest with the LightGBM strategy."""
     from quant.signals.lgbm_strategy import LGBMStrategy
@@ -156,6 +180,15 @@ def main():
     bt.add_argument("--plot", action="store_true", help="Generate performance plots")
     bt.add_argument("--plot-output", help="Plot output filename")
     bt.set_defaults(func=cmd_backtest)
+
+    # Backtest trend (third book)
+    bt_trend = sub.add_parser("backtest-trend", help="Run trend strategy backtest (use -c config_trend.yaml)")
+    bt_trend.add_argument("--start", help="Start date (YYYY-MM-DD)")
+    bt_trend.add_argument("--end", help="End date (YYYY-MM-DD)")
+    bt_trend.add_argument("--yearly", action="store_true", help="Print calendar-year returns")
+    bt_trend.add_argument("--plot", action="store_true", help="Generate performance plots")
+    bt_trend.add_argument("--plot-output", help="Plot output filename")
+    bt_trend.set_defaults(func=cmd_backtest_trend)
 
     # Backtest LightGBM
     bt_lgbm = sub.add_parser("backtest-lgbm", help="Run LightGBM strategy backtest")

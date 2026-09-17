@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LightGBM ML Strategy Dashboard</title>
+  <title>Trend Strategy Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <link rel="stylesheet" href="../style.css">
 </head>
 <body>
   <nav class="strategy-nav">
     <a href="../">&larr; Multi-Factor Strategy</a>
-    <span class="strategy-nav-current">LightGBM ML Strategy</span>
-    <a href="../trend/">Trend Strategy &rarr;</a>
+    <a href="../lgbm/">LightGBM ML Strategy</a>
+    <span class="strategy-nav-current">Trend Strategy</span>
   </nav>
 
   <header>
-    <h1>LightGBM ML Strategy</h1>
-    <p class="subtitle">LightGBM 机器学习量化策略仪表盘</p>
+    <h1>Leveraged Trend Strategy</h1>
+    <p class="subtitle">趋势跟随（第三个模拟账户）仪表盘</p>
     <p id="last-update" class="meta"></p>
   </header>
 
@@ -25,7 +25,6 @@
     <button class="tab active" data-tab="tab-performance">Performance / 业绩</button>
     <button class="tab" data-tab="tab-portfolio">Portfolio / 持仓</button>
     <button class="tab" data-tab="tab-trades">Trades / 交易</button>
-    <button class="tab" data-tab="tab-model">ML Model / 模型</button>
   </nav>
 
   <main>
@@ -64,7 +63,7 @@
 
       <section id="performance">
         <h2>Backtest / 回测净值曲线</h2>
-        <p class="meta" style="margin-bottom:12px">LightGBM walk-forward backtest. Rebalance every 21 trading days, 10bps cost + 5bps slippage + Almgren-Chriss market impact. Subject to survivorship bias. 模拟回测，非真实收益。</p>
+        <p class="meta" style="margin-bottom:12px">Simulated from 2016. Weekly rebalance, daily trailing stops and regime checks, up to 1.9x gross, 10bps cost + 5bps slippage + Almgren-Chriss market impact, 6% margin interest. Subject to survivorship bias. 模拟回测，非真实收益。</p>
         <div id="metrics-cards" class="cards"></div>
         <div id="equity-chart" class="chart"></div>
         <div id="drawdown-chart" class="chart chart-small"></div>
@@ -89,7 +88,7 @@
                 <th>Target $</th>
                 <th>Shares</th>
                 <th>Price</th>
-                <th>ML Score</th>
+                <th>Momentum Score</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -97,10 +96,6 @@
         </div>
       </section>
 
-      <section id="factors">
-        <h2>Input Factor Scores / 输入因子分数明细</h2>
-        <div id="factor-heatmap" class="chart"></div>
-      </section>
     </div>
 
     <!-- TAB 3: Trades -->
@@ -111,21 +106,6 @@
         <div id="trade-list"></div>
       </section>
     </div>
-
-    <!-- TAB 4: ML Model -->
-    <div id="tab-model" class="tab-content">
-      <section id="feature-importance-section">
-        <h2>Feature Importance / 特征重要性</h2>
-        <p class="meta" style="margin-bottom:12px">LightGBM feature importance ranking (gain-based). Higher = more predictive.</p>
-        <div id="feature-importance-chart" class="chart"></div>
-      </section>
-
-      <section id="training-info-section">
-        <h2>Training Configuration / 训练配置</h2>
-        <div id="training-config" class="cards"></div>
-        <div id="training-params" class="table-wrap" style="margin-top:16px"></div>
-      </section>
-    </div>
   </main>
 
   <footer>
@@ -134,22 +114,14 @@
   </footer>
 
   <script>
-    const FACTOR_LABELS = {
-      momentum: '动量 Momentum',
-      high_proximity: '52周新高 High Prox.',
-      short_term_reversal: '短期反转 Reversal',
-      vol_contraction: '波动收缩 Vol Contr.',
-      trend_persistence: '趋势持续 Trend Persist.',
-    };
-
     function symLink(symbol) {
       return `<a href="https://finance.yahoo.com/quote/${symbol}" target="_blank" rel="noopener">${symbol}</a>`;
     }
 
-    const REGIME_LABELS = {
-      low_vol: { text: 'Low Vol / 低波动', cls: 'badge-green' },
-      normal: { text: 'Normal / 正常', cls: 'badge-yellow' },
-      high_vol: { text: 'High Vol / 高波动', cls: 'badge-red' },
+    const LIGHT_LABELS = {
+      benchmark_below_sma: 'SPY below 200d / 大盘破200日线',
+      benchmark_vol_high: 'SPY vol high / 大盘波动高',
+      breadth_weak: 'Breadth weak / 市场宽度弱',
     };
 
     // Tab switching
@@ -167,24 +139,18 @@
     Promise.all([
       fetch('data/portfolio.json').then(r => r.json()),
       fetch('data/backtest.json').then(r => r.json()),
-      fetch('data/factors.json').then(r => r.json()),
       fetch('data/trades.json').then(r => r.json()),
-      fetch('data/feature_importance.json').then(r => r.json()),
-      fetch('data/training_history.json').then(r => r.json()),
       fetch('data/attribution.json').then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([portfolio, backtest, factors, trades, featureImp, trainingHist, attribution]) => {
+    ]).then(([portfolio, backtest, trades, attribution]) => {
       renderPortfolio(portfolio);
-      renderFactors(factors);
       renderActualPerformance(trades);
       renderAttribution(attribution);
       renderLivePositions(trades);
       renderPerformance(backtest);
       renderTrades(trades);
-      renderFeatureImportance(featureImp);
-      renderTrainingHistory(trainingHist);
     }).catch(err => {
       document.querySelector('main').innerHTML =
-        `<p class="error">Failed to load data. Run <code>python generate_site_lgbm.py</code> first.<br>${err}</p>`;
+        `<p class="error">Failed to load data. Run <code>python generate_site_trend.py</code> first.<br>${err}</p>`;
     });
 
     function renderActualPerformance(data) {
@@ -194,12 +160,7 @@
       section.style.display = 'block';
 
       const hist = data.portfolio_history.filter(d => d.equity != null);
-      if (hist.length < 2) {
-        section.querySelector('.card') ?
-          section.querySelector('.card').innerHTML += '<p style="color:#888;padding:1em;">Collecting data — performance chart will appear after 2+ trading days of history.</p>' :
-          null;
-        return;
-      }
+      if (hist.length < 2) return;
 
       // Update last point with current account equity if available
       if (data.account && data.account.equity != null) {
@@ -379,13 +340,18 @@
     function renderPortfolio(data) {
       document.getElementById('last-update').textContent = `Last update: ${data.updated_at}`;
 
-      const r = REGIME_LABELS[data.regime] || REGIME_LABELS.normal;
+      const regime = data.regime || { lights_on: [], count: 0 };
       const badge = document.getElementById('regime-badge');
-      badge.textContent = r.text;
-      badge.className = `badge ${r.cls}`;
-
-      document.getElementById('invested-pct').textContent = `Invested: ${data.total_invested_pct}%`;
-      document.getElementById('cash-pct').textContent = `Cash: ${data.cash_pct}%`;
+      if (!regime.count) {
+        badge.textContent = 'All clear / 无警示';
+        badge.className = 'badge badge-green';
+      } else {
+        badge.textContent = regime.lights_on.map(k => LIGHT_LABELS[k] || k).join(' · ');
+        badge.className = `badge ${regime.count >= 2 ? 'badge-red' : 'badge-yellow'}`;
+      }
+      const cap = data.regime_cap == null ? '' : ` (cap ${Number(data.regime_cap).toFixed(2)}x)`;
+      document.getElementById('invested-pct').textContent = `Gross: ${data.gross_pct}%${cap}`;
+      document.getElementById('cash-pct').textContent = data.cash_pct >= 0 ? `Cash: ${data.cash_pct}%` : `Margin: ${(-data.cash_pct).toFixed(1)}%`;
 
       const tbody = document.querySelector('#portfolio-table tbody');
       data.positions.forEach(p => {
@@ -424,10 +390,10 @@
       });
 
       Plotly.newPlot('equity-chart', [
-        { x: data.dates, y: data.equity, name: 'LightGBM Strategy', line: { color: '#4fc3f7', width: 2 } },
+        { x: data.dates, y: data.equity, name: 'Strategy', line: { color: '#4fc3f7', width: 2 } },
         { x: data.dates, y: data.benchmark, name: 'SPY', line: { color: '#ff9800', width: 2, dash: 'dot' } },
       ], {
-        title: 'LightGBM Backtest Equity Curve / 回测净值曲线',
+        title: 'Backtest Equity Curve / 回测净值曲线',
         paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
         font: { color: '#e0e0e0' },
         xaxis: { rangeslider: { visible: true }, gridcolor: '#333' },
@@ -450,30 +416,6 @@
       }, { responsive: true });
     }
 
-    function renderFactors(data) {
-      if (!data.factors.length) {
-        document.getElementById('factor-heatmap').innerHTML = '<p>No factor data available.</p>';
-        return;
-      }
-
-      const stocks = Object.keys(data.stocks);
-      const factors = data.factors;
-      const z = stocks.map(s => factors.map(f => data.stocks[s]?.[f] ?? 0));
-
-      Plotly.newPlot('factor-heatmap', [{
-        type: 'heatmap', z: z,
-        x: factors.map(f => FACTOR_LABELS[f] || f), y: stocks,
-        colorscale: [[0,'#c62828'],[0.25,'#ef5350'],[0.5,'#333'],[0.75,'#66bb6a'],[1,'#2e7d32']],
-        zmid: 0,
-        colorbar: { title: 'Z-Score', tickfont: { color: '#e0e0e0' } },
-        hovertemplate: '%{y} | %{x}<br>Score: %{z:.3f}<extra></extra>',
-      }], {
-        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
-        font: { color: '#e0e0e0' },
-        margin: { l: 60, r: 20, t: 10, b: 100 },
-        xaxis: { tickangle: -30 },
-      }, { responsive: true });
-    }
 
     function renderTrades(data) {
       const container = document.getElementById('trade-list');
@@ -483,7 +425,8 @@
         return;
       }
 
-      // Ensure newest first
+      // Data from Alpaca is already sorted newest-first; local logs are oldest-first
+      // Ensure newest first by sorting on date descending
       const sorted = [...data.rebalances].sort((a, b) => b.date.localeCompare(a.date));
 
       sorted.forEach((reb, i) => {
@@ -511,80 +454,6 @@
         container.appendChild(section);
       });
     }
-
-    function renderFeatureImportance(data) {
-      const container = document.getElementById('feature-importance-chart');
-
-      if (!data.features || !data.features.length) {
-        container.innerHTML = '<p class="empty">No feature importance data available. Run generate_site_lgbm.py to train the model.</p>';
-        return;
-      }
-
-      // Show top 20 features, reversed for horizontal bar chart (top at top)
-      const top = data.features.slice(0, 20).reverse();
-
-      Plotly.newPlot(container, [{
-        type: 'bar',
-        orientation: 'h',
-        y: top.map(f => f.feature),
-        x: top.map(f => f.importance_pct),
-        text: top.map(f => f.importance_pct.toFixed(1) + '%'),
-        textposition: 'outside',
-        marker: {
-          color: top.map(f => f.importance_pct),
-          colorscale: [[0, '#1a237e'], [0.5, '#4fc3f7'], [1, '#66bb6a']],
-        },
-        hovertemplate: '%{y}<br>Importance: %{x:.1f}%<extra></extra>',
-      }], {
-        title: 'Top 20 Features by Importance / 前20个重要特征',
-        paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
-        font: { color: '#e0e0e0' },
-        xaxis: { title: 'Importance (%)', gridcolor: '#333' },
-        yaxis: { automargin: true },
-        margin: { l: 200, r: 40, t: 40, b: 40 },
-      }, { responsive: true });
-    }
-
-    function renderTrainingHistory(data) {
-      const configCards = document.getElementById('training-config');
-
-      [
-        { label: 'Backend', value: data.backend || 'N/A' },
-        { label: 'Train Window', value: `${data.train_window || 0}d` },
-        { label: 'Val Window', value: `${data.val_window || 0}d` },
-        { label: 'Pred Horizon', value: `${data.pred_horizon || 0}d` },
-        { label: 'Retrain Every', value: `${data.retrain_every || 0} rebal.` },
-        { label: 'Turnover Penalty', value: data.turnover_penalty || 0 },
-      ].forEach(it => {
-        configCards.innerHTML += `<div class="card">
-          <div class="card-value">${it.value}</div>
-          <div class="card-label">${it.label}</div>
-        </div>`;
-      });
-
-      // Hyperparameters table
-      const params = data.hyperparameters || {};
-      const paramKeys = Object.keys(params);
-      if (paramKeys.length > 0) {
-        const paramsDiv = document.getElementById('training-params');
-        let html = '<h3 style="margin-bottom:8px;color:var(--text-muted)">Hyperparameters</h3>';
-        html += '<table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
-        paramKeys.forEach(k => {
-          html += `<tr><td>${k}</td><td>${params[k]}</td></tr>`;
-        });
-        html += '</tbody></table>';
-        paramsDiv.innerHTML = html;
-      }
-
-      // Features count
-      if (data.n_features) {
-        configCards.innerHTML += `<div class="card">
-          <div class="card-value">${data.n_features}</div>
-          <div class="card-label">Features</div>
-        </div>`;
-      }
-    }
-
     // ---- Sortable tables ----
     function makeSortable(table) {
       const headers = table.querySelectorAll('th');

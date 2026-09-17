@@ -1,0 +1,313 @@
+# Third paper account: leveraged trend-following (quant/trend_strategy.py).
+# The universe is the same 100 liquid names the factor books use, plus five ETFs
+# that carry trends of their own (semiconductors, gold, energy, financials,
+# utilities). Same survivorship caveat as config.yaml: the list is today's.
+
+universe:
+  symbols:
+    - "AAPL"
+    - "MSFT"
+    - "GOOGL"
+    - "AMZN"
+    - "NVDA"
+    - "META"
+    - "TSLA"
+    - "AVGO"
+    - "ORCL"
+    - "CRM"
+    - "ADBE"
+    - "AMD"
+    - "INTC"
+    - "QCOM"
+    - "CSCO"
+    - "INTU"
+    - "NOW"
+    - "IBM"
+    - "TXN"
+    - "PANW"
+    - "CRWD"
+    - "SNOW"
+    - "DDOG"
+    - "ZS"
+    - "NET"
+    - "AMAT"
+    - "LRCX"
+    - "MU"
+    - "KLAC"
+    - "ADI"
+    - "MRVL"
+    - "NXPI"
+    - "MCHP"
+    - "ON"
+    - "MPWR"
+    - "JPM"
+    - "BAC"
+    - "WFC"
+    - "GS"
+    - "MS"
+    - "C"
+    - "USB"
+    - "PNC"
+    - "TFC"
+    - "SCHW"
+    - "V"
+    - "MA"
+    - "AXP"
+    - "COF"
+    - "BLK"
+    - "JNJ"
+    - "UNH"
+    - "LLY"
+    - "ABBV"
+    - "MRK"
+    - "TMO"
+    - "ABT"
+    - "DHR"
+    - "BMY"
+    - "AMGN"
+    - "GILD"
+    - "VRTX"
+    - "REGN"
+    - "ISRG"
+    - "ELV"
+    - "WMT"
+    - "HD"
+    - "MCD"
+    - "NKE"
+    - "COST"
+    - "TJX"
+    - "LOW"
+    - "SBUX"
+    - "TGT"
+    - "BKNG"
+    - "PG"
+    - "KO"
+    - "PEP"
+    - "MDLZ"
+    - "CL"
+    - "XOM"
+    - "CVX"
+    - "COP"
+    - "EOG"
+    - "SLB"
+    - "CAT"
+    - "BA"
+    - "GE"
+    - "RTX"
+    - "HON"
+    - "UPS"
+    - "LMT"
+    - "DE"
+    - "LIN"
+    - "APD"
+    - "FCX"
+    - "NEE"
+    - "DUK"
+    - "AMT"
+    - "PLD"
+    - "SMH"
+    - "GLD"
+    - "XLE"
+    - "XLF"
+    - "XLU"
+  sectors:
+    "AAPL": Technology
+    "MSFT": Technology
+    "NVDA": Technology
+    "AVGO": Technology
+    "ORCL": Technology
+    "CRM": Technology
+    "ADBE": Technology
+    "AMD": Technology
+    "INTC": Technology
+    "QCOM": Technology
+    "CSCO": Technology
+    "INTU": Technology
+    "NOW": Technology
+    "IBM": Technology
+    "TXN": Technology
+    "PANW": Technology
+    "CRWD": Technology
+    "SNOW": Technology
+    "DDOG": Technology
+    "ZS": Technology
+    "NET": Technology
+    "AMAT": Technology
+    "LRCX": Technology
+    "MU": Technology
+    "KLAC": Technology
+    "ADI": Technology
+    "MRVL": Technology
+    "NXPI": Technology
+    "MCHP": Technology
+    "ON": Technology
+    "MPWR": Technology
+    "GOOGL": Communication Services
+    "META": Communication Services
+    "AMZN": Consumer Cyclical
+    "TSLA": Consumer Cyclical
+    "HD": Consumer Cyclical
+    "MCD": Consumer Cyclical
+    "NKE": Consumer Cyclical
+    "TJX": Consumer Cyclical
+    "LOW": Consumer Cyclical
+    "SBUX": Consumer Cyclical
+    "BKNG": Consumer Cyclical
+    "JPM": Financial Services
+    "BAC": Financial Services
+    "WFC": Financial Services
+    "GS": Financial Services
+    "MS": Financial Services
+    "C": Financial Services
+    "USB": Financial Services
+    "PNC": Financial Services
+    "TFC": Financial Services
+    "SCHW": Financial Services
+    "V": Financial Services
+    "MA": Financial Services
+    "AXP": Financial Services
+    "COF": Financial Services
+    "BLK": Financial Services
+    "JNJ": Healthcare
+    "UNH": Healthcare
+    "LLY": Healthcare
+    "ABBV": Healthcare
+    "MRK": Healthcare
+    "TMO": Healthcare
+    "ABT": Healthcare
+    "DHR": Healthcare
+    "BMY": Healthcare
+    "AMGN": Healthcare
+    "GILD": Healthcare
+    "VRTX": Healthcare
+    "REGN": Healthcare
+    "ISRG": Healthcare
+    "ELV": Healthcare
+    "WMT": Consumer Defensive
+    "COST": Consumer Defensive
+    "TGT": Consumer Defensive
+    "PG": Consumer Defensive
+    "KO": Consumer Defensive
+    "PEP": Consumer Defensive
+    "MDLZ": Consumer Defensive
+    "CL": Consumer Defensive
+    "XOM": Energy
+    "CVX": Energy
+    "COP": Energy
+    "EOG": Energy
+    "SLB": Energy
+    "CAT": Industrials
+    "BA": Industrials
+    "GE": Industrials
+    "RTX": Industrials
+    "HON": Industrials
+    "UPS": Industrials
+    "LMT": Industrials
+    "DE": Industrials
+    "LIN": Basic Materials
+    "APD": Basic Materials
+    "FCX": Basic Materials
+    "NEE": Utilities
+    "DUK": Utilities
+    "AMT": Real Estate
+    "PLD": Real Estate
+    "SMH": ETF
+    "GLD": ETF
+    "XLE": ETF
+    "XLF": ETF
+    "XLU": ETF
+  benchmark: SPY
+
+data:
+  lookback_years: 5
+  frequency: 1d
+
+# The signals block exists to satisfy the shared config validator and the
+# warm-up arithmetic; TrendStrategy computes its own momentum series.
+signals:
+  momentum_windows: [63, 126, 252]
+  mean_reversion_window: 20
+  mean_reversion_zscore_threshold: 4.0
+  sma_short: 50
+  sma_long: 200
+  volatility_window: 63
+  industry_neutral: false
+  winsorize_clip: 3.0
+  factor_weights:
+    momentum: 1.0
+
+trend:
+  positions: 10            # names held
+  rank_buffer: 15          # a holding stays while still inside the top 15
+  skip_days: 21            # 12-1 and 6-1: the most recent month is skipped
+  lookback_long: 252
+  lookback_mid: 126
+  lookback_short: 63
+  blend: {long: 0.4, mid: 0.3, short: 0.3}
+  vol_window: 60
+  sma_long: 200
+  sma_short: 50
+  trailing_stop: 0.15      # exit when 15% below the 60-day high
+  trailing_window: 60
+  benchmark_vol_window: 21
+  benchmark_vol_high: 0.30 # SPY 21-day realized vol above 30%: a warning light
+  breadth_min: 0.30        # under 30% of the universe above its 50-day average: a light
+  regime_caps:             # gross exposure by number of lights on
+    0: null                # no light: leverage.max_leverage
+    1: 0.6
+    2: 0.0
+  deleverage_tolerance: 0.10
+
+portfolio:
+  max_positions: 10
+  max_position_weight: 0.20     # of the unlevered sleeve
+  min_position_weight: 0.02
+  target_volatility: 0.35       # annualized, before the regime cap
+  rebalance_frequency_days: 5   # weekly on the shared anchored calendar
+  transaction_cost_bps: 10
+  max_turnover_per_rebalance: 1.0
+  exit_turnover_share: 1.0
+  alpha_scale: 0.05
+  risk_aversion: 1.0
+
+risk:
+  max_drawdown_limit: 0.35
+  max_sector_weight: 1.0
+  stop_loss_pct: 0.15           # fixed stop from entry, enforced by engine and runner
+
+leverage:
+  max_leverage: 1.9             # Alpaca paper allows 2x overnight; keep room for costs
+  regime_spy_vol_window: 21
+  regime_thresholds:
+    low: 0.12
+    high: 0.30
+  regime_leverage_caps:
+    low_vol: 1.9
+    normal: 1.9
+    high_vol: 0.6
+  margin_annual_rate: 0.06
+
+attribution:
+  lookback_days: 252
+  min_observations: 60
+  annual_cash_return: 0.0
+
+safety:
+  max_single_order_value: 60000
+  max_single_order_shares: 10000
+  max_daily_trade_value: 600000
+  max_daily_loss: 25000
+  max_adv_fraction: 0.01
+  min_price: 1.0
+  max_position_pct_of_portfolio: 0.30   # 10 names at up to 1.9x gross
+  require_paper_mode: true
+
+backtest:
+  rebalance_anchor_date: "2000-01-03"
+  start_date: "2016-01-01"
+  end_date: null
+  initial_capital: 100000
+  slippage_bps: 5
+  market_impact_coeff: 2.5
+  market_impact_sigma_coeff: 1.0
+  risk_free_rate: 0.04

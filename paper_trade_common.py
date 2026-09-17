@@ -62,6 +62,11 @@ class TradeProfile:
     api_key_env: str = "ALPACA_API_KEY"
     secret_key_env: str = "ALPACA_SECRET_KEY"
     persist_scores: bool = False
+    # Which config the profile trades from; the factor books share config.yaml.
+    config_file: str = "config.yaml"
+    # Optional (strategy, broker, state) -> reason. Asked on days when no
+    # scheduled rebalance is due; a reason forces one (exits, de-risking).
+    rebalance_trigger: Optional[Callable[[object, object, dict], Optional[str]]] = None
 
 
 def setup_logging(log_prefix: str):
@@ -690,7 +695,7 @@ def run_main(profile: TradeProfile):
     setup_logging(profile.log_prefix)
 
     from quant.utils.config import load_config
-    config = load_config("config.yaml")
+    config = load_config(profile.config_file)
     strategy = profile.strategy_factory(config)
     safety_config = SafetyConfig.from_config(config)
 
@@ -813,7 +818,21 @@ def run_main(profile: TradeProfile):
 
         # Check if rebalance is due, on the backtest's fixed schedule
         anchor = config.get("backtest", {}).get("rebalance_anchor_date")
-        if not args.force and not should_rebalance(state, freq, anchor=anchor):
+        due = args.force or should_rebalance(state, freq, anchor=anchor)
+        if not due and profile.rebalance_trigger is not None:
+            # Between scheduled dates a strategy may still need to act today
+            # (a trailing stop, a regime cut). It says so here, once, from the
+            # broker's actual book; the target it computed is what run_rebalance
+            # then executes.
+            try:
+                reason = profile.rebalance_trigger(strategy, broker, state)
+            except Exception as e:
+                logger.error("Rebalance trigger failed; treating as not due: %s", e)
+                reason = None
+            if reason:
+                logger.warning("Unscheduled rebalance today: %s", reason)
+                due = True
+        if not due:
             days_since = (
                 datetime.now()
                 - datetime.fromisoformat(state["last_rebalance"])

@@ -1,0 +1,135 @@
+name: Paper Trade Rebalance (Trend)
+
+on:
+  schedule:
+    # Third book, staggered 20 min behind rebalance.yml (see the note there on
+    # scheduler delay); three attempts a day, each idempotent. Every weekday,
+    # because the trend strategy has daily exits and de-risking.
+    - cron: '27 14 * * 1-5'
+    - cron: '57 15 * * 1-5'
+    - cron: '27 17 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: true
+        default: 'live'
+        type: choice
+        options:
+          - live
+          - dry-run
+          - dry-run-force
+          - status
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-trading-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - run: pip install --require-hashes -r requirements.lock
+
+      # Restore state from previous runs
+      - name: Restore trade state
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: logs/paper_trade_trend_state.json
+          key: trade-state-trend-${{ github.run_number }}
+          restore-keys: trade-state-trend-
+
+      - name: Ensure logs directory
+        run: mkdir -p logs
+
+      # Determine run flags
+      - name: Set run flags
+        id: flags
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODE="${{ github.event.inputs.mode }}"
+          else
+            MODE="live"
+          fi
+          if [ "$MODE" = "live" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Live paper trading is allowed only from main; got $GITHUB_REF" >&2
+            exit 2
+          fi
+          case "$MODE" in
+            dry-run)       echo "args=--dry-run"         >> "$GITHUB_OUTPUT" ;;
+            # Full pipeline smoke test: computes the target portfolio and
+            # previews trades even when a rebalance is not due; never submits.
+            dry-run-force) echo "args=--dry-run --force" >> "$GITHUB_OUTPUT" ;;
+            status)        echo "args=--status"          >> "$GITHUB_OUTPUT" ;;
+            *)             echo "args="                  >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Check the account keys are configured
+        id: keys
+        env:
+          ALPACA_CLAUDE_API_KEY: ${{ secrets.ALPACA_CLAUDE_API_KEY }}
+        run: |
+          if [ -z "$ALPACA_CLAUDE_API_KEY" ]; then
+            echo "::warning::ALPACA_CLAUDE_API_KEY is not set; the trend book has no account yet, standing down"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run paper_trade_trend.py
+        if: steps.keys.outputs.present == 'true'
+        run: |
+          set -o pipefail
+          python paper_trade_trend.py ${{ steps.flags.outputs.args }} 2>&1 | tee run.log
+        env:
+          PYTHONPATH: .
+          ALPACA_CLAUDE_API_KEY: ${{ secrets.ALPACA_CLAUDE_API_KEY }}
+          ALPACA_CLAUDE_SECRET_KEY: ${{ secrets.ALPACA_CLAUDE_SECRET_KEY }}
+
+      # A scheduled run that arrives after the close did nothing; say so
+      # where it can be seen instead of passing silently.
+      - name: Flag a scheduled run that missed market hours
+        if: github.event_name == 'schedule' && steps.keys.outputs.present == 'true'
+        run: |
+          if grep -q "Market is closed" run.log; then
+            echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance today from this attempt"
+            echo "Scheduled run at $(date -u +%H:%M) UTC found the market closed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Persist state for next run
+      - name: Save trade state
+        if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: logs/paper_trade_trend_state.json
+          key: trade-state-trend-${{ github.run_number }}
+
+      # Commit updated trade logs and state back to repo
+      # always(): a run that traded and then failed must still land its
+      # state and event log on main; the cache alone is not a record.
+      - name: Commit trade logs
+        if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f logs/paper_trade_trend_state.json logs/trade_events.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+          else
+            git commit -m "chore: update trend trade state after rebalance [skip ci]"
+            # The other two workflows may have pushed its own state commit in the
+            # meantime; rebase our commit on top instead of failing the push.
+            git pull --rebase origin main
+            git push
+          fi
