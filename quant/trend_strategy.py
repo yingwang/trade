@@ -28,7 +28,8 @@ Rules, in the order they are applied:
     Exposure is cut the day a light comes on and only rebuilt on the next
     scheduled rebalance: fast out, slow back in.
 6.  Exits between rebalances. Every session, any holding that has fallen
-    ``trailing_stop`` from its 60-day high is sold at the next open, and the whole
+    ``trailing_stop`` from its highest close since it was bought (looking back at
+    most 60 sessions) is sold at the next open, and the whole
     book is scaled down if the regime cap has dropped below what is held. The
     fixed stop from entry (``risk.stop_loss_pct``) is enforced by the engine and
     the live runner as for the other strategies.
@@ -246,16 +247,37 @@ class TrendStrategy:
             return min(1.0, cap)
         return float(min(self.target_vol / port_vol, cap))
 
-    def trailing_exits(self, pre: dict, date, held: Optional[pd.Series]) -> list[str]:
+    def trailing_exits(
+        self, pre: dict, date, held: Optional[pd.Series], entry_dates: Optional[dict] = None,
+    ) -> list[str]:
+        """Holdings that closed more than ``trailing_stop`` below their peak.
+
+        The peak is the highest close since the position was opened, looking
+        back at most ``trailing_window`` sessions. A name bought while already
+        well below an older high is judged by what it has done in the book,
+        not by a high it never held; without this, a stock the scoring step
+        liked could be bought and sold as "broken" at the very next check.
+        Without an entry date (the backtest before its first trade, a live
+        state from before dates were kept) the 60-day high is used, as before.
+        """
         if held is None or len(held) == 0:
             return []
-        px = pre["px"].loc[date]
+        px_all = pre["px"]
+        px = px_all.loc[date]
         high = pre["rolling_high"].loc[date]
+        idx = px_all.index
+        window_start = idx[max(0, idx.get_loc(date) - self.trailing_window + 1)]
+        entry_dates = entry_dates or {}
         out = []
         for sym in held.index:
             if sym not in px.index:
                 continue
             p, h = px.get(sym), high.get(sym)
+            entered = entry_dates.get(sym)
+            if entered is not None:
+                start = max(pd.Timestamp(entered), window_start)
+                since = px_all[sym].loc[start:date].dropna()
+                h = float(since.max()) if len(since) else np.nan
             if pd.notna(p) and pd.notna(h) and h > 0 and p < h * (1.0 - self.trailing_stop):
                 out.append(sym)
         return out
@@ -282,14 +304,16 @@ class TrendStrategy:
         }
         return target[target > 0]
 
-    def maintenance_target(self, pre: dict, date, held: Optional[pd.Series]) -> Optional[pd.Series]:
+    def maintenance_target(
+        self, pre: dict, date, held: Optional[pd.Series], entry_dates: Optional[dict] = None,
+    ) -> Optional[pd.Series]:
         """Exits and de-risking only; None when the book can stay as it is."""
         if held is None or len(held) == 0:
             return None
         held = held[held > 1e-6]
         if held.empty:
             return None
-        exits = self.trailing_exits(pre, date, held)
+        exits = self.trailing_exits(pre, date, held, entry_dates)
         lights = self.regime_lights(pre, date)
         cap = self.regime_cap(lights)
         target = held.drop(labels=exits, errors="ignore").copy()
@@ -331,11 +355,24 @@ class TrendStrategy:
         ))
         decision_dates = [d for d in prices.index if d >= not_before]
 
+        entry_dates: dict = {}
+        last_held: set = set()
+
         def provide(date, prev_weights):
+            nonlocal last_held
             held = prev_weights if prev_weights is not None and len(prev_weights) else None
+            # The engine hands back what is held each session. A name that
+            # appears was opened at this session's open, so its peak-since-entry
+            # starts here; one that disappears gives its entry date back.
+            now_held = set(held.index[held > 1e-6]) if held is not None else set()
+            for sym in now_held - last_held:
+                entry_dates[sym] = date
+            for sym in last_held - now_held:
+                entry_dates.pop(sym, None)
+            last_held = now_held
             if date in scheduled:
                 return self.scheduled_target(pre, date, held)
-            return self.maintenance_target(pre, date, held)
+            return self.maintenance_target(pre, date, held, entry_dates)
 
         backtest_prices = prices.loc[start:] if start else prices
         execution_prices = self.data.last_open_prices_
@@ -368,14 +405,18 @@ class TrendStrategy:
         self.last_prices_ = prices
         return prices
 
-    def maintenance_needed(self, prev_weights: Optional[pd.Series]) -> Optional[str]:
+    def maintenance_needed(
+        self, prev_weights: Optional[pd.Series], entry_dates: Optional[dict] = None,
+    ) -> Optional[str]:
         """The live runner's trigger: a reason string when the book needs an
         unscheduled action today, else None. The target it computed is kept for
-        the get_current_portfolio call that follows."""
+        the get_current_portfolio call that follows. ``entry_dates`` (symbol to
+        the day the position was opened) anchors each trailing stop at the peak
+        since entry."""
         prices = self._live_prices()
         pre = self.precompute(prices)
         date = prices.index[-1]
-        target = self.maintenance_target(pre, date, prev_weights)
+        target = self.maintenance_target(pre, date, prev_weights, entry_dates)
         if target is None:
             self._pending_target = None
             return None

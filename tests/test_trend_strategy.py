@@ -125,6 +125,65 @@ def test_maintenance_sells_a_holding_below_its_trailing_stop(strategy):
     assert strategy.last_decision_["exits"] == ["AAAA"]
 
 
+def test_trailing_stop_measures_from_entry_when_the_entry_date_is_known(strategy):
+    prices = _synthetic_prices()
+    n = len(prices)
+    # AAAA slid from 200 to 140 over sixty sessions and has sat at 140 for the
+    # last thirty: well under its 60-day high, but flat since the book bought it.
+    aaaa = np.full(n, 200.0)
+    aaaa[-90:-30] = np.linspace(200.0, 140.0, 60)
+    aaaa[-30:] = 140.0
+    prices["AAAA"] = aaaa
+    # BBBB was bought thirty sessions ago at 100, ran to 130 and gave a fifth back.
+    bbbb = np.full(n, 100.0)
+    bbbb[-30:-15] = np.linspace(100.0, 130.0, 15)
+    bbbb[-15:] = np.linspace(130.0, 104.0, 15)
+    prices["BBBB"] = bbbb
+    pre = strategy.precompute(prices)
+    date = prices.index[-1]
+    held = pd.Series({"AAAA": 0.4, "BBBB": 0.4})
+    entries = {"AAAA": prices.index[-20], "BBBB": prices.index[-30]}
+    # Without entry dates the old 60-day high rule ejects both.
+    assert strategy.trailing_exits(pre, date, held) == ["AAAA", "BBBB"]
+    # Measured from the peak since entry only BBBB has broken down.
+    assert strategy.trailing_exits(pre, date, held, entries) == ["BBBB"]
+    # An entry after the last close cannot be judged yet.
+    assert strategy.trailing_exits(pre, date, held, {"AAAA": date + pd.Timedelta(days=1), "BBBB": date + pd.Timedelta(days=1)}) == []
+    target = strategy.maintenance_target(pre, date, held, entries)
+    assert list(target.index) == ["AAAA"]
+
+
+def test_entry_dates_are_kept_with_entry_prices_and_backfilled():
+    import paper_trade_common as common
+    import paper_trade_trend as trend
+
+    class Broker:
+        def get_positions(self):
+            return pd.Series({"AAAA": 10.0})
+
+    state = {"entry_prices": {}, "entry_dates": {}}
+    filled = [
+        {"symbol": "AAAA", "side": "buy", "status": "filled", "price": 10.0, "time": "2026-09-17T18:22:24"},
+        {"symbol": "BBBB", "side": "buy", "status": "filled", "price": 5.0, "time": "2026-09-17T18:22:25"},
+    ]
+    common.update_entry_prices(state, filled, Broker(), {})
+    assert state["entry_dates"] == {"AAAA": "2026-09-17", "BBBB": "2026-09-17"}
+    common.update_entry_prices(
+        state, [{"symbol": "BBBB", "side": "sell", "status": "filled", "price": 5.0, "time": "2026-09-18T15:00:00"}],
+        Broker(), {},
+    )
+    assert "BBBB" not in state["entry_prices"] and "BBBB" not in state["entry_dates"]
+
+    # A state written before entry dates existed: the earliest buy fill stands in.
+    legacy = {
+        "entry_prices": {"AAAA": 10.0},
+        "trade_history": [{"date": "2026-09-17T18:22:40", "trades": [
+            {"symbol": "AAAA", "side": "buy", "status": "filled", "time": "2026-09-17T18:22:24"},
+        ]}],
+    }
+    assert trend._entry_dates(legacy) == {"AAAA": "2026-09-17"}
+
+
 def test_maintenance_is_quiet_when_nothing_changed(strategy):
     prices = _synthetic_prices()
     pre = strategy.precompute(prices)

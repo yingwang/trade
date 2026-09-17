@@ -32,10 +32,33 @@ def _strategy_factory(config):
     return TrendStrategy(config)
 
 
+def _entry_dates(state: dict) -> dict:
+    """Symbol to the day its position was opened, for the trailing stop's
+    peak-since-entry. Positions recorded before entry dates were kept are
+    backfilled from the fill history with their earliest buy."""
+    dates = dict(state.get("entry_dates", {}))
+    missing = [s for s in state.get("entry_prices", {}) if s not in dates]
+    if missing:
+        first_buy: dict = {}
+        for entry in state.get("trade_history", []):
+            for trade in entry.get("trades", []):
+                if trade.get("side") != "buy" or trade.get("status") not in (
+                    "filled", "partial_fill", "partial_fill_open",
+                ):
+                    continue
+                day = str(trade.get("time") or entry.get("date") or "")[:10]
+                if day and trade.get("symbol") not in first_buy:
+                    first_buy[trade["symbol"]] = day
+        for sym in missing:
+            if sym in first_buy:
+                dates[sym] = first_buy[sym]
+    return dates
+
+
 def _rebalance_trigger(strategy, broker, state):
     """A reason when today's book needs an exit or a de-risking; else None."""
     prev_weights = common.current_broker_weights(broker)
-    return strategy.maintenance_needed(prev_weights)
+    return strategy.maintenance_needed(prev_weights, _entry_dates(state))
 
 
 PROFILE = TradeProfile(

@@ -409,9 +409,12 @@ def update_entry_prices(state: dict, filled: list, broker, fallback_prices: dict
     when a position goes from zero to positive.  Adding to an existing
     position must NOT reset its stop-loss base (the historical behavior
     overwrote the entry on every buy fill, silently moving the stop).
-    Fully-sold positions have their entry price cleared.
+    Fully-sold positions have their entry price cleared. The day the position
+    was opened is kept alongside (``entry_dates``) for strategies whose
+    trailing stop is measured from the peak since entry.
     """
     entry_prices = state.get("entry_prices", {})
+    entry_dates = state.get("entry_dates", {})
     positions_after = None
 
     for trade in filled:
@@ -421,13 +424,16 @@ def update_entry_prices(state: dict, filled: list, broker, fallback_prices: dict
         if trade["side"] == "buy":
             if sym not in entry_prices:
                 entry_prices[sym] = trade["price"] or fallback_prices.get(sym, 0)
+                entry_dates[sym] = str(trade.get("time") or datetime.now().isoformat())[:10]
         elif trade["side"] == "sell":
             if positions_after is None:
                 positions_after = broker.get_positions()
             if sym not in positions_after.index or positions_after[sym] == 0:
                 entry_prices.pop(sym, None)
+                entry_dates.pop(sym, None)
 
     state["entry_prices"] = entry_prices
+    state["entry_dates"] = entry_dates
 
 
 def run_rebalance(strategy, broker, config, dry_run=False,
