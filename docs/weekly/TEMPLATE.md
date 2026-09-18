@@ -6,11 +6,13 @@
 
 ## Line status
 
-| Line | Role | Paper equity | Paper return / α vs SPY | Stop-condition check | Decision |
-|------|------|--------------|-------------------------|----------------------|----------|
-| Multi-Factor | Candidate | | | pass / fail / unknown | keep / cut / hold |
-| LightGBM | Research | | | pass / fail / unknown | hold / pause telemetry |
-| Trend | Sandbox | | | pass / fail / unknown | hold / park |
+| Line | Role | Paper equity | Paper return / α vs SPY | Attribution (selection / industry / style / residual) | Stop-condition check | Decision |
+|------|------|--------------|-------------------------|------------------------------------------------------|----------------------|----------|
+| Multi-Factor | Candidate | | | sel … / ind … / style … / resid … | pass / fail / unknown | keep / cut / hold |
+| LightGBM | Research | | | sel … / ind … / style … / resid … | pass / fail / unknown | hold / pause telemetry |
+| Trend | Sandbox | | | sel … / ind … / style … / resid … (or N/A if sample too short) | pass / fail / unknown | hold / park |
+
+> **Rule:** total α alone is not enough for keep/cut. Candidate keep must cite **stock_selection** (and whether industry/style dominate). Do not bury a negative selection component.
 
 ## Execution health
 
