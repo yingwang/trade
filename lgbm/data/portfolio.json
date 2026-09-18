@@ -1,0 +1,138 @@
+{
+  "updated_at": "2026-09-18 19:12 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 46.8,
+  "cash_pct": 53.2,
+  "account_equity_basis": 133105.12,
+  "positions": [
+    {
+      "symbol": "ZS",
+      "weight_pct": 6.4,
+      "dollars": 8517.0,
+      "shares": 43,
+      "price": 197.31,
+      "score": 0.9621
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 6.2,
+      "dollars": 8252.0,
+      "shares": 22,
+      "price": 364.27,
+      "score": 0.9129
+    },
+    {
+      "symbol": "IBM",
+      "weight_pct": 5.82,
+      "dollars": 7751.0,
+      "shares": 33,
+      "price": 229.55,
+      "score": 0.9846
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 3.89,
+      "dollars": 5176.0,
+      "shares": 38,
+      "price": 135.47,
+      "score": 0.9702
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.53,
+      "dollars": 4692.0,
+      "shares": 19,
+      "price": 237.65,
+      "score": 0.9634
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 3.18,
+      "dollars": 4231.0,
+      "shares": 23,
+      "price": 176.99,
+      "score": 0.9873
+    },
+    {
+      "symbol": "BA",
+      "weight_pct": 3.05,
+      "dollars": 4066.0,
+      "shares": 20,
+      "price": 198.2,
+      "score": 0.2524
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 3.01,
+      "dollars": 4010.0,
+      "shares": 11,
+      "price": 363.58,
+      "score": 0.9391
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 2.14,
+      "dollars": 2845.0,
+      "shares": 2,
+      "price": 1015.8,
+      "score": 0.8866
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 1.7,
+      "dollars": 2263.0,
+      "shares": 6,
+      "price": 323.6,
+      "score": 0.8613
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 1.51,
+      "dollars": 2009.0,
+      "shares": 28,
+      "price": 71.54,
+      "score": 0.7818
+    },
+    {
+      "symbol": "ADBE",
+      "weight_pct": 1.39,
+      "dollars": 1850.0,
+      "shares": 7,
+      "price": 248.92,
+      "score": 0.8151
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 1.24,
+      "dollars": 1644.0,
+      "shares": 7,
+      "price": 229.92,
+      "score": 0.9377
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 1.24,
+      "dollars": 1644.0,
+      "shares": 2,
+      "price": 559.82,
+      "score": 0.9041
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 1.24,
+      "dollars": 1644.0,
+      "shares": 15,
+      "price": 108.6,
+      "score": 0.918
+    },
+    {
+      "symbol": "ON",
+      "weight_pct": 1.24,
+      "dollars": 1644.0,
+      "shares": 23,
+      "price": 69.98,
+      "score": 0.8908
+    }
+  ]
+}

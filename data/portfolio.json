@@ -1,0 +1,169 @@
+{
+  "updated_at": "2026-09-18 19:09 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 69.9,
+  "cash_pct": 30.1,
+  "account_equity_basis": 124852.17,
+  "positions": [
+    {
+      "symbol": "MU",
+      "weight_pct": 10.19,
+      "dollars": 12721.0,
+      "shares": 12,
+      "price": 1015.8,
+      "score": 1.6787
+    },
+    {
+      "symbol": "TGT",
+      "weight_pct": 9.94,
+      "dollars": 12408.0,
+      "shares": 78,
+      "price": 158.19,
+      "score": 0.9475
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 4.47,
+      "dollars": 5580.0,
+      "shares": 28,
+      "price": 194.0,
+      "score": 1.2215
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 4.46,
+      "dollars": 5568.0,
+      "shares": 21,
+      "price": 253.71,
+      "score": 1.0124
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 4.12,
+      "dollars": 5140.0,
+      "shares": 9,
+      "price": 559.82,
+      "score": 0.7811
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 3.87,
+      "dollars": 4832.0,
+      "shares": 19,
+      "price": 244.25,
+      "score": 0.958
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 3.43,
+      "dollars": 4288.0,
+      "shares": 18,
+      "price": 233.17,
+      "score": 0.0757
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 3.27,
+      "dollars": 4079.0,
+      "shares": 37,
+      "price": 108.6,
+      "score": 0.4516
+    },
+    {
+      "symbol": "SCHW",
+      "weight_pct": 2.98,
+      "dollars": 3717.0,
+      "shares": 35,
+      "price": 105.25,
+      "score": 1.108
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 2.57,
+      "dollars": 3208.0,
+      "shares": 44,
+      "price": 71.54,
+      "score": 0.78
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 2.49,
+      "dollars": 3109.0,
+      "shares": 21,
+      "price": 144.23,
+      "score": -0.1493
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 2.49,
+      "dollars": 3106.0,
+      "shares": 21,
+      "price": 146.87,
+      "score": 0.8641
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 2.47,
+      "dollars": 3078.0,
+      "shares": 3,
+      "price": 808.99,
+      "score": -0.2409
+    },
+    {
+      "symbol": "BAC",
+      "weight_pct": 2.29,
+      "dollars": 2857.0,
+      "shares": 49,
+      "price": 57.73,
+      "score": 0.6459
+    },
+    {
+      "symbol": "JNJ",
+      "weight_pct": 2.19,
+      "dollars": 2739.0,
+      "shares": 10,
+      "price": 269.99,
+      "score": 0.4459
+    },
+    {
+      "symbol": "SBUX",
+      "weight_pct": 2.14,
+      "dollars": 2673.0,
+      "shares": 27,
+      "price": 95.83,
+      "score": 0.3218
+    },
+    {
+      "symbol": "UNH",
+      "weight_pct": 1.92,
+      "dollars": 2392.0,
+      "shares": 6,
+      "price": 376.9,
+      "score": -0.5442
+    },
+    {
+      "symbol": "APD",
+      "weight_pct": 1.61,
+      "dollars": 2010.0,
+      "shares": 7,
+      "price": 284.18,
+      "score": 0.8759
+    },
+    {
+      "symbol": "KO",
+      "weight_pct": 1.56,
+      "dollars": 1952.0,
+      "shares": 22,
+      "price": 88.25,
+      "score": 0.8689
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 1.48,
+      "dollars": 1849.0,
+      "shares": 5,
+      "price": 332.43,
+      "score": 0.8051
+    }
+  ]
+}
