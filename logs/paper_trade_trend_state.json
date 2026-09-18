@@ -230,5 +230,9 @@
       "qts-reba-af2b48a5dadf456060f0761b": 8436.230005
     }
   },
-  "stop_loss_attempts": {}
+  "stop_loss_attempts": {},
+  "equity_history": {
+    "2026-09-18": 99296.19
+  },
+  "peak_equity": 99296.19
 }
