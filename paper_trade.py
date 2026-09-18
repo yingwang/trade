@@ -86,6 +86,9 @@ def run_rebalance(
     dry_run=False,
     prev_scores=None,
     order_result_callback=None,
+    events_log=None,
+    drawdown_breached=False,
+    drawdown_info=None,
 ):
     return common.run_rebalance(
         strategy, broker, config, dry_run=dry_run,
@@ -93,7 +96,9 @@ def run_rebalance(
         exec_logger_cls=ExecutionLogger,
         prev_scores=prev_scores,
         order_result_callback=order_result_callback,
-        events_log=PROFILE.events_log,
+        events_log=events_log or PROFILE.events_log,
+        drawdown_breached=drawdown_breached,
+        drawdown_info=drawdown_info,
     )
 
 
