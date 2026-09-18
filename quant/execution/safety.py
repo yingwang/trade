@@ -670,3 +670,22 @@ class ExecutionLogger:
             "n_rejected": n_rejected,
             "total_value_traded": total_value_traded,
         })
+
+    def log_drawdown_breach(
+        self,
+        current_drawdown: float,
+        limit: float,
+        equity: float,
+        *,
+        n_buys_blocked: int = 0,
+        n_sells_allowed: int = 0,
+    ):
+        """Alert when portfolio max_drawdown_limit is breached on the paper path."""
+        self._write({
+            "event": "drawdown_breach",
+            "current_drawdown": round(float(current_drawdown), 6),
+            "limit": round(float(limit), 6),
+            "equity": float(equity),
+            "n_buys_blocked": int(n_buys_blocked),
+            "n_sells_allowed": int(n_sells_allowed),
+        })

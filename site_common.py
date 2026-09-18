@@ -792,12 +792,30 @@ def _fetch_spy_benchmark(portfolio_history) -> list:
     return spy_history
 
 
+_EVENTS_LOG_BY_STATE = {
+    "logs/paper_trade_state.json": "logs/trade_events_multi.jsonl",
+    "logs/paper_trade_lgbm_state.json": "logs/trade_events_lgbm.jsonl",
+    "logs/paper_trade_trend_state.json": "logs/trade_events_trend.jsonl",
+}
+
+
+def events_log_for_state(state_file: str) -> Path:
+    """Per-book event log path; falls back to the legacy shared file for multi."""
+    key = str(state_file).replace('\\', "/")
+    mapped = _EVENTS_LOG_BY_STATE.get(key)
+    if mapped:
+        path = Path(mapped)
+        if path.exists() or key != "logs/paper_trade_state.json":
+            return path
+    return Path("logs/trade_events.jsonl")
+
+
 def parse_local_trade_logs(state_file: str) -> dict:
     """Fallback: parse local log files for trade history."""
     rebalances = []
 
-    # Try trade_events.jsonl first
-    events_file = Path("logs/trade_events.jsonl")
+    # Prefer the book-specific event log; legacy shared file is multi-only.
+    events_file = events_log_for_state(state_file)
     if events_file.exists():
         current = None
         for line in events_file.read_text().strip().split("\n"):

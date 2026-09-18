@@ -43,7 +43,7 @@ def _strategy_factory(config):
 
 
 PROFILE = TradeProfile(
-    name="multi-factor",
+    name="multi",
     description="Paper trading with Alpaca",
     status_banner="PAPER TRADING STATUS",
     portfolio_banner="TARGET PORTFOLIO",
@@ -51,6 +51,7 @@ PROFILE = TradeProfile(
     lock_file=LOCK_FILE,
     log_prefix="paper_trade",
     strategy_factory=_strategy_factory,
+    events_log="logs/trade_events_multi.jsonl",
 )
 
 
@@ -92,6 +93,7 @@ def run_rebalance(
         exec_logger_cls=ExecutionLogger,
         prev_scores=prev_scores,
         order_result_callback=order_result_callback,
+        events_log=PROFILE.events_log,
     )
 
 

@@ -95,7 +95,10 @@ jobs:
       - name: Flag a scheduled run that missed market hours
         if: github.event_name == 'schedule'
         run: |
-          if grep -q "Market is closed" run.log; then
+          if grep -q "FULL_DAY_MARKET_CLOSED" run.log; then
+            echo "::error::Full trading day missed: repeated Market-closed attempts; no stop-loss check or rebalance ran"
+            echo "FULL_DAY_MARKET_CLOSED at $(date -u +%H:%M) UTC" >> "$GITHUB_STEP_SUMMARY"
+          elif grep -q "Market is closed" run.log; then
             echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance today from this attempt"
             echo "Scheduled run at $(date -u +%H:%M) UTC found the market closed." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -116,7 +119,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f logs/paper_trade_lgbm_state.json logs/trade_events.jsonl 2>/dev/null || true
+          git add -f logs/paper_trade_lgbm_state.json logs/trade_events_lgbm.jsonl 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No state changes to commit"
           else

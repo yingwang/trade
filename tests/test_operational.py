@@ -197,6 +197,58 @@ class TestRebalanceSafety:
         strategy.get_current_portfolio.assert_not_called()
         broker.submit_order.assert_not_called()
 
+    def test_drawdown_breach_blocks_buys_allows_sells(self, config, quiet_exec_log, tmp_path):
+        """Portfolio max_drawdown_limit blocks new opens; de-risk sells still go."""
+        from paper_trade import run_rebalance
+        from quant.execution.broker import Order
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 700_000
+        broker.get_daily_pnl.return_value = 0.0
+        broker.get_positions.return_value = pd.Series({"AAAA": 1000.0, "BBBB": 500.0})
+        broker.get_current_prices.return_value = {"AAAA": 100.0, "BBBB": 50.0, "CCCC": 20.0}
+        broker.is_market_open.return_value = True
+
+        def _submit(order, avg_daily_volume=None):
+            order.status = "filled"
+            order.filled_quantity = order.quantity
+            order.filled_price = broker.get_current_prices()[order.symbol]
+            order.order_id = "oid"
+            order.reject_reason = ""
+            return order
+
+        broker.submit_order.side_effect = _submit
+
+        strategy = MagicMock()
+        # Exit AAAA, keep BBBB smaller, open CCCC — under drawdown only sell AAAA.
+        portfolio = pd.DataFrame({
+            "score": [1.0, 1.0],
+            "weight": [0.05, 0.10],
+            "weight_pct": [5.0, 10.0],
+            "dollars": [35_000.0, 70_000.0],
+            "shares": [700, 3500],
+            "price": [50.0, 20.0],
+        }, index=["BBBB", "CCCC"])
+        strategy.get_current_portfolio.return_value = portfolio
+        strategy.data.fetch_adv.return_value = {}
+
+        cfg = {
+            **self._config_with_safety(config),
+            "risk": {**config.get("risk", {}), "max_drawdown_limit": 0.25},
+        }
+        events = tmp_path / "events.jsonl"
+        filled, target = run_rebalance(
+            strategy, broker, cfg, dry_run=False,
+            events_log=str(events),
+            drawdown_breached=True,
+            drawdown_info=(-0.30, 0.25, 700_000.0),
+        )
+        assert filled is not None
+        sides = [c.args[0].side for c in broker.submit_order.call_args_list]
+        assert sides, "expected at least one de-risk sell"
+        assert all(s == "sell" for s in sides)
+        assert "buy" not in sides
+
     def test_actual_weights_passed_to_strategy(self, config, quiet_exec_log):
         """The account's real weights must reach the strategy so the
         turnover machinery binds against reality."""
