@@ -217,3 +217,17 @@ footer {
   .cards { grid-template-columns: repeat(3, 1fr); }
   .card-value { font-size: 1.1em; }
 }
+
+.badge-role {
+  background: rgba(79, 195, 247, 0.18);
+  color: #4fc3f7;
+  font-size: 0.7em;
+  vertical-align: middle;
+  margin-left: 0.35em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.strategy-nav .badge-role {
+  font-size: 0.65em;
+  margin-left: 0.25em;
+}

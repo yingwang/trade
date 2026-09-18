@@ -1,3 +1,8 @@
+# PRODUCT FREEZE (Sandbox): parameters frozen 2026-09-18.
+# Do not retune / re-sweep on the same backtest window without an explicit
+# unfreeze note in docs/STOP_CONDITIONS.md and an updated freeze date here.
+# Role: Sandbox — not a Candidate. See docs/HOW_WE_DECIDE.md.
+#
 # Third paper account: leveraged trend-following (quant/trend_strategy.py).
 # Parameters settled on 2026-09-17 from a twelve-variant sweep of the five-year
 # window (Trend Backtest workflow): rebalancing every ten sessions instead of

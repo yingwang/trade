@@ -4,7 +4,7 @@ A multi-factor quantitative trading system for medium-term US equities. Uses mom
 
 多因子量化交易系统，专注于美股中期投资。基于动量驱动的 Alpha 信号，结合均值-方差组合优化、动态杠杆管理，以及通过 Alpaca 自动执行交易。
 
-**[Live Performance Dashboard / 实时表现看板 →](https://yingwang.github.io/trade/)**
+**[Paper Performance Dashboard / Paper 模拟盘看板 →](https://yingwang.github.io/trade/)**
 
 The dashboard includes a nightly actual-account alpha attribution for both
 paper strategies. Account equity is the truth set; filled orders reconstruct
@@ -18,13 +18,24 @@ contributions add exactly to geometric active return.
 
 ---
 
+## How we decide / 我们怎么做决策
+
+**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (dry-run telemetry); Trend = **Sandbox** (params frozen).
+
+Weekly decisions use paper-window alpha + attribution, execution health, model diagnostics, and written keep/cut/hold — **not** vanity long-window Sharpe. Full contract: [`docs/HOW_WE_DECIDE.md`](docs/HOW_WE_DECIDE.md). Stop gates: [`docs/STOP_CONDITIONS.md`](docs/STOP_CONDITIONS.md). Weekly cards: [`docs/weekly/`](docs/weekly/).
+
+资本姿态：仅 paper。多因子 = **候选线**；LightGBM = **研究线**（干跑遥测）；Trend = **沙盒**（冻参）。周决策看 paper 窗 α+归因、执行健康、模型诊断与书面 keep/cut/hold，**不以**长窗夏普作资本叙事。详见上列文档。
+
+
+---
+
 ## Backtest Performance / 回测表现
 
 > **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, trend persistence, volatility contraction), 12 concentrated positions, 22% target volatility, 3-week rebalance with a 40% cap on total turnover (exit legs and leverage changes included), dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. Sharpe/Sortino computed against a 4% risk-free rate. Fundamental factors disabled due to yfinance look-ahead limitations.
 >
 > **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10%），12只集中持仓，22%目标波动率，3周再平衡+40%总换手上限（含退出腿与杠杆变化），快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。Sharpe/Sortino 按 4% 无风险利率计算。基本面因子因yfinance前视偏差已禁用。
 
-### Multi-Factor Strategy / 多因子策略
+### Multi-Factor Strategy / 多因子策略 — **Candidate / 候选线**
 
 Recomputed 2026-09-16 by the `README Backtest Refresh` workflow (Actions run [35091142885](https://github.com/yingwang/trade/actions/runs/35091142885)) on commit `181ac3c`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, the turnover budget split between exits and entries, and Sharpe/Sortino against a 4% risk-free rate.
 
@@ -71,7 +82,7 @@ The July 2026 tables (5-year +193.6%, Sharpe 0.87, max drawdown -28.9%) were pro
 
 2026 年 7 月的表格（五年 +193.6%，Sharpe 0.87，最大回撤 -28.9%）产生于回测路径尚无行业表、目标组合从上期目标而非实际持仓链式推导、冲击成本几乎为零的版本；上述修正之后，其中约一半的超额收益不复存在。最大回撤下降，是因为 50% 行业上限和行业中性化此时才真正起作用。
 
-### Trend Strategy / 趋势策略 (third paper account)
+### Trend Strategy / 趋势策略 — **Sandbox / 沙盒** (params frozen; third paper account)
 
 A third book, on its own Alpaca paper account, built to compete with the two above on raw return: concentrated leveraged trend-following (`quant/trend_strategy.py`, `config_trend.yaml`, `paper_trade_trend.py`). Seven names, chosen by blended 12-1 / 6-1 / 3-month momentum among stocks above their 200-day average, sized by inverse volatility, scaled to a 35% volatility target with up to 1.9x gross. Three market warning lights (SPY below its 200-day average, SPY 21-day volatility above 30%, fewer than 30% of the universe above their 50-day averages) cap gross at 0.6x with one light on and send the book to cash with two. Rebalance every ten sessions on the shared anchored calendar; every session checks trailing stops (20% off the 60-day high) and the regime cap, and acts the same day. The parameters were settled by a twelve-variant sweep on the five-year window: rebalancing every ten sessions rather than five and holding seven names rather than ten were the two changes that mattered, while tighter stops and a softer regime cut both hurt. Backtest tables come from the `Trend Backtest` workflow and `README Backtest Refresh` with the trend option; they carry the same survivorship caveat as the multi-factor table.
 
@@ -114,7 +125,7 @@ Recomputed 2026-09-17 by the `README Backtest Refresh` workflow (Actions run [35
 | **Max Drawdown / 最大回撤** | -19.9% | — | — |
 | **Information Ratio**   | **1.46** | — | — |
 
-### LightGBM Strategy / LightGBM 策略
+### LightGBM Strategy / LightGBM 策略 — **Research / 研究线** (dry-run telemetry)
 
 Same run, same windows. The ranking model does not beat the benchmark in any window of the honest backtest; the paper account's excess return since April 2026 is, by the dashboard's attribution, sector exposure rather than selection. Treat this strategy as research until that changes.
 
