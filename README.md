@@ -160,8 +160,8 @@ its universe selection as well as in its survivorship.
 | **Rebalance** | Every 21 trading days | 3周再平衡，降低换手成本 |
 | **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡。预算分两份：退出腿最多用 60%（`exit_turnover_share`），其余留给买入腿，退出腿用不完的仍归买入腿，这样卖出不会挤掉买入 |
 | **Max Sector** | 50% | 允许科技股集中但有上限 |
-| **Max Drawdown** | 25% | 回测层面的风险监控指标；实盘的对应保护是日亏损熔断与每日止损 |
-| **Stop Loss** | 15% | 单只股票止损线，回测与实盘均每日检查 |
+| **Max Drawdown** | 25% | 回测与 paper/模拟盘共用 `risk.max_drawdown_limit`：突破后阻断新开仓、允许减仓卖出并写事件告警；另有日亏损熔断与每日止损 |
+| **Stop Loss** | 15% | 单只股票止损线，回测与 paper/模拟盘均每日检查 |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
 | **Cost Model** | Square-root impact | 固定 15bps + 系数 × 个股 20 日波动率 × √(成交股数 / 20 日 ADV)，两者均取前一日已知值；缺失成交量时退回换手率代理 |
 

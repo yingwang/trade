@@ -95,26 +95,35 @@ def main():
     strategy = TrendStrategy(config)
 
     logger.info("Fetching trade history and current account...")
+    # Prefer ALPACA_TREND_*; accept legacy ALPACA_CLAUDE_* until secrets are renamed.
+    trend_key_env = (
+        "ALPACA_TREND_API_KEY"
+        if os.environ.get("ALPACA_TREND_API_KEY")
+        else "ALPACA_CLAUDE_API_KEY"
+    )
+    trend_secret_env = (
+        "ALPACA_TREND_SECRET_KEY"
+        if os.environ.get("ALPACA_TREND_SECRET_KEY")
+        else "ALPACA_CLAUDE_SECRET_KEY"
+    )
     trades = fetch_trade_history(
-        "ALPACA_CLAUDE_API_KEY",
-        "ALPACA_CLAUDE_SECRET_KEY",
+        trend_key_env,
+        trend_secret_env,
         "logs/paper_trade_trend_state.json",
         split_cash_compensations=(
             config.get("dashboard", {}).get("split_cash_compensations", {}).get("trend", {})
         ),
     )
     if trades.get("source") == "local":
-        # The local fallback reads logs/trade_events.jsonl, which belongs to the
-        # first (momentum) account. Publishing it here would show that book's
-        # history as the trend book's, so refuse instead of guessing.
+        # Without account keys, refuse rather than publishing another book's history.
         raise RuntimeError(
-            "No Alpaca keys for the trend book (ALPACA_CLAUDE_API_KEY / "
-            "ALPACA_CLAUDE_SECRET_KEY); refusing to publish the shared local logs "
-            "as its trade history"
+            "No Alpaca keys for the trend book (ALPACA_TREND_API_KEY / "
+            "ALPACA_TREND_SECRET_KEY, or legacy ALPACA_CLAUDE_*); refusing to "
+            "publish local logs as its trade history"
         )
     trades["annual_risk_free_rate"] = float(config.get("backtest", {}).get("risk_free_rate", 0.0))
     account_equity = trades.get("account", {}).get("equity")
-    if os.environ.get("ALPACA_CLAUDE_API_KEY") and account_equity is None:
+    if (os.environ.get("ALPACA_TREND_API_KEY") or os.environ.get("ALPACA_CLAUDE_API_KEY")) and account_equity is None:
         raise RuntimeError("Alpaca account fetch failed; refusing to publish a fictional target")
     capital = float(config["backtest"]["initial_capital"] if account_equity is None else account_equity)
     if capital <= 0:

@@ -59,6 +59,7 @@ class AlpacaBroker(BaseBroker):
         *,
         trading_client=None,
         data_client=None,
+        events_log_path: str | None = None,
     ):
         key = api_key or os.environ.get("ALPACA_API_KEY", "")
         secret = secret_key or os.environ.get("ALPACA_SECRET_KEY", "")
@@ -93,7 +94,9 @@ class AlpacaBroker(BaseBroker):
             n_slices=5,
             duration_minutes=30,
         )
-        self.exec_log = ExecutionLogger()
+        self.exec_log = ExecutionLogger(
+            events_log_path or "logs/trade_events_multi.jsonl"
+        )
         self._sleep = time.sleep
         self._monotonic = time.monotonic
 

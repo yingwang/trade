@@ -34,7 +34,7 @@ import json
 import logging
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TradeProfile:
-    """Everything that differs between the two paper-trading entry points."""
+    """Everything that differs between the paper-trading entry points."""
     name: str
     description: str
     status_banner: str
@@ -61,9 +61,14 @@ class TradeProfile:
     strategy_factory: Callable[[dict], object]
     api_key_env: str = "ALPACA_API_KEY"
     secret_key_env: str = "ALPACA_SECRET_KEY"
+    # Legacy names still accepted while repository secrets are renamed.
+    api_key_env_alts: tuple = field(default_factory=tuple)
+    secret_key_env_alts: tuple = field(default_factory=tuple)
     persist_scores: bool = False
     # Which config the profile trades from; the factor books share config.yaml.
     config_file: str = "config.yaml"
+    # Per-book structured event log (multi / lgbm / trend must not share one file).
+    events_log: str = "logs/trade_events_multi.jsonl"
     # Optional (strategy, broker, state) -> reason. Asked on days when no
     # scheduled rebalance is due; a reason forces one (exits, de-risking).
     rebalance_trigger: Optional[Callable[[object, object, dict], Optional[str]]] = None
@@ -101,6 +106,68 @@ def save_state(state_file: Path, state: dict):
     tmp = state_file.with_suffix(state_file.suffix + ".tmp")
     tmp.write_text(json.dumps(state, indent=2, default=str) + "\n")
     os.replace(tmp, state_file)
+
+
+
+def env_first(*names: str) -> str:
+    """Return the first non-empty environment value among *names*."""
+    for name in names:
+        val = os.environ.get(name) or ""
+        if val:
+            return val
+    return ""
+
+
+def record_equity_snapshot(state: dict, equity: float, *, max_points: int = 756) -> pd.Series:
+    """Append today's equity to state and return the curve for RiskMonitor.
+
+    ~3 years of trading days is enough for portfolio max-drawdown; older
+    points are dropped so the state file stays small.
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+    history = dict(state.get("equity_history") or {})
+    history[today] = float(equity)
+    if len(history) > max_points:
+        for key in sorted(history)[: len(history) - max_points]:
+            history.pop(key, None)
+    state["equity_history"] = history
+    peak = float(state.get("peak_equity") or equity)
+    state["peak_equity"] = max(peak, float(equity))
+    return pd.Series(history, dtype=float).sort_index()
+
+
+def check_portfolio_drawdown(state: dict, config: dict, equity: float) -> tuple[bool, float, float]:
+    """Wire config risk.max_drawdown_limit into the paper path.
+
+    Returns (breached, current_drawdown, limit). Uses RiskMonitor.check_drawdown
+    so paper and backtest share one definition of the breach.
+    """
+    from quant.portfolio.optimizer import RiskMonitor
+
+    curve = record_equity_snapshot(state, equity)
+    monitor = RiskMonitor(config)
+    limit = float(monitor.max_drawdown)
+    if len(curve) < 2:
+        return False, 0.0, limit
+    breached = bool(monitor.check_drawdown(curve))
+    peak = curve.cummax()
+    current_dd = float(((curve - peak) / peak).iloc[-1])
+    return breached, current_dd, limit
+
+
+def note_market_closed(state: dict, state_file: Path) -> int:
+    """Count closed-market attempts for today; escalate after a full-day miss.
+
+    Three scheduled attempts land each weekday; hitting closed on the third
+    (or more) attempt means the book had no stop-loss / rebalance window.
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+    counts = dict(state.get("market_closed_attempts") or {})
+    counts = {d: n for d, n in counts.items() if d >= today}
+    counts[today] = int(counts.get(today, 0)) + 1
+    state["market_closed_attempts"] = counts
+    save_state(state_file, state)
+    return counts[today]
 
 
 def acquire_lock(lock_file: Path) -> bool:
@@ -441,7 +508,10 @@ def run_rebalance(strategy, broker, config, dry_run=False,
                   exec_logger_cls=ExecutionLogger,
                   prev_scores: Optional[pd.Series] = None,
                   order_result_callback: Optional[Callable[[dict], None]] = None,
-                  batch_id: str = ""):
+                  batch_id: str = "",
+                  events_log: str = "logs/trade_events_multi.jsonl",
+                  drawdown_breached: bool = False,
+                  drawdown_info: Optional[tuple] = None):
     """Compute target portfolio and execute rebalance trades.
 
     Returns (filled, target_weights) where filled is:
@@ -450,8 +520,11 @@ def run_rebalance(strategy, broker, config, dry_run=False,
       - [] if the portfolio is already at target (counts as a completed
         rebalance)
       - a list of trade records otherwise
+
+    When drawdown_breached is True, new opens (buys) are blocked and only
+    de-risking sells are submitted; an alert is written to the event log.
     """
-    exec_log = exec_logger_cls()
+    exec_log = exec_logger_cls(events_log)
     capital = broker.get_portfolio_value()
     logger.info("Computing target portfolio for $%.2f...", capital)
 
@@ -531,6 +604,33 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     if not orders:
         print("\n  No trades needed - portfolio already at target.")
         return [], target_weights
+
+    # Portfolio max-drawdown gate (config risk.max_drawdown_limit): block new
+    # opens and allow sells so the book can de-risk while alerting operators.
+    if drawdown_breached:
+        buys = [o for o in orders if o.side == "buy"]
+        sells = [o for o in orders if o.side == "sell"]
+        current_dd, limit, equity = 0.0, float(config["risk"]["max_drawdown_limit"]), capital
+        if drawdown_info:
+            current_dd, limit, equity = drawdown_info
+        logger.error(
+            "MAX DRAWDOWN BREACHED: %.2f%% (limit %.2f%%) — blocking %d new "
+            "open(s), allowing %d de-risk sell(s)",
+            current_dd * 100, limit * 100, len(buys), len(sells),
+        )
+        print(
+            f"\n  ** MAX DRAWDOWN BREACHED ({current_dd:.1%} vs limit "
+            f"{limit:.1%}) — blocking new opens, de-risk sells only **"
+        )
+        if hasattr(exec_log, "log_drawdown_breach"):
+            exec_log.log_drawdown_breach(
+                current_dd, limit, equity,
+                n_buys_blocked=len(buys), n_sells_allowed=len(sells),
+            )
+        orders = sells
+        if not orders:
+            print("\n  No de-risk sells to submit under drawdown gate.")
+            return [], target_weights
 
     # Show planned trades
     print(f"\n  TRADES TO EXECUTE ({len(orders)} orders):")
@@ -706,11 +806,14 @@ def run_main(profile: TradeProfile):
     safety_config = SafetyConfig.from_config(config)
 
     from quant.execution.alpaca_broker import AlpacaBroker
+    api_key = env_first(profile.api_key_env, *profile.api_key_env_alts) or None
+    secret_key = env_first(profile.secret_key_env, *profile.secret_key_env_alts) or None
     broker = AlpacaBroker(
-        api_key=os.environ.get(profile.api_key_env) or None,
-        secret_key=os.environ.get(profile.secret_key_env) or None,
+        api_key=api_key,
+        secret_key=secret_key,
         paper=True,
         safety_config=safety_config,
+        events_log_path=profile.events_log,
     )
     # Every held symbol is checked for a recent split, not only the ones in
     # the static table.
@@ -774,12 +877,45 @@ def run_main(profile: TradeProfile):
         # nor rebalance orders should queue overnight on a holiday.
         if not args.dry_run and hasattr(broker, "is_market_open"):
             if not broker.is_market_open():
-                logger.warning(
-                    "Market is closed today — skipping stop-loss check and "
-                    "rebalance. The next weekday run will retry."
-                )
+                attempts = note_market_closed(state, profile.state_file)
+                if attempts >= 3:
+                    # Three scheduled attempts already saw a closed market —
+                    # escalate beyond a single warning so the miss is visible.
+                    logger.error(
+                        "FULL_DAY_MARKET_CLOSED: %s attempt(s) today found the "
+                        "market closed — no stop-loss check or rebalance ran",
+                        attempts,
+                    )
+                    print("FULL_DAY_MARKET_CLOSED")
+                else:
+                    logger.warning(
+                        "Market is closed today — skipping stop-loss check and "
+                        "rebalance. The next weekday run will retry."
+                    )
                 show_status(broker, profile.status_banner)
                 return
+
+        # Portfolio max-drawdown (config risk.max_drawdown_limit) on every live
+        # open-market run. Breach blocks new opens in run_rebalance; sells and
+        # stop-losses still de-risk.
+        drawdown_breached = False
+        drawdown_info = None
+        if not args.dry_run:
+            try:
+                equity_now = float(broker.get_portfolio_value())
+                drawdown_breached, current_dd, dd_limit = check_portfolio_drawdown(
+                    state, config, equity_now
+                )
+                drawdown_info = (current_dd, dd_limit, equity_now)
+                save_state(profile.state_file, state)
+                if drawdown_breached:
+                    logger.error(
+                        "Portfolio drawdown %.2f%% breached limit %.2f%% — "
+                        "new opens blocked; de-risk sells and stop-losses only",
+                        current_dd * 100, dd_limit * 100,
+                    )
+            except Exception as exc:
+                logger.warning("Drawdown check skipped: %s", exc)
 
         # Nothing from an earlier run may still be working at the broker when
         # this one sizes its orders.  Cancel and confirm, or stand down.
@@ -894,6 +1030,9 @@ def run_main(profile: TradeProfile):
                 persist_order_result if not args.dry_run else None
             ),
             batch_id=batch_id if not args.dry_run else "",
+            events_log=profile.events_log,
+            drawdown_breached=drawdown_breached,
+            drawdown_info=drawdown_info,
         )
 
         rebalance_completed = False

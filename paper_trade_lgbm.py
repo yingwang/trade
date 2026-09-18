@@ -60,6 +60,7 @@ PROFILE = TradeProfile(
     api_key_env="ALPACA_LGBM_API_KEY",
     secret_key_env="ALPACA_LGBM_SECRET_KEY",
     persist_scores=True,
+    events_log="logs/trade_events_lgbm.jsonl",
 )
 
 
@@ -101,6 +102,7 @@ def run_rebalance(
         exec_logger_cls=ExecutionLogger,
         prev_scores=prev_scores,
         order_result_callback=order_result_callback,
+        events_log=PROFILE.events_log,
     )
 
 

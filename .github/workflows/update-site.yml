@@ -50,6 +50,8 @@
         - run: python generate_site_trend.py
           env:
             PYTHONPATH: .
+            ALPACA_TREND_API_KEY: ${{ secrets.ALPACA_TREND_API_KEY }}
+            ALPACA_TREND_SECRET_KEY: ${{ secrets.ALPACA_TREND_SECRET_KEY }}
             ALPACA_CLAUDE_API_KEY: ${{ secrets.ALPACA_CLAUDE_API_KEY }}
             ALPACA_CLAUDE_SECRET_KEY: ${{ secrets.ALPACA_CLAUDE_SECRET_KEY }}
         - uses: peaceiris/actions-gh-pages@329bcc8f12caed2cefe5a5b80781499a6f3b361b # v4

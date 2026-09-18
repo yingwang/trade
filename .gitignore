@@ -23,10 +23,15 @@ site/data/
 site/lgbm/data/
 
 # Logs and trading state (contains personal trading data).
-# The two state files and the trade event log ARE tracked: the rebalance
+# State files and per-book trade event logs ARE tracked: the rebalance
 # workflows commit them to main as the durable record of live state.
 logs/
 !logs/paper_trade_state.json
 !logs/paper_trade_lgbm_state.json
+!logs/paper_trade_trend_state.json
+!logs/trade_events_multi.jsonl
+!logs/trade_events_lgbm.jsonl
+!logs/trade_events_trend.jsonl
+# Legacy shared event log (pre book-split); keep readable if present.
 !logs/trade_events.jsonl
 *.log

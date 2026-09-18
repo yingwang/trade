@@ -32,6 +32,10 @@ export ALPACA_LGBM_API_KEY="your-second-paper-api-key"
 export ALPACA_LGBM_SECRET_KEY="your-second-paper-secret-key"
 ```
 
+The trend account prefers `ALPACA_TREND_API_KEY` / `ALPACA_TREND_SECRET_KEY`.
+Legacy `ALPACA_CLAUDE_*` names still work until repository Actions secrets are
+renamed (create the TREND secrets, point workflows at them, then delete CLAUDE).
+
 Never commit keys or paste them into configuration files.
 
 ## Verify and operate

@@ -3,13 +3,16 @@
 
 All logic lives in paper_trade_common.py, shared with the two factor books. The
 differences are the config file (config_trend.yaml), the account
-(ALPACA_CLAUDE_API_KEY / ALPACA_CLAUDE_SECRET_KEY) and a rebalance trigger: on
-days without a scheduled rebalance the strategy is still asked whether a trailing
-stop or a regime cut needs acting on, and if so that action is executed today.
+(ALPACA_TREND_API_KEY / ALPACA_TREND_SECRET_KEY, with legacy ALPACA_CLAUDE_*
+fallback) and a rebalance trigger: on days without a scheduled rebalance the
+strategy is still asked whether a trailing stop or a regime cut needs acting
+on, and if so that action is executed today.
 
 Usage:
-    export ALPACA_CLAUDE_API_KEY="your-paper-key"
-    export ALPACA_CLAUDE_SECRET_KEY="your-paper-secret"
+    export ALPACA_TREND_API_KEY="your-paper-key"
+    export ALPACA_TREND_SECRET_KEY="your-paper-secret"
+    # Legacy names still work until repository secrets are renamed:
+    # ALPACA_CLAUDE_API_KEY / ALPACA_CLAUDE_SECRET_KEY
 
     python paper_trade_trend.py --dry-run     # preview
     python paper_trade_trend.py               # trade
@@ -70,9 +73,12 @@ PROFILE = TradeProfile(
     lock_file=LOCK_FILE,
     log_prefix="paper_trade_trend",
     strategy_factory=_strategy_factory,
-    api_key_env="ALPACA_CLAUDE_API_KEY",
-    secret_key_env="ALPACA_CLAUDE_SECRET_KEY",
+    api_key_env="ALPACA_TREND_API_KEY",
+    secret_key_env="ALPACA_TREND_SECRET_KEY",
+    api_key_env_alts=("ALPACA_CLAUDE_API_KEY",),
+    secret_key_env_alts=("ALPACA_CLAUDE_SECRET_KEY",),
     config_file="config_trend.yaml",
+    events_log="logs/trade_events_trend.jsonl",
     rebalance_trigger=_rebalance_trigger,
 )
 
@@ -109,6 +115,7 @@ def run_rebalance(strategy, broker, config, dry_run=False, prev_scores=None,
         exec_logger_cls=ExecutionLogger,
         prev_scores=prev_scores,
         order_result_callback=order_result_callback,
+        events_log=PROFILE.events_log,
     )
 
 
