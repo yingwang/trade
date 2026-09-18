@@ -1925,5 +1925,9 @@
     }
   },
   "stop_loss_attempts": {},
-  "schema_version": 2
+  "schema_version": 2,
+  "equity_history": {
+    "2026-09-18": 124142.3
+  },
+  "peak_equity": 124142.3
 }
