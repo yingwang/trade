@@ -39,7 +39,7 @@ Weekly decisions use paper-window alpha + attribution, execution health, model d
 
 Recomputed 2026-09-16 by the `README Backtest Refresh` workflow (Actions run [35091142885](https://github.com/yingwang/trade/actions/runs/35091142885)) on commit `181ac3c`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, the turnover budget split between exits and entries, and Sharpe/Sortino against a 4% risk-free rate.
 
-由 `README Backtest Refresh` workflow 于 2026-09-16 重算（Actions run 35091142885，commit `181ac3c`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与实盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，换手预算在退出腿与买入腿之间分配，Sharpe/Sortino 按 4% 无风险利率计算。
+由 `README Backtest Refresh` workflow 于 2026-09-16 重算（Actions run 35091142885，commit `181ac3c`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与 paper/模拟盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，换手预算在退出腿与买入腿之间分配，Sharpe/Sortino 按 4% 无风险利率计算。
 
 #### 5-Year Backtest (2021-09-16 → 2026-09-16)
 
@@ -262,7 +262,7 @@ python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 - **Cross-run concurrency**: GitHub Actions 并发组串行化两个账户的工作流
 - **Partial-fill recovery**: 部分成交或拒单不会把再平衡错误标记为完成
 - **Corporate-action fail closed**: 若 Alpaca 模拟账户仍以拆股前单位记录 BKNG，交易会暂停；这是防止数量被放大 25 倍，不影响代码提交或回测
-- **Paper mode gate**: 防止意外连接实盘账户
+- **Paper mode gate**: 防止意外连接真实资金（live）账户
 
 ### Automate with Cron / 使用 Cron 自动化
 
@@ -293,7 +293,7 @@ trade/
 │   ├── attribution.py          # 实际账户 alpha 归因 + Carino 对账
 │   ├── data/
 │   │   ├── market_data.py      # Yahoo Finance 数据获取
-│   │   └── quality.py          # 数据质量检查 + 实盘质量闸门 + 时点数据管理
+│   │   └── quality.py          # 数据质量检查 + paper/模拟盘质量闸门 + 时点数据管理
 │   ├── signals/
 │   │   ├── factors.py          # Alpha 因子计算
 │   │   ├── factor_analysis.py  # IC/ICIR、因子衰减分析工具
@@ -381,7 +381,7 @@ data:
 1. **Survivorship bias / 幸存者偏差**: 静态100股票池排除历史退市股，回测收益偏高。ETF control workflow 只用于跨资产稳健性检查，不能量化这个偏差；偏差收敛需要时点成分股与退市收益文件
 2. **No point-in-time fundamentals / 无时点基本面**: yfinance只提供当前快照，quality/value因子已禁用
 3. **Next-open execution / 次日开盘执行**: 回测中信号在 T 日收盘计算，优先按下一可交易日开盘价成交；若开盘缺失才使用该日收盘，开盘和收盘都缺失则等待，不会沿用旧价格假成交
-4. **Paper-trading fills / 模拟盘成交**: Alpaca paper 账户的成交不含真实点差与市场冲击，实盘成本会更高
+4. **Paper-trading fills / 模拟盘成交**: Alpaca paper 账户的成交不含真实点差与市场冲击，真实交易（live）成本会更高
 
 4. **Paper corporate actions / 模拟账户公司行动**: BKNG 25 拆 1 于 2026-04-02 生效、2026-04-06 起按拆股价交易。若模拟账户仍显示拆股前数量/成本，自动交易会安全停止，需先在 Alpaca 重置或修复该模拟持仓。已手工补入的拆股现金必须记录在 `dashboard.split_cash_compensations`，避免仪表盘再次自动补账
 
