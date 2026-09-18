@@ -64,7 +64,9 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             MODE="${{ github.event.inputs.mode }}"
           else
-            MODE="live"
+            # Product: LGBM is Research — scheduled runs are dry-run telemetry only.
+            # Do not submit paper orders from cron until STOP_CONDITIONS promotion gates clear.
+            MODE="dry-run"
           fi
           if [ "$MODE" = "live" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "Live paper trading is allowed only from main; got $GITHUB_REF" >&2

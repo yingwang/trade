@@ -9,14 +9,14 @@
 </head>
 <body>
   <nav class="strategy-nav">
-    <span class="strategy-nav-current">Multi-Factor Strategy</span>
-    <a href="lgbm/">LightGBM ML Strategy &rarr;</a>
-    <a href="trend/">Trend Strategy &rarr;</a>
+    <span class="strategy-nav-current">Multi-Factor Strategy <span class="badge badge-role">Candidate</span></span>
+    <a href="lgbm/">LightGBM <span class="badge badge-role">Research</span> &rarr;</a>
+    <a href="trend/">Trend <span class="badge badge-role">Sandbox</span> &rarr;</a>
   </nav>
 
   <header>
-    <h1>Multi-Factor US Equity Strategy</h1>
-    <p class="subtitle">多因子美股量化策略仪表盘</p>
+    <h1>Multi-Factor US Equity Strategy <span class="badge badge-role">Candidate</span></h1>
+    <p class="subtitle">多因子美股量化策略仪表盘 · 候选线</p>
     <p id="last-update" class="meta"></p>
   </header>
 
@@ -31,13 +31,13 @@
     <!-- TAB 1: Performance (Actual + Backtest) -->
     <div id="tab-performance" class="tab-content active">
       <section id="actual-performance" style="display:none">
-        <h2>Actual Performance / 实盘业绩 (Alpaca Paper Trading)</h2>
+        <h2>Paper Performance / 模拟盘业绩 (Alpaca Paper Trading)</h2>
         <div id="actual-metrics" class="cards"></div>
         <div id="actual-chart" class="chart"></div>
       </section>
 
       <section id="attribution-section" style="display:none">
-        <h2>Actual Alpha Attribution / 实盘超额收益归因</h2>
+        <h2>Paper Alpha Attribution / 模拟盘超额收益归因</h2>
         <p class="meta" style="margin-bottom:12px">Account equity is the source of truth. Lagged ETF-factor regressions and reconstructed fills split actual return versus SPY; unexplained P&amp;L remains visible as reconciliation residual.</p>
         <div id="attribution-metrics" class="cards"></div>
         <div id="attribution-chart" class="chart"></div>
@@ -45,7 +45,7 @@
       </section>
 
       <section id="live-positions-section" style="display:none">
-        <h2>Live Positions / 实盘持仓</h2>
+        <h2>Paper Positions / 模拟盘持仓</h2>
         <div id="live-account-info" class="info-bar"></div>
         <div class="table-wrap">
           <table id="live-positions-table">
