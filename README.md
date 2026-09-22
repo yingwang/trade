@@ -20,7 +20,7 @@ contributions add exactly to geometric active return.
 
 ## How we decide / 我们怎么做决策
 
-**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (dry-run telemetry); Trend = **Sandbox** (params frozen).
+**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (paper orders, not a Candidate); Trend = **Sandbox** (params frozen).
 
 Weekly decisions use paper-window alpha + attribution, execution health, model diagnostics, and written keep/cut/hold — **not** vanity long-window Sharpe. Full contract: [`docs/HOW_WE_DECIDE.md`](docs/HOW_WE_DECIDE.md). Stop gates: [`docs/STOP_CONDITIONS.md`](docs/STOP_CONDITIONS.md). Weekly cards: [`docs/weekly/`](docs/weekly/).
 
@@ -125,7 +125,7 @@ Recomputed 2026-09-17 by the `README Backtest Refresh` workflow (Actions run [35
 | **Max Drawdown / 最大回撤** | -19.9% | — | — |
 | **Information Ratio**   | **1.46** | — | — |
 
-### LightGBM Strategy / LightGBM 策略 — **Research / 研究线** (dry-run telemetry)
+### LightGBM Strategy / LightGBM 策略 — **Research / 研究线** (paper orders)
 
 Same run, same windows. The ranking model does not beat the benchmark in any window of the honest backtest; the paper account's excess return since April 2026 is, by the dashboard's attribution, sector exposure rather than selection. Treat this strategy as research until that changes.
 

@@ -2,10 +2,11 @@
 
 Checked on the Weekly Decision Card. Numbers are product gates, not marketing.
 
-## LightGBM — Research (dry-run telemetry)
+## LightGBM — Research (paper orders)
 
-**Operating mode:** scheduled rebalance runs **dry-run only** (no order submit).
-Manual `workflow_dispatch` may still use dry-run / status; do not flip schedule back to live paper without an explicit product unfreeze note in this file.
+**Operating mode:** scheduled rebalance runs place **paper orders** (the account is paper; nothing touches real money). Research status limits what the line may claim, not whether its paper book trades.
+
+**Unfreeze note (2026-09-22, CEO):** scheduled runs were dry-run from 2026-09-18 (#13). A dry-run schedule froze the account at its 2026-09-01 book, with stop-losses no longer executed, while the dashboard and the paper attribution kept scoring that frozen basket as the model. The CEO's call: it is paper anyway, so trade it. Paper history from 2026-09-18 to 2026-09-22 reflects the frozen book, not the model.
 
 ### Soft hold (stay Research)
 
@@ -27,7 +28,7 @@ Do **not** promote LGBM to Candidate until **all** hold for **4 consecutive week
 
 ### Pause telemetry (optional escalate)
 
-Recommend pausing even dry-run Actions if:
+Recommend pausing the scheduled LGBM Actions if:
 
 - Training / site update fails **3** scheduled attempts in a row, or
 - `val_rank_ic` **&lt; −0.05** on **3** consecutive refreshes.

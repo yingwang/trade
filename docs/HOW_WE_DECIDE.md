@@ -11,7 +11,7 @@ not whether a long-window backtest looks impressive.
 | Line | Role | Meaning |
 |------|------|---------|
 | Multi-Factor | **Candidate** | Only formal capital candidate under paper stance |
-| LightGBM | **Research** | Dry-run telemetry; not competing for Candidate status |
+| LightGBM | **Research** | Paper orders on schedule; not competing for Candidate status |
 | Trend | **Sandbox** | Params frozen; observe paper sample; no promotion talk yet |
 
 Definitions:

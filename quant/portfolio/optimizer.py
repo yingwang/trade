@@ -573,12 +573,14 @@ class PortfolioOptimizer:
         FINAL weights (after vol scaling) over the union of old and new
         holdings, so the configured max_turnover is the real total cap.
 
-        When the cap binds, the portfolio is blended toward the previous one:
-        w = prev + lam * (target - prev), which moves max_turnover of L1
-        distance toward the target each rebalance.  Exiting positions are
-        then sold down over successive rebalances instead of all at once;
-        transitional stubs below min_stub_weight are liquidated outright to
-        avoid dust orders (the tiny cap overshoot is logged).
+        When the cap binds, the budget is split between the sell legs (exits
+        and trims) and the buy legs so that the capped book's gross exposure
+        never ends below min(previous gross, target gross): sells exceed buys
+        only by as much as the target itself de-levers.  Each side then moves
+        its legs part of the way toward the target.  Large exits are sold down
+        over successive rebalances; small ones are sold in full, smallest
+        first.  Transitional stubs below min_stub_weight are liquidated
+        outright to avoid dust orders (the tiny cap overshoot is logged).
         """
         weights = self.apply_hard_exposure_limits(
             weights,
@@ -645,46 +647,73 @@ class PortfolioOptimizer:
         if turnover <= self.max_turnover:
             return weights
 
-        lam = self.max_turnover / turnover
-        blended = w_old + lam * (w_new - w_old)
+        cap = self.max_turnover
+        delta = w_new - w_old
+        exits = union[(w_new <= 1e-12) & (w_old > 1e-12)]
+        others = union.difference(exits)
+        buy_legs = others[delta.loc[others] > 1e-12]
+        trim_legs = others[delta.loc[others] < -1e-12]
+        exit_full = float(w_old.loc[exits].sum())
+        trim_full = float(-delta.loc[trim_legs].sum())
+        buy_full = float(delta.loc[buy_legs].sum())
 
-        # Exit legs.  Blending alone sells an exiting position down
-        # geometrically, (1 - lam) of it surviving each rebalance, so a
-        # concentrated book accumulated a long tail of holdings far below the
-        # mandate's minimum weight, some held against their own signal.  An
-        # exit that the blend would leave below min_weight is sold in full
-        # instead, smallest first, as far as the turnover budget allows; the
-        # entry and adjustment legs then share whatever budget remains, so the
-        # total stays at the cap.
-        exits = union[(w_new.reindex(union).fillna(0.0) <= 1e-12) & (w_old > 1e-12)]
-        exit_stubs = blended.loc[exits][
-            (blended.loc[exits] > 0) & (blended.loc[exits] < self.min_weight)
-        ].sort_values()
+        # Split the budget between the two sides before spending it.  The cap
+        # may slow the move toward the target but must not change where the
+        # book's gross exposure is heading: sells may exceed buys only by as
+        # much as the target itself de-levers.  Spending one blended budget
+        # leg by leg did not hold that.  Exits were sold in full while entries
+        # moved a fraction of the way, so every capped rebalance was a net
+        # sale: on 15 September 2026 a book asked to go to 110% would have
+        # landed at 41%, and after a first fix the 23 September preview still
+        # took a 77% book to 68% against a 98% target.
+        slack = max(0.0, float(w_old.sum()) - float(w_new.sum()))
+        sell_budget = min(exit_full + trim_full, cap, (cap + slack) / 2.0,
+                          buy_full + slack)
+
+        # Sell side.  Pro rata, every exit and trim would move the same fraction
+        # of the way, but blending sells an exiting position down geometrically,
+        # (1 - lam) of it surviving each rebalance, so a concentrated book
+        # accumulated a long tail of holdings far below the mandate's minimum
+        # weight, some held against their own signal.  When the pro-rata sale
+        # would leave exits below min_weight, the exits may take up to their
+        # share of the budget from the trims to sell those in full, and the
+        # exit sale goes to the smallest positions first, each sold in full,
+        # the rest spread pro rata over the larger ones.
+        sell_full = exit_full + trim_full
+        lam_sell = sell_budget / sell_full if sell_full > 1e-12 else 0.0
+        blended = w_old.copy()
+        exit_order = w_old.loc[exits].sort_values()
+        exit_sale = exit_full * lam_sell
+        remainders = exit_order * (1.0 - lam_sell)
+        stub_extra = float(remainders[remainders < self.min_weight].sum())
+        if stub_extra > 1e-12:
+            exit_budget = min(cap * self.exit_turnover_share, sell_budget)
+            exit_sale = max(exit_sale, min(exit_budget, exit_sale + stub_extra))
         liquidated = []
-        exit_turnover = float((blended.loc[exits] - w_old.loc[exits]).abs().sum())
-        # Liquidating exits draws on its own share of the budget.  Letting it draw
-        # on all of it starves the entry legs: on 15 September 2026 the live book
-        # wanted 110% invested, the blend ran at lam=0.36 and the entries at
-        # lam=0.04, which lands at 41% invested and sinks a little further every
-        # rebalance.  Whatever the exits leave unused still goes to the entries.
-        exit_budget = self.max_turnover * self.exit_turnover_share
-        for symbol, remaining in exit_stubs.items():
-            extra = float(remaining)
-            if exit_turnover + extra > exit_budget + 1e-9:
+        left = exit_sale
+        for symbol, weight in exit_order.items():
+            if weight > left + 1e-12:
                 break
             blended.loc[symbol] = 0.0
-            exit_turnover += extra
+            left -= float(weight)
             liquidated.append(symbol)
-        others = union.difference(exits)
-        other_full = float((w_new.loc[others] - w_old.loc[others]).abs().sum())
-        budget = max(self.max_turnover - exit_turnover, 0.0)
-        if other_full > 1e-12:
-            lam_other = min(lam, budget / other_full)
-            blended.loc[others] = w_old.loc[others] + lam_other * (
-                w_new.loc[others] - w_old.loc[others]
-            )
-        else:
-            lam_other = lam
+        rest = exit_order.index.difference(liquidated)
+        rest_full = float(w_old.loc[rest].sum())
+        if rest_full > 1e-12:
+            blended.loc[rest] = w_old.loc[rest] * (1.0 - min(1.0, max(left, 0.0) / rest_full))
+        lam_trim = (
+            min(1.0, max(sell_budget - exit_sale, 0.0) / trim_full)
+            if trim_full > 1e-12 else 0.0
+        )
+        blended.loc[trim_legs] = w_old.loc[trim_legs] + lam_trim * delta.loc[trim_legs]
+        sold = exit_sale + lam_trim * trim_full
+
+        # Buy side: whatever the sells left of the cap, all legs alike.
+        lam_buy = (
+            min(1.0, max(cap - sold, 0.0) / buy_full)
+            if buy_full > 1e-12 else 0.0
+        )
+        blended.loc[buy_legs] = w_old.loc[buy_legs] + lam_buy * delta.loc[buy_legs]
 
         stubs = blended[(blended > 0) & (blended < min_stub_weight)].index
         if len(stubs) > 0:
@@ -693,12 +722,14 @@ class PortfolioOptimizer:
 
         logger.info(
             "Turnover cap engaged: target turnover %.1f%% > cap %.1f%%, "
-            "blending toward previous portfolio (lam=%.2f, entries/adjustments "
-            "lam=%.2f, %d transitional position(s), %d exit(s) sold in full, "
-            "%d stub(s) liquidated)",
-            turnover * 100, self.max_turnover * 100, lam, lam_other,
-            int((~blended.index.isin(weights.index)).sum()), len(liquidated),
-            len(stubs),
+            "sells %.1f%% (exits %.1f%% with %d sold in full, trims lam=%.2f), "
+            "buys %.1f%% (lam=%.2f); invested %.1f%% -> %.1f%% (target %.1f%%), "
+            "%d transitional position(s), %d stub(s) liquidated",
+            turnover * 100, cap * 100, sold * 100, exit_sale * 100,
+            len(liquidated), lam_trim, lam_buy * buy_full * 100, lam_buy,
+            float(w_old.sum()) * 100, float(blended.sum()) * 100,
+            float(w_new.sum()) * 100,
+            int((~blended.index.isin(weights.index)).sum()), len(stubs),
         )
         return self.apply_hard_exposure_limits(
             blended,

@@ -270,21 +270,60 @@ class TestTurnoverCap:
 
     def test_exits_cannot_starve_entries(self, config):
         """A long tail of small holdings replaced by a few large ones. Liquidating
-        the old names outright is worth doing, but when it may draw on the whole
-        budget the entries get nothing and the book loses most of its exposure in
-        one rebalance, then loses more at the next one."""
+        the old names outright is worth doing, but when it could draw on the
+        whole budget the entries got nothing and the book lost most of its
+        exposure in one rebalance, then lost more at the next one.  Whatever the
+        exit share, the sells now take at most half the cap here and the book
+        keeps its exposure."""
         prev = pd.Series({f"OLD{i}": 0.035 for i in range(15)})   # 52.5% invested
         new = pd.Series({f"NEW{i}": 0.22 for i in range(5)})      # 110% target
 
-        starved = self._opt_share(config, 0.40, 1.0).enforce_turnover_cap(new, prev)
-        assert float(starved.reindex(new.index).fillna(0.0).sum()) == pytest.approx(0.0)
-        assert float(starved.sum()) < 0.3 * float(prev.sum())
+        for share in (1.0, 0.6):
+            result = self._opt_share(config, 0.40, share).enforce_turnover_cap(new, prev)
+            assert self._turnover(result, prev) <= 0.40 + 1e-9
+            bought = float(result.reindex(new.index).fillna(0.0).sum())
+            assert bought == pytest.approx(0.20)
+            assert float(result.sum()) >= float(prev.sum()) - 1e-9
+            # The sale goes to whole positions, smallest first, not a sliver
+            # off every one of them.
+            assert (~prev.index.isin(result.index)).sum() == 5
 
-        split = self._opt_share(config, 0.40, 0.6).enforce_turnover_cap(new, prev)
-        assert self._turnover(split, prev) <= 0.40 + 1e-9
-        bought = float(split.reindex(new.index).fillna(0.0).sum())
-        assert bought >= 0.40 * (1 - 0.6) - 1e-9
-        assert float(split.sum()) > 0.8 * float(prev.sum())
+    def test_capped_rebalance_is_not_a_net_sale(self, config):
+        """Shaped like the 23 September 2026 preview: small exits sold in full,
+        a heavy reshuffle among the held names and new entries, a 77% book asked
+        to go to 98%.  The old single blend spent the budget on the exits first
+        and moved everything else a fifth of the way, a net sale."""
+        opt = self._opt_share(config, 0.40, 0.6)
+        prev = pd.Series(
+            {**{f"X{i}": 0.015 for i in range(8)},
+             **{f"H{i}": 0.065 for i in range(10)}}
+        )                                                             # 77% invested
+        new = pd.Series(
+            {**{f"H{i}": 0.02 for i in range(10)},                    # trimmed
+             **{f"N{i}": 0.0975 for i in range(8)}}                   # new entries
+        )                                                             # 98% target
+        result = opt.enforce_turnover_cap(new, prev)
+        assert self._turnover(result, prev) <= 0.40 + 1e-9
+        gross = float(result.sum())
+        assert gross >= float(prev.sum()) - 1e-9
+        assert gross <= float(new.sum()) + 1e-9
+        # Every leg moved toward its target, none past it.
+        union = result.index.union(prev.index).union(new.index)
+        r = result.reindex(union).fillna(0.0)
+        p = prev.reindex(union).fillna(0.0)
+        n = new.reindex(union).fillna(0.0)
+        assert ((r - p) * (n - p) >= -1e-12).all()
+        assert ((r - n) * (p - n) >= -1e-12).all()
+
+    def test_target_that_delevers_may_sell_more_than_it_buys(self, config):
+        """Selling beyond the buys is allowed exactly as far as the target's own
+        gross falls, so a de-levering target still gets there."""
+        opt = self._opt_share(config, 0.40, 0.6)
+        prev = pd.Series({"A": 0.7, "B": 0.7})                       # 140%
+        new = pd.Series({"A": 0.5, "C": 0.5})                        # 100%
+        result = opt.enforce_turnover_cap(new, prev)
+        assert self._turnover(result, prev) == pytest.approx(0.40)
+        assert float(result.sum()) == pytest.approx(1.0)
 
     def test_exit_share_bounds_liquidation(self, config):
         """Liquidating exits stays inside its own share of the budget."""

@@ -64,9 +64,11 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             MODE="${{ github.event.inputs.mode }}"
           else
-            # Product: LGBM is Research — scheduled runs are dry-run telemetry only.
-            # Do not submit paper orders from cron until STOP_CONDITIONS promotion gates clear.
-            MODE="dry-run"
+            # LGBM is a Research line, but its account is paper: scheduled runs
+            # trade it (stops included) so the paper record keeps measuring the
+            # model.  From 2026-09-18 to 09-22 they ran dry-run, which froze the
+            # book while the dashboard kept scoring it; see docs/STOP_CONDITIONS.md.
+            MODE="live"
           fi
           if [ "$MODE" = "live" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "Live paper trading is allowed only from main; got $GITHUB_REF" >&2

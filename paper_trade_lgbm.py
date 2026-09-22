@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Paper trading entry point (LightGBM strategy) using the Alpaca API.
 
-Product role: Research. Scheduled CI uses --dry-run telemetry only;
-see docs/HOW_WE_DECIDE.md and docs/STOP_CONDITIONS.md.
+Product role: Research. Scheduled CI trades the paper account (dry-run from
+2026-09-18 to 09-22); see docs/HOW_WE_DECIDE.md and docs/STOP_CONDITIONS.md.
 
 All logic lives in paper_trade_common.py, shared with paper_trade.py.
 This module keeps thin wrappers around the shared implementation because
