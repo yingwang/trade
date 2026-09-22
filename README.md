@@ -263,7 +263,7 @@ python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 - **TWAP splitting**: 大单自动拆分为时间加权分批执行
 - **Idempotent orders**: 稳定的 `client_order_id` 防止网络重试重复下单
 - **Position reconciliation**: 每次再平衡后自动对账
-- **Cross-run concurrency**: GitHub Actions 并发组串行化两个账户的工作流
+- **Cross-run concurrency**: 每个账户一个 GitHub Actions 并发组，同一账户的运行串行执行；三个账户互不排队（共用一组时 GitHub 会取消排在中间的任务）
 - **Partial-fill recovery**: 部分成交或拒单不会把再平衡错误标记为完成
 - **Corporate-action fail closed**: 若 Alpaca 模拟账户仍以拆股前单位记录 BKNG，交易会暂停；这是防止数量被放大 25 倍，不影响代码提交或回测
 - **Paper mode gate**: 防止意外连接真实资金（live）账户

@@ -60,8 +60,10 @@ weekday run.
 - Stop-loss state is deleted only after the position is confirmed closed.
 - Large orders use a 30-minute TWAP schedule. Hosted jobs allow 90 minutes so a
   valid TWAP cannot be killed by the workflow timeout.
-- The two trading workflows share one GitHub Actions concurrency group; a local
-  lock alone cannot coordinate separate hosted runners.
+- Each trading workflow has its own GitHub Actions concurrency group, so runs of
+  one book never overlap (a local lock alone cannot coordinate separate hosted
+  runners) while the three books, on separate accounts, never queue behind each
+  other.
 - Paper mode is mandatory under the default configuration.
 
 ## BKNG split guard

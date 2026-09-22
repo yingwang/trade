@@ -2,22 +2,20 @@ name: Paper Trade Rebalance
 
 on:
   schedule:
-    # 15:00 UTC = 11:00 ET (EDT) / 10:00 ET (EST) — comfortably mid-morning in
-    # both DST regimes (the old 14:30 UTC hit 09:30 ET in winter, i.e. the
-    # opening auction where spreads are widest). Staggered 10 min ahead of
-    # rebalance-lgbm.yml so the two workflows don't race each other's pushes.
-    # With GH Actions' typical 1-2h+ scheduler delay the run still lands
-    # mid-session with hours of runway before the 16:00 ET close.
-    # Three attempts a day, off the hour. GitHub's scheduler routinely runs
-    # a job five to nine hours late; three of five scheduled runs in late
-    # August landed after the 16:00 ET close, hit the market-closed gate and
-    # exited green, so those days had no stop-loss check at all. The first
-    # attempt that finds the market open does the work; later ones are
-    # idempotent (last_rebalance, the daily tracker and the stop-loss state
-    # all persist) and exit at once.
-    - cron: '7 14 * * 1-5'
-    - cron: '37 15 * * 1-5'
-    - cron: '7 17 * * 1-5'
+    # Three attempts a day; the first that finds the market open does the
+    # work, later ones are idempotent (last_rebalance, the daily tracker and
+    # the stop-loss state all persist) and exit at once.  GitHub's scheduler
+    # runs these jobs hours late: 2.5 to 5.3 hours for every slot in the week
+    # of 2026-09-17, and on 09-21 two of the three old slots (14:07, 15:37,
+    # 17:07 UTC) landed after the 16:00 ET close.  So the first two slots sit
+    # before the open and count on that delay to land mid-session (a run that
+    # arrives early just finds the market closed and exits), and the last one
+    # is inside the session in both DST regimes even if it runs on time
+    # (open 13:30 UTC in summer, 14:30 UTC in winter).  The other two books
+    # run the same slots ten and twenty minutes later.
+    - cron: '37 11 * * 1-5'
+    - cron: '37 12 * * 1-5'
+    - cron: '37 14 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -34,11 +32,15 @@ on:
 permissions:
   contents: write
 
-# A local lock cannot protect two different hosted runners.  Both strategy
-# workflows intentionally share this group so only one can trade/push state at
-# a time; queued live runs are preserved rather than cancelled mid-order.
+# One group per book.  The three books trade separate Alpaca accounts and
+# separate state files, so they never needed to wait for each other, and a
+# shared group was worse than waiting: GitHub keeps only one pending run per
+# group, so when a third run queued behind a running one, the second was
+# cancelled.  Within a book, queued live runs are preserved rather than
+# cancelled mid-order, and the commit step retries its push if another
+# book's state commit lands first.
 concurrency:
-  group: paper-trading-${{ github.repository }}
+  group: paper-trading-multi-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -131,9 +133,16 @@ jobs:
             echo "No state changes to commit"
           else
             git commit -m "chore: update trade state after rebalance [skip ci]"
-            # The LGBM workflow may have pushed its own state commit in the
-            # meantime (this race turned the 2026-06-29 run red); rebase our
-            # commit on top instead of failing the push.
-            git pull --rebase origin main
-            git push
+            # Another book may push its own state commit in the meantime; rebase
+            # ours on top and retry rather than fail the job.
+            pushed=0
+            for attempt in 1 2 3 4; do
+              if git pull --rebase origin main && git push; then pushed=1; break; fi
+              echo "State push attempt $attempt failed; retrying"
+              sleep $((attempt * 5))
+            done
+            if [ "$pushed" != 1 ]; then
+              echo "::error::Could not push the state commit after 4 attempts"
+              exit 1
+            fi
           fi

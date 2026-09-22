@@ -69,13 +69,13 @@ Raw prices → live quality gate → factor scores (momentum 50%, high_proximity
 
 - Target portfolio: 12 positions, 3%–12% per stock, max 50% per sector. The held book can carry more names in transition: exits the turnover blend would leave below 3% are sold in full within the budget, larger exits are sold down over successive rebalances
 - `universe.sectors` is the static sector table used by both the backtest and the live path (industry neutralization, sector caps, attribution); the yfinance `.info` snapshot is only a fallback for configs without one
-- Rebalance every 21 trading days; 40% cap on TOTAL turnover (exit legs and vol-scaling included; excess blends toward the previous portfolio)
+- Rebalance every 21 trading days; 40% cap on TOTAL turnover (exit legs and vol-scaling included). When it binds, the budget is split between sells and buys first, so a capped rebalance slows down but never sells gross exposure below min(current, target)
 - Transaction cost: 10 bps + per-symbol volume-participation Almgren-Chriss market impact (turnover fallback when volume is missing); Sharpe/Sortino vs 4% risk-free rate
 - Quality and value factors are **disabled** — yfinance only provides current snapshots, causing look-ahead bias in backtests
 
 ## Live Operation (GitHub Actions)
 
-- `rebalance.yml` and `rebalance-lgbm.yml` are scheduled three times each weekday (GitHub's scheduler runs jobs hours late; a scheduled run that finds the market closed is flagged with a workflow warning) and share a repository-wide concurrency group; every attempt is idempotent. State is cached AND committed to main `[skip ci]` (the commit step runs even when the trading step failed), with `git pull --rebase` before push
+- `rebalance.yml`, `rebalance-lgbm.yml` and `rebalance-trend.yml` are scheduled three times each weekday at 11:37/12:37/14:37 UTC (+10 and +20 min for the other books): GitHub's scheduler runs them hours late, so the first two slots count on that delay to land in session and the last is in session even on time; a scheduled run that finds the market closed is flagged with a workflow warning. Each book has its own concurrency group (a shared group let GitHub cancel a pending run); every attempt is idempotent. State is cached AND committed to main `[skip ci]` (the commit step runs even when the trading step failed), with `git pull --rebase` and a retried push
 - Market-closed days exit before submitting anything; stop-losses are checked on every daily run, not only rebalance days
 - Covered stop-loss/emergency sells bypass entry-oriented size, daily-turnover, penny-stock, and ADV throttles; oversized sells remain blocked
 - Entry prices back the stop-loss and are recorded only when a position is newly established (adds don't reset the base) — same semantics as the backtest engine
@@ -91,7 +91,7 @@ Tests use synthetic fixtures (3 years of 10 stocks + benchmark) defined in `test
 ## Deployment Notes
 
 - Logs go to `logs/paper_trade_YYYYMMDD.log`; state tracked in `logs/paper_trade_state.json` / `logs/paper_trade_lgbm_state.json` (committed to main by the workflows)
-- `logs/paper_trade.lock` protects a local process; the Actions concurrency group coordinates separate hosted runners
+- `logs/paper_trade.lock` protects a local process; each book's Actions concurrency group serializes its own hosted runs
 - Alpaca paper accounts may not process corporate actions. The dashboard annotates known splits, while the trading path fails closed if BKNG still appears in pre-split units
 
 ## Known Limitations

@@ -2,16 +2,11 @@ name: Paper Trade Rebalance (LightGBM)
 
 on:
   schedule:
-    # 15:10 UTC = 11:10 ET (EDT) / 10:10 ET (EST) — mid-morning in both DST
-    # regimes, and staggered 10 min behind rebalance.yml so the two workflows
-    # don't race each other's state pushes to main.
-    # (History: moved earlier from 18:00 UTC because GH Actions scheduler
-    # delay, often 2h+, was pushing runs past the 16:00 ET close.)
-    # Three attempts a day, staggered 10 min behind rebalance.yml (see the
-    # note there on scheduler delay); each attempt is idempotent.
-    - cron: '17 14 * * 1-5'
-    - cron: '47 15 * * 1-5'
-    - cron: '17 17 * * 1-5'
+    # The slots of rebalance.yml, ten minutes later (see the note there on
+    # scheduler delay); each attempt is idempotent.
+    - cron: '47 11 * * 1-5'
+    - cron: '47 12 * * 1-5'
+    - cron: '47 14 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -28,8 +23,15 @@ on:
 permissions:
   contents: write
 
+# One group per book.  The three books trade separate Alpaca accounts and
+# separate state files, so they never needed to wait for each other, and a
+# shared group was worse than waiting: GitHub keeps only one pending run per
+# group, so when a third run queued behind a running one, the second was
+# cancelled.  Within a book, queued live runs are preserved rather than
+# cancelled mid-order, and the commit step retries its push if another
+# book's state commit lands first.
 concurrency:
-  group: paper-trading-${{ github.repository }}
+  group: paper-trading-lgbm-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -126,8 +128,16 @@ jobs:
             echo "No state changes to commit"
           else
             git commit -m "chore: update lgbm trade state after rebalance [skip ci]"
-            # The v3 workflow may have pushed its own state commit in the
-            # meantime; rebase our commit on top instead of failing the push.
-            git pull --rebase origin main
-            git push
+            # Another book may push its own state commit in the meantime; rebase
+            # ours on top and retry rather than fail the job.
+            pushed=0
+            for attempt in 1 2 3 4; do
+              if git pull --rebase origin main && git push; then pushed=1; break; fi
+              echo "State push attempt $attempt failed; retrying"
+              sleep $((attempt * 5))
+            done
+            if [ "$pushed" != 1 ]; then
+              echo "::error::Could not push the state commit after 4 attempts"
+              exit 1
+            fi
           fi

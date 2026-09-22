@@ -2,12 +2,12 @@ name: Paper Trade Rebalance (Trend)
 
 on:
   schedule:
-    # Third book, staggered 20 min behind rebalance.yml (see the note there on
+    # The slots of rebalance.yml, twenty minutes later (see the note there on
     # scheduler delay); three attempts a day, each idempotent. Every weekday,
     # because the trend strategy has daily exits and de-risking.
-    - cron: '27 14 * * 1-5'
-    - cron: '57 15 * * 1-5'
-    - cron: '27 17 * * 1-5'
+    - cron: '57 11 * * 1-5'
+    - cron: '57 12 * * 1-5'
+    - cron: '57 14 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -24,8 +24,15 @@ on:
 permissions:
   contents: write
 
+# One group per book.  The three books trade separate Alpaca accounts and
+# separate state files, so they never needed to wait for each other, and a
+# shared group was worse than waiting: GitHub keeps only one pending run per
+# group, so when a third run queued behind a running one, the second was
+# cancelled.  Within a book, queued live runs are preserved rather than
+# cancelled mid-order, and the commit step retries its push if another
+# book's state commit lands first.
 concurrency:
-  group: paper-trading-${{ github.repository }}
+  group: paper-trading-trend-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -135,8 +142,16 @@ jobs:
             echo "No state changes to commit"
           else
             git commit -m "chore: update trend trade state after rebalance [skip ci]"
-            # The other two workflows may have pushed its own state commit in the
-            # meantime; rebase our commit on top instead of failing the push.
-            git pull --rebase origin main
-            git push
+            # Another book may push its own state commit in the meantime; rebase
+            # ours on top and retry rather than fail the job.
+            pushed=0
+            for attempt in 1 2 3 4; do
+              if git pull --rebase origin main && git push; then pushed=1; break; fi
+              echo "State push attempt $attempt failed; retrying"
+              sleep $((attempt * 5))
+            done
+            if [ "$pushed" != 1 ]; then
+              echo "::error::Could not push the state commit after 4 attempts"
+              exit 1
+            fi
           fi
