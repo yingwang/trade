@@ -1,0 +1,373 @@
+{
+  "source": "alpaca",
+  "account": {
+    "equity": 102465.11,
+    "cash": 27108.52,
+    "buying_power": 278985.36
+  },
+  "positions": [
+    {
+      "symbol": "AMD",
+      "qty": 17.0,
+      "side": "long",
+      "current_price": 631.0,
+      "market_value": 10727.0,
+      "avg_entry_price": 545.71,
+      "cost_basis": 9277.06,
+      "today_pl_pct": 0.27699999999999997,
+      "today_pl": 29.58,
+      "total_pl_pct": 15.629,
+      "total_pl": 1449.94
+    },
+    {
+      "symbol": "CRWD",
+      "qty": 41.0,
+      "side": "long",
+      "current_price": 252.92,
+      "market_value": 10369.72,
+      "avg_entry_price": 245.99,
+      "cost_basis": 10085.66,
+      "today_pl_pct": -2.5989999999999998,
+      "today_pl": -276.75,
+      "total_pl_pct": 2.816,
+      "total_pl": 284.06
+    },
+    {
+      "symbol": "INTC",
+      "qty": 85.0,
+      "side": "long",
+      "current_price": 122.946,
+      "market_value": 10450.41,
+      "avg_entry_price": 121.81,
+      "cost_basis": 10353.85,
+      "today_pl_pct": -3.488,
+      "today_pl": -377.74,
+      "total_pl_pct": 0.933,
+      "total_pl": 96.56
+    },
+    {
+      "symbol": "MRVL",
+      "qty": 33.0,
+      "side": "long",
+      "current_price": 262.68,
+      "market_value": 8668.44,
+      "avg_entry_price": 260.47,
+      "cost_basis": 8595.51,
+      "today_pl_pct": 1.44,
+      "today_pl": 123.09,
+      "total_pl_pct": 0.848,
+      "total_pl": 72.93
+    },
+    {
+      "symbol": "MU",
+      "qty": 8.0,
+      "side": "long",
+      "current_price": 1085.31,
+      "market_value": 8682.48,
+      "avg_entry_price": 1045.87,
+      "cost_basis": 8366.96,
+      "today_pl_pct": 0.44200000000000006,
+      "today_pl": 38.24,
+      "total_pl_pct": 3.771,
+      "total_pl": 315.52
+    },
+    {
+      "symbol": "PANW",
+      "qty": 32.0,
+      "side": "long",
+      "current_price": 375.41,
+      "market_value": 12013.12,
+      "avg_entry_price": 372.54,
+      "cost_basis": 11921.36,
+      "today_pl_pct": -3.721,
+      "today_pl": -464.32,
+      "total_pl_pct": 0.77,
+      "total_pl": 91.76
+    },
+    {
+      "symbol": "SNOW",
+      "qty": 43.0,
+      "side": "long",
+      "current_price": 335.94,
+      "market_value": 14445.42,
+      "avg_entry_price": 336.78,
+      "cost_basis": 14481.68,
+      "today_pl_pct": 0.581,
+      "today_pl": 83.42,
+      "total_pl_pct": -0.25,
+      "total_pl": -36.26
+    }
+  ],
+  "portfolio_history": [
+    {
+      "date": "2026-09-15",
+      "equity": 100000.0,
+      "profit_loss": 0.0
+    },
+    {
+      "date": "2026-09-16",
+      "equity": 100000.0,
+      "profit_loss": 0.0
+    },
+    {
+      "date": "2026-09-17",
+      "equity": 100097.77,
+      "profit_loss": 97.77
+    },
+    {
+      "date": "2026-09-18",
+      "equity": 99481.61,
+      "profit_loss": -616.16
+    },
+    {
+      "date": "2026-09-21",
+      "equity": 101482.32,
+      "profit_loss": 2000.71
+    },
+    {
+      "date": "2026-09-22",
+      "equity": 102379.94,
+      "profit_loss": 897.62
+    },
+    {
+      "date": "2026-09-23",
+      "equity": 102907.15,
+      "profit_loss": 527.21
+    },
+    {
+      "date": "2026-09-24",
+      "equity": 103309.59,
+      "profit_loss": 402.44
+    }
+  ],
+  "spy_history": [
+    {
+      "date": "2026-09-15",
+      "equity": 100000.0
+    },
+    {
+      "date": "2026-09-16",
+      "equity": 99559.01
+    },
+    {
+      "date": "2026-09-17",
+      "equity": 100687.89
+    },
+    {
+      "date": "2026-09-18",
+      "equity": 100817.47
+    },
+    {
+      "date": "2026-09-21",
+      "equity": 102380.64
+    },
+    {
+      "date": "2026-09-22",
+      "equity": 102364.76
+    },
+    {
+      "date": "2026-09-23",
+      "equity": 101627.51
+    },
+    {
+      "date": "2026-09-24",
+      "equity": 101544.12
+    }
+  ],
+  "rebalances": [
+    {
+      "date": "2026-09-21",
+      "portfolio_value": 101482.32,
+      "trades": [
+        {
+          "symbol": "SNOW",
+          "side": "buy",
+          "quantity": 2.0,
+          "price": 334.39,
+          "filled_at": "2026-09-21T19:36:33.182267+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "buy",
+          "quantity": 2.0,
+          "price": 371.53,
+          "filled_at": "2026-09-21T19:36:30.833882+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 1045.87,
+          "filled_at": "2026-09-21T19:36:28.882135+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "buy",
+          "quantity": 33.0,
+          "price": 260.47,
+          "filled_at": "2026-09-21T19:36:26.814594+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "INTC",
+          "side": "buy",
+          "quantity": 85.0,
+          "price": 121.81,
+          "filled_at": "2026-09-21T19:36:25.134997+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "buy",
+          "quantity": 1.0,
+          "price": 249.66,
+          "filled_at": "2026-09-21T19:36:23.313701+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AMD",
+          "side": "sell",
+          "quantity": 3.0,
+          "price": 614.72,
+          "filled_at": "2026-09-21T19:36:21.519980+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-17",
+      "portfolio_value": 100097.77,
+      "trades": [
+        {
+          "symbol": "SNOW",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 338.7,
+          "filled_at": "2026-09-17T19:21:39.939875+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 376.13,
+          "filled_at": "2026-09-17T19:21:37.781319+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 8.0,
+          "price": 977.76,
+          "filled_at": "2026-09-17T19:21:36.474695+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "sell",
+          "quantity": 35.0,
+          "price": 241.035143,
+          "filled_at": "2026-09-17T19:21:34.135681+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "INTC",
+          "side": "sell",
+          "quantity": 94.0,
+          "price": 109.973723,
+          "filled_at": "2026-09-17T19:21:29.567953+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 246.36,
+          "filled_at": "2026-09-17T19:21:25.140495+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SNOW",
+          "side": "buy",
+          "quantity": 42.0,
+          "price": 336.9,
+          "filled_at": "2026-09-17T18:22:39.348569+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "buy",
+          "quantity": 31.0,
+          "price": 372.61,
+          "filled_at": "2026-09-17T18:22:36.382703+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MU",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 977.04,
+          "filled_at": "2026-09-17T18:22:31.182488+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MRVL",
+          "side": "buy",
+          "quantity": 35.0,
+          "price": 240.77,
+          "filled_at": "2026-09-17T18:22:28.032354+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "INTC",
+          "side": "buy",
+          "quantity": 94.0,
+          "price": 110.37,
+          "filled_at": "2026-09-17T18:22:26.044061+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "buy",
+          "quantity": 41.0,
+          "price": 245.9,
+          "filled_at": "2026-09-17T18:22:25.218211+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AMD",
+          "side": "buy",
+          "quantity": 20.0,
+          "price": 545.7095,
+          "filled_at": "2026-09-17T18:22:23.774356+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    }
+  ],
+  "corporate_action_adjustments": {},
+  "annual_risk_free_rate": 0.04
+}

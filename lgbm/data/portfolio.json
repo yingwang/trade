@@ -1,0 +1,114 @@
+{
+  "updated_at": "2026-09-25 19:56 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 38.3,
+  "cash_pct": 61.7,
+  "account_equity_basis": 134851.0,
+  "positions": [
+    {
+      "symbol": "PANW",
+      "weight_pct": 5.59,
+      "dollars": 7534.0,
+      "shares": 20,
+      "price": 374.74,
+      "score": 0.9873
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 4.18,
+      "dollars": 5640.0,
+      "shares": 24,
+      "price": 234.02,
+      "score": 0.9257
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 3.62,
+      "dollars": 4886.0,
+      "shares": 14,
+      "price": 349.02,
+      "score": 0.9356
+    },
+    {
+      "symbol": "BA",
+      "weight_pct": 3.62,
+      "dollars": 4882.0,
+      "shares": 24,
+      "price": 198.07,
+      "score": 0.5216
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.19,
+      "dollars": 4300.0,
+      "shares": 17,
+      "price": 252.13,
+      "score": 0.9679
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 2.98,
+      "dollars": 4023.0,
+      "shares": 8,
+      "price": 485.0,
+      "score": 0.9761
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 2.51,
+      "dollars": 3386.0,
+      "shares": 18,
+      "price": 187.92,
+      "score": 0.9054
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 2.33,
+      "dollars": 3141.0,
+      "shares": 4,
+      "price": 630.63,
+      "score": 0.9575
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 2.31,
+      "dollars": 3119.0,
+      "shares": 25,
+      "price": 123.0,
+      "score": 0.9148
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 2.16,
+      "dollars": 2908.0,
+      "shares": 2,
+      "price": 1367.43,
+      "score": 0.8772
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 2.12,
+      "dollars": 2860.0,
+      "shares": 9,
+      "price": 315.21,
+      "score": 0.9771
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 1.97,
+      "dollars": 2657.0,
+      "shares": 9,
+      "price": 268.13,
+      "score": 0.9272
+    },
+    {
+      "symbol": "IBM",
+      "weight_pct": 1.7,
+      "dollars": 2299.0,
+      "shares": 10,
+      "price": 225.51,
+      "score": 0.8952
+    }
+  ]
+}

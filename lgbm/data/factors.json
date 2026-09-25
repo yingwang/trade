@@ -1,0 +1,102 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "trend_persistence"
+  ],
+  "stocks": {
+    "PANW": {
+      "momentum": 1.315,
+      "high_proximity": 0.985,
+      "short_term_reversal": 0.161,
+      "vol_contraction": -1.141,
+      "trend_persistence": -0.108
+    },
+    "CRM": {
+      "momentum": 0.003,
+      "high_proximity": 0.588,
+      "short_term_reversal": 0.966,
+      "vol_contraction": 1.17,
+      "trend_persistence": 1.52
+    },
+    "NET": {
+      "momentum": 0.639,
+      "high_proximity": 1.156,
+      "short_term_reversal": -0.62,
+      "vol_contraction": -0.679,
+      "trend_persistence": -0.692
+    },
+    "BA": {
+      "momentum": -0.962,
+      "high_proximity": -0.712,
+      "short_term_reversal": -0.014,
+      "vol_contraction": -0.071,
+      "trend_persistence": 0.274
+    },
+    "CRWD": {
+      "momentum": 0.921,
+      "high_proximity": 1.077,
+      "short_term_reversal": -0.326,
+      "vol_contraction": -0.677,
+      "trend_persistence": -0.72
+    },
+    "AMAT": {
+      "momentum": -0.35,
+      "high_proximity": -0.795,
+      "short_term_reversal": -0.763,
+      "vol_contraction": 0.384,
+      "trend_persistence": 1.536
+    },
+    "KLAC": {
+      "momentum": -0.844,
+      "high_proximity": -1.106,
+      "short_term_reversal": -0.309,
+      "vol_contraction": 0.797,
+      "trend_persistence": 1.074
+    },
+    "AMD": {
+      "momentum": 1.213,
+      "high_proximity": 1.332,
+      "short_term_reversal": -1.356,
+      "vol_contraction": 0.064,
+      "trend_persistence": 0.829
+    },
+    "INTC": {
+      "momentum": 0.429,
+      "high_proximity": 0.508,
+      "short_term_reversal": -1.499,
+      "vol_contraction": -0.708,
+      "trend_persistence": 0.191
+    },
+    "MPWR": {
+      "momentum": -0.524,
+      "high_proximity": 0.104,
+      "short_term_reversal": -1.298,
+      "vol_contraction": -1.236,
+      "trend_persistence": 0.551
+    },
+    "LRCX": {
+      "momentum": -0.087,
+      "high_proximity": -0.428,
+      "short_term_reversal": -0.838,
+      "vol_contraction": 0.19,
+      "trend_persistence": 1.427
+    },
+    "DDOG": {
+      "momentum": 0.527,
+      "high_proximity": 0.882,
+      "short_term_reversal": -1.901,
+      "vol_contraction": 1.119,
+      "trend_persistence": -0.072
+    },
+    "IBM": {
+      "momentum": -1.264,
+      "high_proximity": -0.676,
+      "short_term_reversal": 0.987,
+      "vol_contraction": 1.36,
+      "trend_persistence": -0.499
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "updated_at": "2026-09-25 19:58 EDT",
+  "regime": {
+    "lights_on": [],
+    "count": 0,
+    "breadth": 0.44761904761904764
+  },
+  "regime_cap": 1.9,
+  "gross_pct": 76.4,
+  "total_invested_pct": 76.4,
+  "cash_pct": 23.6,
+  "account_equity_basis": 102465.11,
+  "candidates": 62,
+  "positions": [
+    {
+      "symbol": "SNOW",
+      "weight_pct": 15.2,
+      "dollars": 15574.0,
+      "shares": 46,
+      "price": 335.94,
+      "score": 0.9065
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 12.03,
+      "dollars": 12328.0,
+      "shares": 32,
+      "price": 374.74,
+      "score": 1.0429
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 10.84,
+      "dollars": 11107.0,
+      "shares": 17,
+      "price": 630.63,
+      "score": 1.8743
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 9.96,
+      "dollars": 10206.0,
+      "shares": 82,
+      "price": 123.0,
+      "score": 1.0264
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 9.95,
+      "dollars": 10191.0,
+      "shares": 40,
+      "price": 252.13,
+      "score": 1.1457
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 9.52,
+      "dollars": 9753.0,
+      "shares": 9,
+      "price": 1082.28,
+      "score": 3.2034
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 8.89,
+      "dollars": 9111.0,
+      "shares": 34,
+      "price": 261.93,
+      "score": 1.6423
+    }
+  ]
+}

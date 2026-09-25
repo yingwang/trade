@@ -1,0 +1,129 @@
+{
+  "updated_at": "2026-09-25 19:54 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 74.7,
+  "cash_pct": 25.3,
+  "account_equity_basis": 126530.24,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 10.33,
+      "dollars": 13071.0,
+      "shares": 83,
+      "price": 157.45,
+      "score": 1.2104
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 10.29,
+      "dollars": 13023.0,
+      "shares": 12,
+      "price": 1082.28,
+      "score": 1.7358
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 7.22,
+      "dollars": 9130.0,
+      "shares": 34,
+      "price": 261.93,
+      "score": 1.2587
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 6.25,
+      "dollars": 7913.0,
+      "shares": 31,
+      "price": 249.67,
+      "score": 1.1801
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 6.13,
+      "dollars": 7758.0,
+      "shares": 107,
+      "price": 72.31,
+      "score": 1.4098
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 5.17,
+      "dollars": 6539.0,
+      "shares": 53,
+      "price": 123.0,
+      "score": 0.1145
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 4.65,
+      "dollars": 5886.0,
+      "shares": 26,
+      "price": 225.64,
+      "score": -0.2019
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 4.34,
+      "dollars": 5489.0,
+      "shares": 28,
+      "price": 189.4,
+      "score": 0.4575
+    },
+    {
+      "symbol": "MA",
+      "weight_pct": 4.09,
+      "dollars": 5173.0,
+      "shares": 9,
+      "price": 567.65,
+      "score": 0.985
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 3.79,
+      "dollars": 4794.0,
+      "shares": 7,
+      "price": 630.63,
+      "score": 0.8267
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 2.84,
+      "dollars": 3599.0,
+      "shares": 10,
+      "price": 335.94,
+      "score": 0.791
+    },
+    {
+      "symbol": "V",
+      "weight_pct": 2.77,
+      "dollars": 3510.0,
+      "shares": 9,
+      "price": 367.38,
+      "score": 0.8644
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 2.72,
+      "dollars": 3438.0,
+      "shares": 23,
+      "price": 148.78,
+      "score": 0.954
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 2.05,
+      "dollars": 2597.0,
+      "shares": 3,
+      "price": 690.46,
+      "score": 0.815
+    },
+    {
+      "symbol": "BLK",
+      "weight_pct": 2.05,
+      "dollars": 2597.0,
+      "shares": 2,
+      "price": 1086.31,
+      "score": 0.7652
+    }
+  ]
+}
