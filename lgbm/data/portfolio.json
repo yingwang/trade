@@ -1,0 +1,114 @@
+{
+  "updated_at": "2026-10-02 20:21 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 38.7,
+  "cash_pct": 61.3,
+  "account_equity_basis": 135743.39,
+  "positions": [
+    {
+      "symbol": "NOW",
+      "weight_pct": 5.34,
+      "dollars": 7251.0,
+      "shares": 52,
+      "price": 137.76,
+      "score": 0.9358
+    },
+    {
+      "symbol": "BKNG",
+      "weight_pct": 5.17,
+      "dollars": 7015.0,
+      "shares": 43,
+      "price": 160.28,
+      "score": 0.8747
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 4.54,
+      "dollars": 6161.0,
+      "shares": 10,
+      "price": 615.73,
+      "score": 0.9895
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 4.53,
+      "dollars": 6152.0,
+      "shares": 17,
+      "price": 351.0,
+      "score": 0.9626
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 4.26,
+      "dollars": 5778.0,
+      "shares": 21,
+      "price": 266.09,
+      "score": 0.9589
+    },
+    {
+      "symbol": "BA",
+      "weight_pct": 3.14,
+      "dollars": 4261.0,
+      "shares": 22,
+      "price": 192.28,
+      "score": 0.6521
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 2.09,
+      "dollars": 2843.0,
+      "shares": 23,
+      "price": 120.0,
+      "score": 0.9972
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 1.89,
+      "dollars": 2569.0,
+      "shares": 1,
+      "price": 1360.97,
+      "score": 0.9188
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 1.87,
+      "dollars": 2544.0,
+      "shares": 7,
+      "price": 340.1,
+      "score": 0.8949
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 1.64,
+      "dollars": 2225.0,
+      "shares": 8,
+      "price": 276.46,
+      "score": 0.9272
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 1.64,
+      "dollars": 2220.0,
+      "shares": 8,
+      "price": 268.08,
+      "score": 0.9544
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 1.29,
+      "dollars": 1754.0,
+      "shares": 4,
+      "price": 396.25,
+      "score": 0.9423
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 1.29,
+      "dollars": 1754.0,
+      "shares": 1,
+      "price": 1097.39,
+      "score": 0.9033
+    }
+  ]
+}

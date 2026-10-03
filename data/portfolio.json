@@ -1,0 +1,137 @@
+{
+  "updated_at": "2026-10-02 20:18 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 74.5,
+  "cash_pct": 25.5,
+  "account_equity_basis": 125630.97,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 10.34,
+      "dollars": 12992.0,
+      "shares": 82,
+      "price": 156.7,
+      "score": 1.4781
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 10.29,
+      "dollars": 12922.0,
+      "shares": 11,
+      "price": 1097.39,
+      "score": 1.8393
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 5.87,
+      "dollars": 7376.0,
+      "shares": 106,
+      "price": 69.28,
+      "score": 1.5225
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 5.81,
+      "dollars": 7303.0,
+      "shares": 29,
+      "price": 248.23,
+      "score": 1.2634
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 5.27,
+      "dollars": 6626.0,
+      "shares": 24,
+      "price": 268.08,
+      "score": 0.8813
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 5.06,
+      "dollars": 6356.0,
+      "shares": 52,
+      "price": 120.0,
+      "score": 0.5351
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 4.61,
+      "dollars": 5786.0,
+      "shares": 26,
+      "price": 220.75,
+      "score": -0.5616
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 4.41,
+      "dollars": 5546.0,
+      "shares": 9,
+      "price": 615.73,
+      "score": 0.9158
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 4.28,
+      "dollars": 5379.0,
+      "shares": 29,
+      "price": 185.01,
+      "score": 0.216
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 4.2,
+      "dollars": 5272.0,
+      "shares": 7,
+      "price": 667.26,
+      "score": 1.6567
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 3.49,
+      "dollars": 4386.0,
+      "shares": 31,
+      "price": 141.31,
+      "score": -0.7358
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 2.68,
+      "dollars": 3367.0,
+      "shares": 8,
+      "price": 396.25,
+      "score": 0.6925
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 2.3,
+      "dollars": 2887.0,
+      "shares": 20,
+      "price": 143.81,
+      "score": 0.9128
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 2.24,
+      "dollars": 2818.0,
+      "shares": 11,
+      "price": 236.69,
+      "score": 0.8999
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 1.94,
+      "dollars": 2437.0,
+      "shares": 9,
+      "price": 266.09,
+      "score": 0.8282
+    },
+    {
+      "symbol": "BLK",
+      "weight_pct": 1.72,
+      "dollars": 2164.0,
+      "shares": 2,
+      "price": 1064.36,
+      "score": 0.5825
+    }
+  ]
+}

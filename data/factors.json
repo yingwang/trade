@@ -1,0 +1,123 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "trend_persistence"
+  ],
+  "stocks": {
+    "TGT": {
+      "momentum": 2.426,
+      "high_proximity": 1.014,
+      "short_term_reversal": -0.919,
+      "vol_contraction": 1.739,
+      "trend_persistence": -0.196
+    },
+    "MU": {
+      "momentum": 3.172,
+      "high_proximity": 0.654,
+      "short_term_reversal": 0.072,
+      "vol_contraction": 0.915,
+      "trend_persistence": 0.24
+    },
+    "FCX": {
+      "momentum": 2.459,
+      "high_proximity": 0.179,
+      "short_term_reversal": 0.678,
+      "vol_contraction": 1.054,
+      "trend_persistence": 0.841
+    },
+    "AMZN": {
+      "momentum": 1.509,
+      "high_proximity": 1.264,
+      "short_term_reversal": -0.382,
+      "vol_contraction": 1.582,
+      "trend_persistence": 1.361
+    },
+    "MRVL": {
+      "momentum": 1.655,
+      "high_proximity": 0.28,
+      "short_term_reversal": -0.401,
+      "vol_contraction": 0.937,
+      "trend_persistence": -0.56
+    },
+    "INTC": {
+      "momentum": 0.808,
+      "high_proximity": 0.306,
+      "short_term_reversal": 1.78,
+      "vol_contraction": -1.656,
+      "trend_persistence": 0.577
+    },
+    "PNC": {
+      "momentum": -0.895,
+      "high_proximity": 0.043,
+      "short_term_reversal": -0.848,
+      "vol_contraction": 0.015,
+      "trend_persistence": 1.476
+    },
+    "AMD": {
+      "momentum": 1.171,
+      "high_proximity": 1.126,
+      "short_term_reversal": 0.944,
+      "vol_contraction": -0.643,
+      "trend_persistence": 0.752
+    },
+    "RTX": {
+      "momentum": 0.961,
+      "high_proximity": 0.1,
+      "short_term_reversal": 0.386,
+      "vol_contraction": 0.635,
+      "trend_persistence": -1.708
+    },
+    "DE": {
+      "momentum": 1.969,
+      "high_proximity": 2.259,
+      "short_term_reversal": 1.169,
+      "vol_contraction": 0.407,
+      "trend_persistence": 0.627
+    },
+    "EOG": {
+      "momentum": -1.512,
+      "high_proximity": 0.154,
+      "short_term_reversal": -0.104,
+      "vol_contraction": 0.461,
+      "trend_persistence": -0.465
+    },
+    "PANW": {
+      "momentum": 1.053,
+      "high_proximity": 1.263,
+      "short_term_reversal": 0.028,
+      "vol_contraction": -0.304,
+      "trend_persistence": -0.592
+    },
+    "MRK": {
+      "momentum": 1.512,
+      "high_proximity": 0.502,
+      "short_term_reversal": -0.044,
+      "vol_contraction": 0.422,
+      "trend_persistence": 0.184
+    },
+    "CRM": {
+      "momentum": 0.937,
+      "high_proximity": 0.593,
+      "short_term_reversal": 0.574,
+      "vol_contraction": 0.992,
+      "trend_persistence": 1.56
+    },
+    "CRWD": {
+      "momentum": 1.161,
+      "high_proximity": 1.281,
+      "short_term_reversal": -0.139,
+      "vol_contraction": 0.46,
+      "trend_persistence": -0.408
+    },
+    "BLK": {
+      "momentum": 0.879,
+      "high_proximity": 0.952,
+      "short_term_reversal": -1.124,
+      "vol_contraction": 0.531,
+      "trend_persistence": 0.12
+    }
+  }
+}
