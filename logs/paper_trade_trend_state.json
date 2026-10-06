@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "last_rebalance": "2026-09-21T19:36:33.905394",
+  "last_rebalance": "2026-10-06T17:34:46.018545",
   "trade_history": [
     {
       "date": "2026-09-17T18:22:39.915890",
@@ -282,6 +282,91 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-10-06T17:34:46.018560",
+      "completed": true,
+      "outcome": "all orders filled",
+      "trades": [
+        {
+          "time": "2026-10-06T17:34:32.913126",
+          "symbol": "CRWD",
+          "side": "sell",
+          "qty": 2.0,
+          "requested_qty": 2.0,
+          "status": "filled",
+          "price": 278.97,
+          "signal_price": 279.01,
+          "order_id": "7622206c-1898-452e-af24-831375fd8ce7",
+          "client_order_id": "qts-reba-eec4cd39bb3c0cd95f1dc25d",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-06T17:34:35.889967",
+          "symbol": "AMD",
+          "side": "buy",
+          "qty": 2.0,
+          "requested_qty": 2.0,
+          "status": "filled",
+          "price": 654.825,
+          "signal_price": 654.61,
+          "order_id": "d5211460-c0e7-4ed2-b7a8-5c48f7cf1620",
+          "client_order_id": "qts-reba-01d9b24ce46a6cc0da4d20f1",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-06T17:34:37.719447",
+          "symbol": "INTC",
+          "side": "buy",
+          "qty": 12.0,
+          "requested_qty": 12.0,
+          "status": "filled",
+          "price": 114.18,
+          "signal_price": 114.16,
+          "order_id": "4558427d-f6b2-431b-a327-546d73c97936",
+          "client_order_id": "qts-reba-2747843cace782f5082ac4ef",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-06T17:34:40.643840",
+          "symbol": "MRVL",
+          "side": "buy",
+          "qty": 2.0,
+          "requested_qty": 2.0,
+          "status": "filled",
+          "price": 285.905,
+          "signal_price": 285.77,
+          "order_id": "875c04dd-b934-49ef-9eae-75f69471d096",
+          "client_order_id": "qts-reba-d81e863f52c0b961358bf0e6",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-06T17:34:42.539938",
+          "symbol": "MU",
+          "side": "buy",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 1065.28,
+          "signal_price": 1063.88,
+          "order_id": "b9551f07-f34a-4257-9ce0-e5c8bea66786",
+          "client_order_id": "qts-reba-8e94cb9b13f5eecf9cf92676",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-06T17:34:45.537043",
+          "symbol": "SNOW",
+          "side": "buy",
+          "qty": 5.0,
+          "requested_qty": 5.0,
+          "status": "filled",
+          "price": 340.32,
+          "signal_price": 340.265,
+          "order_id": "9a9f7753-6720-43de-8389-34cffe26c0be",
+          "client_order_id": "qts-reba-689ac4dd8e15f8d1b9d43eed",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -294,29 +379,27 @@
     "MU": 1045.87
   },
   "daily_tracker": {
-    "trade_date": "2026-09-21",
-    "total_value_traded": 30821.98,
+    "trade_date": "2026-10-06",
+    "total_value_traded": 6576.4400000000005,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 7,
-    "orders_filled": 7,
+    "orders_submitted": 6,
+    "orders_filled": 6,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-30d88cd6f5aa0555ca6a497d",
-      "qts-reba-40a001a3b49e73ac18dc3715",
-      "qts-reba-88822501775ba9d5f0d646ce",
-      "qts-reba-9f185b30399cf8c92c0dc1af",
-      "qts-reba-a54c5f3982405c1db19b01e3",
-      "qts-reba-bdc84bddf8113bd3f30f2cb2",
-      "qts-reba-fe25e146e76236eeb2b9997f"
+      "qts-reba-01d9b24ce46a6cc0da4d20f1",
+      "qts-reba-2747843cace782f5082ac4ef",
+      "qts-reba-689ac4dd8e15f8d1b9d43eed",
+      "qts-reba-8e94cb9b13f5eecf9cf92676",
+      "qts-reba-d81e863f52c0b961358bf0e6",
+      "qts-reba-eec4cd39bb3c0cd95f1dc25d"
     ],
     "processed_fill_values": {
-      "qts-reba-30d88cd6f5aa0555ca6a497d": 8366.96,
-      "qts-reba-40a001a3b49e73ac18dc3715": 249.66,
-      "qts-reba-88822501775ba9d5f0d646ce": 1844.16,
-      "qts-reba-9f185b30399cf8c92c0dc1af": 10353.85,
-      "qts-reba-a54c5f3982405c1db19b01e3": 8595.51,
-      "qts-reba-bdc84bddf8113bd3f30f2cb2": 743.06,
-      "qts-reba-fe25e146e76236eeb2b9997f": 668.78
+      "qts-reba-01d9b24ce46a6cc0da4d20f1": 1309.65,
+      "qts-reba-2747843cace782f5082ac4ef": 1370.16,
+      "qts-reba-689ac4dd8e15f8d1b9d43eed": 1701.6,
+      "qts-reba-8e94cb9b13f5eecf9cf92676": 1065.28,
+      "qts-reba-d81e863f52c0b961358bf0e6": 571.81,
+      "qts-reba-eec4cd39bb3c0cd95f1dc25d": 557.94
     }
   },
   "stop_loss_attempts": {},
@@ -331,9 +414,10 @@
     "2026-09-29": 101843.53,
     "2026-09-30": 103313.76,
     "2026-10-01": 103725.73,
-    "2026-10-02": 104173.45
+    "2026-10-02": 104173.45,
+    "2026-10-06": 105301.57
   },
-  "peak_equity": 104385.77,
+  "peak_equity": 105301.57,
   "entry_dates": {
     "INTC": "2026-09-21",
     "MRVL": "2026-09-21",
