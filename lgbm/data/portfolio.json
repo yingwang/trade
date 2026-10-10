@@ -1,0 +1,114 @@
+{
+  "updated_at": "2026-10-09 20:41 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 39.2,
+  "cash_pct": 60.8,
+  "account_equity_basis": 136898.32,
+  "positions": [
+    {
+      "symbol": "TSLA",
+      "weight_pct": 7.57,
+      "dollars": 10359.0,
+      "shares": 27,
+      "price": 375.0,
+      "score": 0.8794
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 6.5,
+      "dollars": 8892.0,
+      "shares": 41,
+      "price": 216.81,
+      "score": 0.9189
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 5.09,
+      "dollars": 6965.0,
+      "shares": 17,
+      "price": 398.5,
+      "score": 0.9603
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 4.34,
+      "dollars": 5948.0,
+      "shares": 4,
+      "price": 1369.8,
+      "score": 0.9908
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 2.32,
+      "dollars": 3180.0,
+      "shares": 16,
+      "price": 196.72,
+      "score": 0.8944
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 2.07,
+      "dollars": 2828.0,
+      "shares": 4,
+      "price": 620.68,
+      "score": 0.9025
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 1.97,
+      "dollars": 2701.0,
+      "shares": 25,
+      "price": 107.08,
+      "score": 0.9882
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 1.87,
+      "dollars": 2558.0,
+      "shares": 7,
+      "price": 320.59,
+      "score": 0.9591
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 1.78,
+      "dollars": 2430.0,
+      "shares": 4,
+      "price": 509.57,
+      "score": 0.9179
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 1.71,
+      "dollars": 2337.0,
+      "shares": 8,
+      "price": 274.66,
+      "score": 0.9724
+    },
+    {
+      "symbol": "TXN",
+      "weight_pct": 1.41,
+      "dollars": 1933.0,
+      "shares": 6,
+      "price": 288.2,
+      "score": 0.9058
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 1.41,
+      "dollars": 1933.0,
+      "shares": 14,
+      "price": 135.69,
+      "score": 0.9378
+    },
+    {
+      "symbol": "BA",
+      "weight_pct": 1.18,
+      "dollars": 1616.0,
+      "shares": 8,
+      "price": 187.75,
+      "score": 0.6161
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "updated_at": "2026-10-09 20:38 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 74.4,
+  "cash_pct": 25.6,
+  "account_equity_basis": 124999.64,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 10.2,
+      "dollars": 12752.0,
+      "shares": 82,
+      "price": 154.76,
+      "score": 1.3312
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 9.87,
+      "dollars": 12342.0,
+      "shares": 11,
+      "price": 1035.84,
+      "score": 1.8956
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 6.44,
+      "dollars": 8055.0,
+      "shares": 31,
+      "price": 254.06,
+      "score": 1.5065
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 6.08,
+      "dollars": 7604.0,
+      "shares": 106,
+      "price": 71.14,
+      "score": 1.5785
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 5.56,
+      "dollars": 6954.0,
+      "shares": 64,
+      "price": 107.08,
+      "score": 1.151
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 5.27,
+      "dollars": 6593.0,
+      "shares": 24,
+      "price": 274.66,
+      "score": 0.8458
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 4.67,
+      "dollars": 5832.0,
+      "shares": 26,
+      "price": 219.68,
+      "score": -0.349
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 4.59,
+      "dollars": 5740.0,
+      "shares": 9,
+      "price": 620.68,
+      "score": 1.0855
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 4.55,
+      "dollars": 5694.0,
+      "shares": 8,
+      "price": 652.58,
+      "score": 1.6322
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 4.41,
+      "dollars": 5507.0,
+      "shares": 29,
+      "price": 184.32,
+      "score": 0.0199
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 3.74,
+      "dollars": 4671.0,
+      "shares": 31,
+      "price": 148.51,
+      "score": -0.7709
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 3.0,
+      "dollars": 3752.0,
+      "shares": 26,
+      "price": 142.38,
+      "score": 1.1261
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 2.62,
+      "dollars": 3278.0,
+      "shares": 9,
+      "price": 343.4,
+      "score": 0.6918
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 1.69,
+      "dollars": 2107.0,
+      "shares": 9,
+      "price": 227.8,
+      "score": 0.8585
+    },
+    {
+      "symbol": "COP",
+      "weight_pct": 1.69,
+      "dollars": 2107.0,
+      "shares": 15,
+      "price": 134.19,
+      "score": 0.6925
+    }
+  ]
+}
