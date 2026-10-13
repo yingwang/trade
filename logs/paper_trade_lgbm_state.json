@@ -2013,6 +2013,26 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-10-13T18:31:06.646580",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-10-13T18:31:06.574537",
+          "symbol": "INTC",
+          "side": "sell",
+          "qty": 15.0,
+          "requested_qty": 15.0,
+          "status": "filled",
+          "price": 102.14,
+          "signal_price": 102.125,
+          "order_id": "b4967078-0a3e-4621-92dc-49fd682330d4",
+          "client_order_id": "qts-stop-0f2e860d59b01002a8aa5425",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2029,75 +2049,22 @@
     "AMAT": 470.63,
     "AMD": 613.17,
     "DDOG": 254.75,
-    "INTC": 121.12,
     "LRCX": 306.29,
     "MRVL": 260.01,
     "ON": 74.069474
   },
   "daily_tracker": {
-    "trade_date": "2026-09-23",
-    "total_value_traded": 48220.67001100001,
+    "trade_date": "2026-10-13",
+    "total_value_traded": 1532.1,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 27,
-    "orders_filled": 27,
+    "orders_submitted": 1,
+    "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-03d20df7a6238da9ef3af85c",
-      "qts-reba-0461fd921d022afd9d9f914c",
-      "qts-reba-0883b436f946b38650367cb3",
-      "qts-reba-0a90701b0c1d33ef20dbde3e",
-      "qts-reba-18b9b6712c255a383d75b571",
-      "qts-reba-1f9f2a05632483c5fca3e386",
-      "qts-reba-21860b12dc8381edc4a6b84c",
-      "qts-reba-2488c14bc3282ddbf961960b",
-      "qts-reba-2765de39e4850104c9bf3568",
-      "qts-reba-57db28d2e3df293c2031c8ce",
-      "qts-reba-6d0d28a6eca02d343acc60c7",
-      "qts-reba-742a862471f878fe6c3e41c9",
-      "qts-reba-8171af7e25c1eec132b90977",
-      "qts-reba-8464060497aea121e2fa8334",
-      "qts-reba-9482476d7b9c7c468ff62279",
-      "qts-reba-9a4d921ea5ff4b2789262bdf",
-      "qts-reba-9f1fb59898716c96305c06aa",
-      "qts-reba-ac977938c0cbaca8b5fc11ff",
-      "qts-reba-adbf3cabf9f5bba9ee013911",
-      "qts-reba-ae91562af593e10a793c9da1",
-      "qts-reba-b44b28e1ee523e62eb3974d6",
-      "qts-reba-bc04f078be658253da59dca7",
-      "qts-reba-bdde90a0dc2c331e62c3c79a",
-      "qts-reba-c0766104510be23c83e8ee94",
-      "qts-reba-d176312589f02ac72ec90449",
-      "qts-reba-d5cb1b54787a67ae01ed12de",
-      "qts-reba-d7f225181d0c2943a7fbfeb4"
+      "qts-stop-0f2e860d59b01002a8aa5425"
     ],
     "processed_fill_values": {
-      "qts-reba-03d20df7a6238da9ef3af85c": 2137.5,
-      "qts-reba-0461fd921d022afd9d9f914c": 2368.4,
-      "qts-reba-0883b436f946b38650367cb3": 4265.14,
-      "qts-reba-0a90701b0c1d33ef20dbde3e": 2478.63,
-      "qts-reba-18b9b6712c255a383d75b571": 714.2,
-      "qts-reba-1f9f2a05632483c5fca3e386": 1225.16,
-      "qts-reba-21860b12dc8381edc4a6b84c": 578.64,
-      "qts-reba-2488c14bc3282ddbf961960b": 764.25,
-      "qts-reba-2765de39e4850104c9bf3568": 1399.8,
-      "qts-reba-57db28d2e3df293c2031c8ce": 2165.2,
-      "qts-reba-6d0d28a6eca02d343acc60c7": 1407.320006,
-      "qts-reba-742a862471f878fe6c3e41c9": 1213.44,
-      "qts-reba-8171af7e25c1eec132b90977": 3097.92,
-      "qts-reba-8464060497aea121e2fa8334": 779.300001,
-      "qts-reba-9482476d7b9c7c468ff62279": 1696.8,
-      "qts-reba-9a4d921ea5ff4b2789262bdf": 2409.75,
-      "qts-reba-9f1fb59898716c96305c06aa": 603.52,
-      "qts-reba-ac977938c0cbaca8b5fc11ff": 2153.0,
-      "qts-reba-adbf3cabf9f5bba9ee013911": 780.03,
-      "qts-reba-ae91562af593e10a793c9da1": 1839.5099999999998,
-      "qts-reba-b44b28e1ee523e62eb3974d6": 934.1899999999999,
-      "qts-reba-bc04f078be658253da59dca7": 4093.8400060000004,
-      "qts-reba-bdde90a0dc2c331e62c3c79a": 1816.8000000000002,
-      "qts-reba-c0766104510be23c83e8ee94": 941.26,
-      "qts-reba-d176312589f02ac72ec90449": 1281.66,
-      "qts-reba-d5cb1b54787a67ae01ed12de": 2790.83,
-      "qts-reba-d7f225181d0c2943a7fbfeb4": 2284.579998
+      "qts-stop-0f2e860d59b01002a8aa5425": 1532.1
     }
   },
   "stop_loss_attempts": {},
@@ -2216,7 +2183,8 @@
     "2026-10-06": 123856.63,
     "2026-10-07": 123130.81,
     "2026-10-08": 122558.18,
-    "2026-10-09": 124132.65
+    "2026-10-09": 124132.65,
+    "2026-10-13": 122706.42
   },
   "peak_equity": 124132.65,
   "entry_dates": {
