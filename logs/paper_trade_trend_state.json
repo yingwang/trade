@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "last_rebalance": "2026-10-06T17:34:46.018545",
+  "last_rebalance": "2026-10-13T18:39:09.653616",
   "trade_history": [
     {
       "date": "2026-09-17T18:22:39.915890",
@@ -367,6 +367,104 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-10-13T18:39:09.653628",
+      "completed": true,
+      "outcome": "all orders filled",
+      "trades": [
+        {
+          "time": "2026-10-13T18:38:52.960060",
+          "symbol": "AMD",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 596.59,
+          "signal_price": 597.08,
+          "order_id": "c054e653-eedd-406c-8d22-69adb3a808c6",
+          "client_order_id": "qts-reba-51437f815f90d0187d54b0d9",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-13T18:38:56.397547",
+          "symbol": "CRWD",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 261.36,
+          "signal_price": 261.505,
+          "order_id": "51557f13-98de-4f0c-b4d8-706e68eb8467",
+          "client_order_id": "qts-reba-01a3e67ee4aa5aabf0edb44f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-13T18:38:58.681576",
+          "symbol": "INTC",
+          "side": "sell",
+          "qty": 97.0,
+          "requested_qty": 97.0,
+          "status": "filled",
+          "price": 101.94,
+          "signal_price": 101.94,
+          "order_id": "b755cea3-5a0e-4a59-a943-fb0ee409a159",
+          "client_order_id": "qts-reba-ad95c1a7750bd13991f88abb",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-13T18:39:00.564549",
+          "symbol": "MRVL",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 265.83,
+          "signal_price": 266.085,
+          "order_id": "c183146e-2814-4804-ace7-6c6d4e5ee2e0",
+          "client_order_id": "qts-reba-fc49b5fe9bbda33e5731bb2e",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-13T18:39:03.608650",
+          "symbol": "MU",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 938.26,
+          "signal_price": 938.365,
+          "order_id": "1db30179-9cf8-4f6d-ae88-faefdfa460f0",
+          "client_order_id": "qts-reba-25f2215c488403052e5d187f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-13T18:39:05.909337",
+          "symbol": "PANW",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 399.92,
+          "signal_price": 400.08,
+          "order_id": "a915f911-3814-4517-9534-c7e719ae5123",
+          "client_order_id": "qts-reba-7061d62ca57ef8d143e7630f",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-10-13T18:39:09.099344",
+          "symbol": "SNOW",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 355.09,
+          "signal_price": 355.43,
+          "order_id": "614ce178-30ae-4715-85e6-c569ffc85cd8",
+          "client_order_id": "qts-reba-cb34a1dacf5ae1697fa24cf1",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -374,32 +472,33 @@
     "CRWD": 245.9,
     "PANW": 372.61,
     "SNOW": 336.9,
-    "INTC": 121.81,
     "MRVL": 260.47,
     "MU": 1045.87
   },
   "daily_tracker": {
-    "trade_date": "2026-10-06",
-    "total_value_traded": 6576.4400000000005,
+    "trade_date": "2026-10-13",
+    "total_value_traded": 12705.230000000001,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 6,
-    "orders_filled": 6,
+    "orders_submitted": 7,
+    "orders_filled": 7,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-01d9b24ce46a6cc0da4d20f1",
-      "qts-reba-2747843cace782f5082ac4ef",
-      "qts-reba-689ac4dd8e15f8d1b9d43eed",
-      "qts-reba-8e94cb9b13f5eecf9cf92676",
-      "qts-reba-d81e863f52c0b961358bf0e6",
-      "qts-reba-eec4cd39bb3c0cd95f1dc25d"
+      "qts-reba-01a3e67ee4aa5aabf0edb44f",
+      "qts-reba-25f2215c488403052e5d187f",
+      "qts-reba-51437f815f90d0187d54b0d9",
+      "qts-reba-7061d62ca57ef8d143e7630f",
+      "qts-reba-ad95c1a7750bd13991f88abb",
+      "qts-reba-cb34a1dacf5ae1697fa24cf1",
+      "qts-reba-fc49b5fe9bbda33e5731bb2e"
     ],
     "processed_fill_values": {
-      "qts-reba-01d9b24ce46a6cc0da4d20f1": 1309.65,
-      "qts-reba-2747843cace782f5082ac4ef": 1370.16,
-      "qts-reba-689ac4dd8e15f8d1b9d43eed": 1701.6,
-      "qts-reba-8e94cb9b13f5eecf9cf92676": 1065.28,
-      "qts-reba-d81e863f52c0b961358bf0e6": 571.81,
-      "qts-reba-eec4cd39bb3c0cd95f1dc25d": 557.94
+      "qts-reba-01a3e67ee4aa5aabf0edb44f": 261.36,
+      "qts-reba-25f2215c488403052e5d187f": 938.26,
+      "qts-reba-51437f815f90d0187d54b0d9": 596.59,
+      "qts-reba-7061d62ca57ef8d143e7630f": 399.92,
+      "qts-reba-ad95c1a7750bd13991f88abb": 9888.18,
+      "qts-reba-cb34a1dacf5ae1697fa24cf1": 355.09,
+      "qts-reba-fc49b5fe9bbda33e5731bb2e": 265.83
     }
   },
   "stop_loss_attempts": {},
@@ -418,11 +517,11 @@
     "2026-10-06": 104928.0,
     "2026-10-07": 103735.56,
     "2026-10-08": 101818.63,
-    "2026-10-09": 103819.27
+    "2026-10-09": 103819.27,
+    "2026-10-13": 100696.36
   },
   "peak_equity": 105301.57,
   "entry_dates": {
-    "INTC": "2026-09-21",
     "MRVL": "2026-09-21",
     "MU": "2026-09-21"
   },
