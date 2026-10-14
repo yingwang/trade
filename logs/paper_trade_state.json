@@ -2212,6 +2212,26 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-10-14T15:57:36.519224",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-10-14T15:57:36.460946",
+          "symbol": "BAC",
+          "side": "sell",
+          "qty": 73.0,
+          "requested_qty": 73.0,
+          "status": "filled",
+          "price": 50.76,
+          "signal_price": 50.755,
+          "order_id": "265e2858-b76a-4d10-a355-a388941bd6ff",
+          "client_order_id": "qts-stop-35adc10c1bc431631feecb16",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2225,7 +2245,6 @@
     "MU": 861.915,
     "PNC": 248.8,
     "AMZN": 254.423846,
-    "BAC": 61.91,
     "MRVL": 208.63,
     "RTX": 205.446923,
     "KO": 88.33,
@@ -2236,71 +2255,17 @@
     "V": 362.99
   },
   "daily_tracker": {
-    "trade_date": "2026-09-23",
-    "total_value_traded": 50220.710017,
+    "trade_date": "2026-10-14",
+    "total_value_traded": 3705.48,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 28,
-    "orders_filled": 28,
+    "orders_submitted": 1,
+    "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-0e9ba5ec4dedb07f08382c8c",
-      "qts-reba-156e3210eb1d1ef9395d082d",
-      "qts-reba-169ed21c4b6fc2fce81d2cd2",
-      "qts-reba-27a343eaabd3fa33e5d4ced9",
-      "qts-reba-2b1a75aa2ed435908e5367f6",
-      "qts-reba-2da6cf1d3a7dd21b8b3d420d",
-      "qts-reba-3d516748a7cb162f3b00b547",
-      "qts-reba-44e2529254420c69bc1b8acb",
-      "qts-reba-657921c5a57b98031b309e2f",
-      "qts-reba-6795b3dc26f89cd61a9162ac",
-      "qts-reba-6d3e16786949496c6ecb59e4",
-      "qts-reba-702cab4ab5ce0bd69bfd6fc3",
-      "qts-reba-79183b8676442f749c04874d",
-      "qts-reba-7d3d7dbb9abad992cfe85e7a",
-      "qts-reba-8916f86b72ce2044f595b2f5",
-      "qts-reba-8a9d64b390ed5a3036c56068",
-      "qts-reba-9d2bd5c9e2aa2b58d2c7fff3",
-      "qts-reba-a6631c12684136c87b79ca77",
-      "qts-reba-b05aac48476282c72dc3f34e",
-      "qts-reba-d9af0f301781506697dcf43a",
-      "qts-reba-e5f5b2451ca3d5b901601b9d",
-      "qts-reba-ea262167ababb9b8b66a70f7",
-      "qts-reba-ed92d6196e51257ddf282b33",
-      "qts-reba-edee7253c08ac49a5e4210d9",
-      "qts-reba-ef7e0307d63f76e4b6d3d700",
-      "qts-reba-f2274973d23c91f1096a7365",
-      "qts-reba-f6bfafac7cf366e2e77a2207",
-      "qts-reba-f8e466cac3b38c5131d2de29"
+      "qts-stop-35adc10c1bc431631feecb16"
     ],
     "processed_fill_values": {
-      "qts-reba-0e9ba5ec4dedb07f08382c8c": 279.65,
-      "qts-reba-156e3210eb1d1ef9395d082d": 805.2,
-      "qts-reba-169ed21c4b6fc2fce81d2cd2": 3294.77,
-      "qts-reba-27a343eaabd3fa33e5d4ced9": 284.78,
-      "qts-reba-2b1a75aa2ed435908e5367f6": 1662.9800169999999,
-      "qts-reba-2da6cf1d3a7dd21b8b3d420d": 4148.32,
-      "qts-reba-3d516748a7cb162f3b00b547": 2031.59,
-      "qts-reba-44e2529254420c69bc1b8acb": 1879.78,
-      "qts-reba-657921c5a57b98031b309e2f": 3123.6000000000004,
-      "qts-reba-6795b3dc26f89cd61a9162ac": 4028.0,
-      "qts-reba-6d3e16786949496c6ecb59e4": 1000.34,
-      "qts-reba-702cab4ab5ce0bd69bfd6fc3": 612.95,
-      "qts-reba-79183b8676442f749c04874d": 1814.95,
-      "qts-reba-7d3d7dbb9abad992cfe85e7a": 269.67,
-      "qts-reba-8916f86b72ce2044f595b2f5": 1623.16,
-      "qts-reba-8a9d64b390ed5a3036c56068": 1834.7,
-      "qts-reba-9d2bd5c9e2aa2b58d2c7fff3": 3710.3500000000004,
-      "qts-reba-a6631c12684136c87b79ca77": 3242.8,
-      "qts-reba-b05aac48476282c72dc3f34e": 158.01,
-      "qts-reba-d9af0f301781506697dcf43a": 451.46,
-      "qts-reba-e5f5b2451ca3d5b901601b9d": 1941.5,
-      "qts-reba-ea262167ababb9b8b66a70f7": 1456.73,
-      "qts-reba-ed92d6196e51257ddf282b33": 1324.9,
-      "qts-reba-edee7253c08ac49a5e4210d9": 1593.84,
-      "qts-reba-ef7e0307d63f76e4b6d3d700": 2043.66,
-      "qts-reba-f2274973d23c91f1096a7365": 484.36,
-      "qts-reba-f6bfafac7cf366e2e77a2207": 2803.1,
-      "qts-reba-f8e466cac3b38c5131d2de29": 2315.56
+      "qts-stop-35adc10c1bc431631feecb16": 3705.48
     }
   },
   "stop_loss_attempts": {},
@@ -2321,7 +2286,8 @@
     "2026-10-07": 125418.73,
     "2026-10-08": 124556.41,
     "2026-10-09": 124983.57,
-    "2026-10-13": 123027.24
+    "2026-10-13": 123027.24,
+    "2026-10-14": 121612.86
   },
   "peak_equity": 126980.89,
   "market_closed_attempts": {
