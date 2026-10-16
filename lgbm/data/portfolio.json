@@ -1,0 +1,106 @@
+{
+  "updated_at": "2026-10-16 19:25 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 35.6,
+  "cash_pct": 64.4,
+  "account_equity_basis": 131615.93,
+  "positions": [
+    {
+      "symbol": "NOW",
+      "weight_pct": 6.83,
+      "dollars": 8985.0,
+      "shares": 63,
+      "price": 141.97,
+      "score": 0.9448
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 5.19,
+      "dollars": 6828.0,
+      "shares": 32,
+      "price": 207.38,
+      "score": 0.9639
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 4.43,
+      "dollars": 5831.0,
+      "shares": 23,
+      "price": 247.11,
+      "score": 0.9902
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 3.34,
+      "dollars": 4392.0,
+      "shares": 8,
+      "price": 528.75,
+      "score": 0.9895
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 2.96,
+      "dollars": 3900.0,
+      "shares": 17,
+      "price": 227.39,
+      "score": 0.9139
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 2.38,
+      "dollars": 3139.0,
+      "shares": 18,
+      "price": 165.74,
+      "score": 0.8724
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 2.01,
+      "dollars": 2644.0,
+      "shares": 10,
+      "price": 263.94,
+      "score": 0.9681
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 1.88,
+      "dollars": 2474.0,
+      "shares": 10,
+      "price": 227.83,
+      "score": 0.9184
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 1.65,
+      "dollars": 2168.0,
+      "shares": 2,
+      "price": 878.84,
+      "score": 0.9123
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 1.65,
+      "dollars": 2168.0,
+      "shares": 24,
+      "price": 89.85,
+      "score": 0.8928
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 1.65,
+      "dollars": 2168.0,
+      "shares": 16,
+      "price": 128.23,
+      "score": 0.9468
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 1.65,
+      "dollars": 2168.0,
+      "shares": 6,
+      "price": 342.0,
+      "score": 0.9333
+    }
+  ]
+}
