@@ -42,7 +42,12 @@ from typing import Callable, Optional
 import numpy as np
 import pandas as pd
 
-from quant.execution.broker import Order, generate_rebalance_orders
+from quant.execution.broker import (
+    DEFAULT_MIN_TRADE_FRACTION,
+    DEFAULT_MIN_TRADE_NOTIONAL_USD,
+    Order,
+    generate_rebalance_orders,
+)
 from quant.execution.safety import ExecutionLogger, PreTradeCheck, SafetyConfig
 
 logger = logging.getLogger(__name__)
@@ -284,6 +289,19 @@ def show_status(broker, banner: str = "PAPER TRADING STATUS"):
             print(f"    {sym:<8} {shares:>6.0f} shares  @ ${price:>8.2f}  = ${value:>10,.2f}")
 
     print(f"{'='*60}\n")
+
+
+def min_trade_settings(config: dict) -> tuple[float, float]:
+    """``(min_trade_notional_usd, min_trade_fraction)`` for this book.
+
+    Read from the ``portfolio`` section next to the other sizing knobs; a
+    missing key takes the default from quant.execution.broker, so every book
+    gets the floor without a config edit.
+    """
+    portfolio = (config or {}).get("portfolio") or {}
+    usd = portfolio.get("min_trade_notional_usd", DEFAULT_MIN_TRADE_NOTIONAL_USD)
+    fraction = portfolio.get("min_trade_fraction", DEFAULT_MIN_TRADE_FRACTION)
+    return float(usd), float(fraction)
 
 
 def current_broker_weights(broker) -> Optional[pd.Series]:
@@ -596,9 +614,13 @@ def run_rebalance(strategy, broker, config, dry_run=False,
         )
         return None, None
 
-    # Generate orders (sells first by default via sort in generate_rebalance_orders)
+    # Generate orders (sells first by default via sort in generate_rebalance_orders).
+    # Trims and adds below the minimum trade size are dropped there; full
+    # exits always go through.  Stop-loss sells never pass this way.
+    min_usd, min_fraction = min_trade_settings(config)
     orders = generate_rebalance_orders(
-        current_positions, target_weights, capital, prices, batch=batch_id
+        current_positions, target_weights, capital, prices, batch=batch_id,
+        min_trade_notional_usd=min_usd, min_trade_fraction=min_fraction,
     )
 
     if not orders:

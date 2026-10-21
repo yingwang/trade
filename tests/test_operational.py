@@ -351,6 +351,65 @@ class TestRebalanceSafety:
         ]
         assert records[1]["side"] == "buy"
 
+    def test_min_trade_size_comes_from_portfolio_config(self, config, quiet_exec_log):
+        """A trim under portfolio.min_trade_notional_usd never reaches the
+        broker, and the book counts as at target; the default applies when
+        the key is absent."""
+        from paper_trade import run_rebalance
+
+        def _fill(order, avg_daily_volume=None):
+            order.status = "filled"
+            order.filled_quantity = order.quantity
+            order.filled_price = 100.0
+            order.order_id = "oid"
+            return order
+
+        def _broker():
+            broker = MagicMock()
+            broker.get_portfolio_value.return_value = 100_000
+            broker.get_daily_pnl.return_value = 0.0
+            broker.get_positions.return_value = pd.Series({"AAAA": 100.0})
+            broker.get_current_prices.return_value = {"AAAA": 100.0}
+            broker.is_market_open.return_value = True
+            broker.submit_order.side_effect = _fill
+            return broker
+
+        strategy = MagicMock()
+        # Target 96 shares at $100: a $400 trim.
+        strategy.get_current_portfolio.return_value = pd.DataFrame({
+            "score": [1.0], "weight": [0.096], "weight_pct": [9.6],
+            "dollars": [9_600.0], "shares": [96], "price": [100.0],
+        }, index=["AAAA"])
+        strategy.data.fetch_adv.return_value = {}
+        base = self._config_with_safety(config)
+
+        # Default floor is max($300, 0.25% of $100k) = $300: the trim goes out.
+        broker = _broker()
+        filled, _ = run_rebalance(strategy, broker, base, dry_run=False)
+        assert broker.submit_order.call_count == 1
+        assert [t["side"] for t in filled] == ["sell"]
+
+        # Raising the floor in the portfolio section drops it.
+        raised = {**base, "portfolio": {**base["portfolio"], "min_trade_notional_usd": 500}}
+        broker = _broker()
+        filled, _ = run_rebalance(strategy, broker, raised, dry_run=False)
+        broker.submit_order.assert_not_called()
+        assert filled == []
+
+    def test_min_trade_keys_are_validated_when_present(self):
+        from quant.utils.config import validate_config
+
+        source = load_config()
+        validate_config({**source, "portfolio": {**source["portfolio"],
+                                                 "min_trade_notional_usd": 250,
+                                                 "min_trade_fraction": 0.002}})
+        with pytest.raises(ValueError, match="min_trade_fraction"):
+            validate_config({**source, "portfolio": {**source["portfolio"],
+                                                     "min_trade_fraction": 1.5}})
+        with pytest.raises(ValueError, match="min_trade_notional_usd"):
+            validate_config({**source, "portfolio": {**source["portfolio"],
+                                                     "min_trade_notional_usd": -1}})
+
     def test_missing_held_position_mark_aborts_before_signal_generation(
         self, config, quiet_exec_log
     ):

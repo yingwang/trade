@@ -1,10 +1,12 @@
 """Tests for paper broker and order management."""
 
+import logging
+from datetime import datetime
 from types import SimpleNamespace
 import pytest
 
 from quant.execution.broker import PaperBroker, Order, generate_rebalance_orders
-from quant.execution.alpaca_broker import AlpacaBroker
+from quant.execution.alpaca_broker import NY_TZ, AlpacaBroker
 import pandas as pd
 
 
@@ -106,6 +108,70 @@ class TestRebalanceOrders:
         sides = {o.symbol: o.side for o in orders}
         assert sides["BBBB"] == "sell"  # exit BBBB
         assert sides["CCCC"] == "buy"   # enter CCCC
+
+    # Minimum trade size: max($300, 0.25% of equity) by default.  Share
+    # rounding used to turn into one-share trims and $200 adds.
+
+    def test_tiny_trim_is_skipped_and_logged(self, caplog):
+        # 100 shares held at $50; the target rounds to 99 -> a $50 trim.
+        current = pd.Series({"AAAA": 100})
+        target = pd.Series({"AAAA": 0.0495})
+        prices = {"AAAA": 50.0}
+        with caplog.at_level(logging.INFO, logger="quant.execution.broker"):
+            orders = generate_rebalance_orders(current, target, 100_000, prices)
+        assert orders == []
+        skipped = [r for r in caplog.records if "Skipping SELL AAAA" in r.getMessage()]
+        assert len(skipped) == 1 and skipped[0].levelno == logging.INFO
+        assert "$50" in skipped[0].getMessage()
+
+    def test_full_exit_of_tiny_position_is_sent(self):
+        # Two shares at $50 is a $100 position: below the floor, but a full
+        # exit must always go through.
+        current = pd.Series({"AAAA": 2})
+        target = pd.Series({"BBBB": 0.5})
+        prices = {"AAAA": 50.0, "BBBB": 100.0}
+        orders = generate_rebalance_orders(current, target, 100_000, prices)
+        by_symbol = {o.symbol: o for o in orders}
+        assert by_symbol["AAAA"].side == "sell"
+        assert by_symbol["AAAA"].quantity == 2
+        assert by_symbol["BBBB"].side == "buy"
+
+    def test_order_above_floor_is_sent(self):
+        # 100 -> 108 shares at $50 is a $400 add, above the $300 floor.
+        current = pd.Series({"AAAA": 100})
+        target = pd.Series({"AAAA": 0.054})
+        prices = {"AAAA": 50.0}
+        orders = generate_rebalance_orders(current, target, 100_000, prices)
+        assert [(o.side, o.quantity) for o in orders] == [("buy", 8)]
+
+    def test_floor_scales_with_equity(self):
+        # The same $400 trim (8 shares at $50) clears the $300 floor on a
+        # $100k book but not the 0.25% = $2,500 floor on a $1M book.
+        current = pd.Series({"AAAA": 1000})
+        prices = {"AAAA": 50.0}
+        small = generate_rebalance_orders(
+            current, pd.Series({"AAAA": 0.496}), 100_000, prices
+        )
+        big = generate_rebalance_orders(
+            current, pd.Series({"AAAA": 0.0496}), 1_000_000, prices
+        )
+        assert [(o.side, o.quantity) for o in small] == [("sell", 8)]
+        assert big == []
+
+    def test_floor_is_configurable_and_zero_disables_it(self):
+        current = pd.Series({"AAAA": 100})
+        target = pd.Series({"AAAA": 0.0495})  # $50 trim
+        prices = {"AAAA": 50.0}
+        off = generate_rebalance_orders(
+            current, target, 100_000, prices,
+            min_trade_notional_usd=0, min_trade_fraction=0,
+        )
+        assert [(o.side, o.quantity) for o in off] == [("sell", 1)]
+        raised = generate_rebalance_orders(
+            current, pd.Series({"AAAA": 0.054}), 100_000, prices,  # $400 add
+            min_trade_notional_usd=500, min_trade_fraction=0,
+        )
+        assert raised == []
 
 
 class TestAlpacaBroker:
