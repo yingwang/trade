@@ -272,21 +272,43 @@ class TestTurnoverCap:
         """A long tail of small holdings replaced by a few large ones. Liquidating
         the old names outright is worth doing, but when it could draw on the
         whole budget the entries got nothing and the book lost most of its
-        exposure in one rebalance, then lost more at the next one.  Whatever the
-        exit share, the sells now take at most half the cap here and the book
-        keeps its exposure."""
+        exposure in one rebalance, then lost more at the next one.  The target
+        re-levers by more than the cap, so the whole cap now goes to the
+        entries, the book gains the cap in exposure and the old names wait for
+        the next rebalance, whatever the exit share."""
         prev = pd.Series({f"OLD{i}": 0.035 for i in range(15)})   # 52.5% invested
         new = pd.Series({f"NEW{i}": 0.22 for i in range(5)})      # 110% target
 
         for share in (1.0, 0.6):
             result = self._opt_share(config, 0.40, share).enforce_turnover_cap(new, prev)
-            assert self._turnover(result, prev) <= 0.40 + 1e-9
+            assert self._turnover(result, prev) == pytest.approx(0.40)
             bought = float(result.reindex(new.index).fillna(0.0).sum())
-            assert bought == pytest.approx(0.20)
-            assert float(result.sum()) >= float(prev.sum()) - 1e-9
-            # The sale goes to whole positions, smallest first, not a sliver
-            # off every one of them.
-            assert (~prev.index.isin(result.index)).sum() == 5
+            assert bought == pytest.approx(0.40)
+            assert float(result.sum()) == pytest.approx(float(prev.sum()) + 0.40)
+            assert prev.index.isin(result.index).all()
+
+    def test_under_invested_book_closes_the_gap_first(self, config):
+        """Shaped like the 22 October 2026 preview: seven small exits, the held
+        names trimmed, five new entries, a 67% book asked for 77%.  Splitting
+        the cap evenly sold 20% to buy 20% and left the book at 67%; now the
+        buys exceed the sells by the gap and the book arrives at the target
+        inside the same cap."""
+        opt = self._opt_share(config, 0.40, 0.6)
+        prev = pd.Series(
+            {**{f"H{i}": 0.089 for i in range(6)},                    # 53.4%
+             **{f"X{i}": 0.02 for i in range(7)}}                     # 14.0%
+        )                                                             # 67.4% invested
+        new = pd.Series(
+            {**{f"H{i}": 0.06 for i in range(6)},                     # trimmed
+             **{f"N{i}": 0.0824 for i in range(5)}}                   # new entries
+        )                                                             # 77.2% target
+        result = opt.enforce_turnover_cap(new, prev)
+        assert self._turnover(result, prev) == pytest.approx(0.40)
+        assert float(result.sum()) == pytest.approx(float(new.sum()))
+        bought = float((result.reindex(new.index).fillna(0.0)
+                        - prev.reindex(new.index).fillna(0.0)).clip(lower=0).sum())
+        sold = float((prev.reindex(prev.index) - result.reindex(prev.index).fillna(0.0)).clip(lower=0).sum())
+        assert bought - sold == pytest.approx(float(new.sum()) - float(prev.sum()))
 
     def test_capped_rebalance_is_not_a_net_sale(self, config):
         """Shaped like the 23 September 2026 preview: small exits sold in full,

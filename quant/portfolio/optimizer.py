@@ -666,8 +666,18 @@ class PortfolioOptimizer:
         # sale: on 15 September 2026 a book asked to go to 110% would have
         # landed at 41%, and after a first fix the 23 September preview still
         # took a 77% book to 68% against a 98% target.
+        #
+        # The same holds the other way round.  Splitting the cap evenly kept
+        # an under-invested book where it was: on 23 September a 77% book was
+        # asked for 98% and sold 20% to buy 20%, and the 22 October preview
+        # took a 67% book to 67% against a 77% target.  So the buys may
+        # exceed the sells by as much as the target itself re-levers; when
+        # that gap is the whole cap or more, the cap goes to the buys and the
+        # exits wait for the next rebalance.
         slack = max(0.0, float(w_old.sum()) - float(w_new.sum()))
-        sell_budget = min(exit_full + trim_full, cap, (cap + slack) / 2.0,
+        gap = max(0.0, float(w_new.sum()) - float(w_old.sum()))
+        sell_budget = min(exit_full + trim_full, cap,
+                          max(0.0, (cap + slack - gap) / 2.0),
                           buy_full + slack)
 
         # Sell side.  Pro rata, every exit and trim would move the same fraction
