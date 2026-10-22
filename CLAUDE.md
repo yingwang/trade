@@ -87,7 +87,7 @@ Raw prices → live quality gate → factor scores (momentum 50%, high_proximity
 
 ## Testing
 
-Tests use synthetic fixtures (3 years of 10 stocks + benchmark) defined in `tests/conftest.py` — fully offline, no API calls needed. Test modules cover factors, portfolio optimization (incl. the turnover cap), backtesting, broker, safety checks, purged splits, live quality gate, and paper-trade operational paths.
+Tests use synthetic fixtures (3 years of 10 stocks + benchmark) defined in `tests/conftest.py` — fully offline, no API calls needed. Test modules cover factors, portfolio optimization (incl. the turnover cap), backtesting, broker, safety checks, purged splits, live quality gate, and paper-trade operational paths. Three modules check the system rather than one helper: `tests/test_runner_e2e.py` drives `run_main` end to end against an in-memory broker with a frozen clock (a due day, a quiet day, a closed market, a stop-loss day, same-day reruns, a resumed attempt, and the stand-down markers the workflows grep for, matched with the workflows' own pattern); `tests/test_target_equivalence.py` requires the live target to equal the backtest provider's target for the same date and the same book, and records as xfails the two places where it does not yet (an empty book reaches the optimizer as None from the backtest and as an empty Series from the runner; a live fundamentals snapshot industry-neutralizes by its own sector column, which the backtest never does); `tests/test_lookahead.py` checks that every enabled factor, the composite, the trend book's decisions and the engine's book at T do not depend on bars after T.
 
 ## Deployment Notes
 

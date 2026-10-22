@@ -280,7 +280,7 @@ python paper_trade.py --reconcile   # 对账：策略目标 vs 实际持仓
 trade/
 ├── config.yaml                 # 策略配置（进攻型）
 ├── config_etf.yaml             # honest-backtest 的 ETF 对照池配置
-├── run.py                      # CLI：回测与信号（含 backtest-lgbm / ensemble）
+├── run.py                      # CLI：回测与信号（含 backtest-lgbm / backtest-trend）
 ├── paper_trade.py              # Alpaca 自动交易入口（多因子账户）
 ├── paper_trade_lgbm.py         # Alpaca 自动交易入口（LightGBM 账户）
 ├── paper_trade_common.py       # 两个交易入口的共享实现
@@ -290,7 +290,6 @@ trade/
 ├── refresh_backtest_tables.py  # README 表格重算（经 readme-backtest workflow）
 ├── quant/
 │   ├── strategy.py             # 多因子策略调度器
-│   ├── strategy_ensemble.py    # 多因子 + LightGBM 集成（研究用）
 │   ├── attribution.py          # 实际账户 alpha 归因 + Carino 对账
 │   ├── data/
 │   │   ├── market_data.py      # Yahoo Finance 数据获取

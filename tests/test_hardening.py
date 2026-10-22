@@ -351,28 +351,6 @@ class TestCalendarAndPointInTimeData:
             )
 
 
-class TestEnsembleFallback:
-    def test_constant_strategy_does_not_create_arbitrary_consensus_boost(self, config):
-        from quant.strategy_ensemble import StrategyEnsemble
-
-        ensemble = StrategyEnsemble.__new__(StrategyEnsemble)
-        ensemble.config = config
-        ensemble.weight_a = 0.5
-        ensemble.weight_b = 0.5
-        ensemble.consensus_boost = 2.0
-
-        factor = pd.Series({"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0})
-        unavailable_model = pd.Series(0.5, index=factor.index)
-        combined = ensemble._combine_scores(factor, unavailable_model)
-
-        expected = 0.5 * factor.rank(pct=True) + 0.25
-        pd.testing.assert_series_equal(
-            combined.sort_index(),
-            expected.sort_index(),
-            check_names=False,
-        )
-
-
 class TestCorporateActions:
     def test_presplit_paper_position_fails_closed(self):
         with pytest.raises(UnresolvedCorporateActionError, match="BKNG"):

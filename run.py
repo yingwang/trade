@@ -143,23 +143,6 @@ def cmd_backtest_lgbm(args):
     _plot_backtest_result(result, args, "backtest_lgbm_results.png")
 
 
-def cmd_backtest_ensemble_lgbm(args):
-    """Run a historical backtest with the factor + LightGBM ensemble."""
-    from quant.strategy_ensemble import StrategyEnsemble
-
-    config = load_config(args.config)
-    ensemble = StrategyEnsemble(
-        config,
-        strategy_a_weight=args.weight_a,
-        strategy_b_weight=1.0 - args.weight_a,
-        consensus_boost=args.consensus_boost,
-    )
-    result = ensemble.run_backtest(start=args.start, end=args.end)
-
-    print(result.summary())
-    _plot_backtest_result(result, args, "backtest_ensemble_lgbm_results.png")
-
-
 def cmd_signal(args):
     """Show current alpha signals for the universe."""
     config = load_config(args.config)
@@ -220,16 +203,6 @@ def main():
     bt_lgbm.add_argument("--learning-rate", type=float, default=0.05)
     bt_lgbm.add_argument("--n-estimators", type=int, default=200)
     bt_lgbm.set_defaults(func=cmd_backtest_lgbm)
-
-    # Backtest ensemble (Factor + LightGBM)
-    bt_ens = sub.add_parser("backtest-ensemble-lgbm", help="Run factor+LightGBM ensemble backtest")
-    bt_ens.add_argument("--start", help="Start date (YYYY-MM-DD)")
-    bt_ens.add_argument("--end", help="End date (YYYY-MM-DD)")
-    bt_ens.add_argument("--plot", action="store_true", help="Generate plots")
-    bt_ens.add_argument("--plot-output", help="Plot output filename")
-    bt_ens.add_argument("--weight-a", type=float, default=0.5, help="Factor strategy weight")
-    bt_ens.add_argument("--consensus-boost", type=float, default=1.3, help="Consensus boost multiplier")
-    bt_ens.set_defaults(func=cmd_backtest_ensemble_lgbm)
 
     # Signals
     sig = sub.add_parser("signal", help="Show current alpha signals")
