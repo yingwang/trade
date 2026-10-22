@@ -13,8 +13,8 @@
 # rules are the trend book's.
 
 universe:
-  # The S&P 500 as of the membership table's latest snapshot (503 names,
-  # written by research/earnings_book.py's helper from data/universe/sp500_history.csv).
+  # The S&P 500 as of the membership table's latest snapshot (503 names, the
+  # last row of data/universe/sp500_history.csv).
   # The strategy re-reads the table at runtime; this list is here for the shared
   # validator (max_positions must fit the universe) and for anyone reading the file.
   symbols:
@@ -553,6 +553,7 @@ earnings:
   momentum_skip: 126
   sue_lookback: 8
   min_parts: 2                  # a name needs at least two of the four parts
+  sizing: inverse_vol           # inverse_vol (the trend book's) or equal
   earnings_limit: 100           # announcements per name requested from Yahoo
   positions: 25
   rank_buffer: 40               # a holding stays while still inside the top 40

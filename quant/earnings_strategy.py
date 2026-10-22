@@ -74,6 +74,9 @@ class EarningsStrategy(TrendStrategy):
         self.momentum_skip = int(e.get("momentum_skip", 126))
         self.sue_lookback = int(e.get("sue_lookback", 8))
         self.min_parts = int(e.get("min_parts", 2))
+        # equal: every chosen name gets 1/n (the research simulation's book);
+        # inverse_vol: the trend book's sizing.
+        self.sizing = str(e.get("sizing", "inverse_vol"))
         self.earnings_limit = int(e.get("earnings_limit", 100))
         self.universe_file = e.get("universe_file", DEFAULT_UNIVERSE_FILE)
         self.universe_lead_days = int(e.get("universe_lead_days", 400))
@@ -180,6 +183,14 @@ class EarningsStrategy(TrendStrategy):
         result.metrics["Point-in-Time Universe"] = True
         result.metrics["Survivorship Bias Warning"] = True
         return result
+
+    def inverse_vol_weights(self, returns: pd.DataFrame, symbols: list[str]) -> pd.Series:
+        if self.sizing != "equal":
+            return super().inverse_vol_weights(returns, symbols)
+        if not symbols:
+            return pd.Series(dtype=float)
+        w = pd.Series(1.0 / len(symbols), index=list(symbols))
+        return w.clip(upper=self.max_weight)
 
     def _live_prices(self) -> pd.DataFrame:
         self.data.symbols = current_members(self.snapshots)
