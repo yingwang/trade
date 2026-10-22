@@ -2,17 +2,24 @@ name: Paper Trade Rebalance
 
 on:
   schedule:
-    # Three attempts a day; the first that finds the market open does the
+    # Five attempts a day; the first that finds the market open does the
     # work, later ones are idempotent (last_rebalance, the daily tracker and
     # the stop-loss state all persist) and exit at once.  GitHub's scheduler
-    # runs these jobs hours late: 2.5 to 5.3 hours for every slot in the week
-    # of 2026-09-17, and on 09-21 two of the three old slots (14:07, 15:37,
-    # 17:07 UTC) landed after the 16:00 ET close.  So the first two slots sit
-    # before the open and count on that delay to land mid-session (a run that
-    # arrives early just finds the market closed and exits), and the last one
-    # is inside the session in both DST regimes even if it runs on time
-    # (open 13:30 UTC in summer, 14:30 UTC in winter).  The other two books
-    # run the same slots ten and twenty minutes later.
+    # runs these jobs hours late: 2.5 to 5.3 hours in the week of
+    # 2026-09-17, then 3.7 to 8.8 hours measured from 10/08 to 10/21.  At
+    # those delays the old three slots (11:37, 12:37, 14:37 UTC) were not
+    # enough: one day in three the last slot landed after the 20:00 UTC
+    # close, and on 10/05 and 10/12 no slot landed in session at all.  The
+    # two earlier slots (09:37, 10:37) count on the delay to land
+    # mid-session; a run that arrives early just finds the market closed
+    # and exits, and the 14:37 slot is inside the session in both DST
+    # regimes even if it runs on time (open 13:30 UTC in summer, 14:30 UTC
+    # in winter).  The other two books run the same slots ten and twenty
+    # minutes later.  paper_trade_common.py counts the closed-market
+    # attempts of a day and prints FULL_DAY_MARKET_CLOSED on the fifth, so
+    # keep that count in step with the number of slots here.
+    - cron: '37 9 * * 1-5'
+    - cron: '37 10 * * 1-5'
     - cron: '37 11 * * 1-5'
     - cron: '37 12 * * 1-5'
     - cron: '37 14 * * 1-5'
@@ -45,10 +52,18 @@ concurrency:
 
 jobs:
   rebalance:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04 on 2026-10-19.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
+      # The state file comes from git, the only record (the cache that used
+      # to be restored here overwrote hand-fixed state in runs 39656660013
+      # and 39672205189).  ref: resolves the branch tip when the job starts
+      # rather than the commit the schedule fired on, so a run that queued
+      # behind another one of this book sees the state that run committed.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -56,14 +71,6 @@ jobs:
           cache: 'pip'
 
       - run: pip install --require-hashes -r requirements.lock
-
-      # Restore state from previous runs
-      - name: Restore trade state
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: logs/paper_trade_state.json
-          key: trade-state-${{ github.run_number }}
-          restore-keys: trade-state-
 
       - name: Ensure logs directory
         run: mkdir -p logs
@@ -99,30 +106,39 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
 
-      # A scheduled run that arrives after the close did nothing; say so
-      # where it can be seen instead of passing silently.
-      - name: Flag a scheduled run that missed market hours
-        if: github.event_name == 'schedule'
+      # A run that could not do its job must fail the job, so GitHub mails
+      # the owner: a green run that quietly did nothing is how 10/05 and
+      # 10/12 passed unnoticed.  paper_trade_common.py prints one marker
+      # line at each stand-down site: FULL_DAY_MARKET_CLOSED when every
+      # attempt of the day found the market closed, STAND_DOWN:<reason> for
+      # a drawdown-gate breach, orders left open by an earlier run, the
+      # daily-loss kill-switch, missing broker quotes or a failed rebalance
+      # trigger.  A traceback (stale data, missing keys, a held lock)
+      # already fails the step above.  A single early or late arrival that
+      # finds the market closed only warns, since the other slots retry, and
+      # a quiet in-session run ("Not time to rebalance yet") stays green.
+      - name: Fail the job if the run stood down
         run: |
-          if grep -q "FULL_DAY_MARKET_CLOSED" run.log; then
-            echo "::error::Full trading day missed: repeated Market-closed attempts; no stop-loss check or rebalance ran"
-            echo "FULL_DAY_MARKET_CLOSED at $(date -u +%H:%M) UTC" >> "$GITHUB_STEP_SUMMARY"
-          elif grep -q "Market is closed" run.log; then
-            echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance today from this attempt"
+          markers="$(grep -oE 'FULL_DAY_MARKET_CLOSED|STAND_DOWN:[A-Za-z0-9_]+' run.log | sort -u || true)"
+          if [ -n "$markers" ]; then
+            echo "::error::Run stood down: $(echo "$markers" | tr '\n' ' ')"
+            {
+              echo "## Run stood down at $(date -u +%H:%M) UTC"
+              echo '```'
+              echo "$markers"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ] && grep -q "Market is closed" run.log; then
+            echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance from this attempt, the other slots retry"
             echo "Scheduled run at $(date -u +%H:%M) UTC found the market closed." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # Persist state for next run
-      - name: Save trade state
-        if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: logs/paper_trade_state.json
-          key: trade-state-${{ github.run_number }}
-
       # Commit updated trade logs and state back to repo
-      # always(): a run that traded and then failed must still land its
-      # state and event log on main; the cache alone is not a record.
+      # always(): a run that traded and then failed, or that stood down and
+      # failed on purpose above, must still land its state and event log on
+      # main; git is the only record of the state.
       - name: Commit trade logs
         if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
         run: |

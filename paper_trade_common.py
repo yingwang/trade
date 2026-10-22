@@ -158,8 +158,9 @@ def check_portfolio_drawdown(state: dict, config: dict, equity: float) -> tuple[
 def note_market_closed(state: dict, state_file: Path) -> int:
     """Count closed-market attempts for today; escalate after a full-day miss.
 
-    Three scheduled attempts land each weekday; hitting closed on the third
-    (or more) attempt means the book had no stop-loss / rebalance window.
+    Five scheduled attempts land each weekday (the cron slots in
+    .github/workflows/rebalance*.yml); hitting closed on the fifth (or more)
+    attempt means the book had no stop-loss / rebalance window.
     """
     today = datetime.now().strftime("%Y-%m-%d")
     counts = dict(state.get("market_closed_attempts") or {})
@@ -549,6 +550,7 @@ def run_rebalance(strategy, broker, config, dry_run=False,
             if not ok:
                 logger.error("Rebalance blocked by daily loss limit: %s", reason)
                 if not dry_run:
+                    print("STAND_DOWN:daily_loss_limit")
                     return None, None
                 print(f"\n  ** DAILY LOSS LIMIT BREACHED ({reason}) — "
                       f"live run would abort here **")
@@ -594,6 +596,7 @@ def run_rebalance(strategy, broker, config, dry_run=False,
             "to execute an incomplete target",
             sorted(missing_prices),
         )
+        print("STAND_DOWN:quotes_unavailable")
         return None, None
 
     # Generate orders (sells first by default via sort in generate_rebalance_orders)
@@ -878,9 +881,11 @@ def run_main(profile: TradeProfile):
         if not args.dry_run and hasattr(broker, "is_market_open"):
             if not broker.is_market_open():
                 attempts = note_market_closed(state, profile.state_file)
-                if attempts >= 3:
-                    # Three scheduled attempts already saw a closed market —
-                    # escalate beyond a single warning so the miss is visible.
+                if attempts >= 5:
+                    # Every scheduled attempt of the day (five cron slots per
+                    # book) saw a closed market — escalate beyond a single
+                    # warning so the miss is visible: the workflow fails the
+                    # job on the marker printed below.
                     logger.error(
                         "FULL_DAY_MARKET_CLOSED: %s attempt(s) today found the "
                         "market closed — no stop-loss check or rebalance ran",
@@ -914,6 +919,7 @@ def run_main(profile: TradeProfile):
                         "new opens blocked; de-risk sells and stop-losses only",
                         current_dd * 100, dd_limit * 100,
                     )
+                    print("STAND_DOWN:drawdown_gate")
             except Exception as exc:
                 logger.warning("Drawdown check skipped: %s", exc)
 
@@ -927,6 +933,7 @@ def run_main(profile: TradeProfile):
                     "sweep; standing down for today rather than trading on top of them",
                     still_open,
                 )
+                print("STAND_DOWN:open_orders")
                 _persist_daily_tracker(profile, broker, state)
                 return
 
@@ -970,6 +977,7 @@ def run_main(profile: TradeProfile):
                 reason = profile.rebalance_trigger(strategy, broker, state)
             except Exception as e:
                 logger.error("Rebalance trigger failed; treating as not due: %s", e)
+                print("STAND_DOWN:trigger_failed")
                 reason = None
             if reason:
                 logger.warning("Unscheduled rebalance today: %s", reason)
