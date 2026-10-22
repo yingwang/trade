@@ -178,48 +178,7 @@ def seasonality_factor(returns: pd.DataFrame, years: int = 5) -> pd.DataFrame:
 # Universes
 # ----------------------------------------------------------------------
 
-SP500_HISTORY_URL = (
-    "https://raw.githubusercontent.com/fja05680/sp500/master/"
-    "S%26P%20500%20Historical%20Components%20%26%20Changes%20(Updated).csv"
-)
-
-
-def load_sp500_membership(path: str = "data/universe/sp500_history.csv") -> pd.DataFrame:
-    """Point-in-time S&P 500 membership from the free fja05680/sp500 table.
-
-    One row per date the list changed, ``date,tickers`` with the tickers as a
-    comma-separated string.  Returns a boolean frame (snapshot dates x
-    tickers) with yfinance spelling (BRK.B -> BRK-B).
-    """
-    import csv
-    import os
-    import urllib.request
-
-    if not os.path.exists(path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        req = urllib.request.Request(SP500_HISTORY_URL, headers={"User-Agent": "yingwang-trade research"})
-        with urllib.request.urlopen(req, timeout=120) as resp, open(path, "wb") as out:
-            out.write(resp.read())
-    snapshots = {}
-    with open(path, newline="") as fh:
-        reader = csv.reader(fh)
-        header = next(reader)
-        assert header[:2] == ["date", "tickers"], header
-        for row in reader:
-            date = pd.Timestamp(row[0])
-            tickers = {t.strip().upper().replace(".", "-") for t in row[1].split(",") if t.strip()}
-            snapshots[date] = tickers
-    all_tickers = sorted(set().union(*snapshots.values()))
-    frame = pd.DataFrame(False, index=sorted(snapshots), columns=all_tickers)
-    for date, tickers in snapshots.items():
-        frame.loc[date, list(tickers)] = True
-    return frame
-
-
-def membership_mask(snapshots: pd.DataFrame, dates: pd.DatetimeIndex, columns) -> pd.DataFrame:
-    """Membership on every trading day: the latest snapshot on or before it."""
-    aligned = snapshots.reindex(columns=columns, fill_value=False)
-    return aligned.reindex(dates, method="ffill").fillna(False).astype(bool)
+from quant.data.earnings import load_sp500_membership, membership_mask  # noqa: E402
 
 
 def fetch_universe(config: dict, universe: str, start: str, end: str | None):

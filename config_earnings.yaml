@@ -1,0 +1,122 @@
+# Fourth paper account: the earnings book (quant/earnings_strategy.py).
+#
+# Universe: the S&P 500 by its membership history (data/universe/sp500_history.csv,
+# downloaded from the public fja05680/sp500 table when missing). The strategy
+# replaces universe.symbols below at runtime: the backtest with every name that
+# was a member since its start, the live path with the latest snapshot. The
+# placeholder keeps the shared config validator satisfied.
+#
+# Signals and parameters were chosen on 2026-10-22 from research/factor_lab.py,
+# research/earnings_lab.py and research/composite_lab.py: the composite of the
+# consensus earnings surprise, year-on-year EPS growth, distance to the next
+# announcement and 12-6 month momentum was the one ranking with a positive
+# 21-day IC in every sub-period since 2010 on that universe. The portfolio
+# rules are the trend book's.
+
+universe:
+  symbols:
+    - "AAPL"   # placeholder, replaced at runtime (see above)
+  benchmark: SPY
+
+data:
+  lookback_years: 5
+  frequency: 1d
+
+# The signals block exists to satisfy the shared config validator and the
+# warm-up arithmetic; EarningsStrategy computes its own series.
+signals:
+  momentum_windows: [126, 252]
+  mean_reversion_window: 20
+  mean_reversion_zscore_threshold: 4.0
+  sma_short: 50
+  sma_long: 200
+  volatility_window: 63
+  industry_neutral: false
+  winsorize_clip: 3.0
+  factor_weights:
+    momentum: 1.0
+
+earnings:
+  universe_file: data/universe/sp500_history.csv
+  universe_lead_days: 400      # a backtest also loads names that left the index up to this long before its start
+  weights:                      # averaged after z-scoring; a missing part counts as zero
+    sue: 1.0                    # consensus earnings surprise, standardized by the last 8 errors
+    eps_growth: 1.0             # reported EPS against the same quarter a year earlier
+    days_to_next: 1.0           # names about to report rank first
+    momentum: 1.0               # 12-6 month return
+  momentum_lookback: 252
+  momentum_skip: 126
+  sue_lookback: 8
+  min_parts: 2                  # a name needs at least two of the four parts
+  earnings_limit: 100           # announcements per name requested from Yahoo
+  positions: 25
+  rank_buffer: 40               # a holding stays while still inside the top 40
+  vol_window: 60
+  sma_long: 200
+  sma_short: 50
+  trailing_stop: 0.20           # exit when 20% below the peak close since entry
+  trailing_window: 60
+  reentry_cooldown_sessions: 5
+  benchmark_vol_window: 21
+  benchmark_vol_high: 0.30
+  breadth_min: 0.30
+  regime_caps:                  # gross exposure by number of lights on
+    0: null                     # no light: leverage.max_leverage
+    1: 0.6
+    2: 0.0
+  deleverage_tolerance: 0.10
+
+portfolio:
+  max_positions: 25
+  max_position_weight: 0.08     # of the unlevered sleeve
+  min_position_weight: 0.01
+  target_volatility: 0.25       # annualized, before the regime cap
+  rebalance_frequency_days: 10  # every ten sessions on the shared anchored calendar
+  transaction_cost_bps: 10
+  max_turnover_per_rebalance: 1.0
+  exit_turnover_share: 1.0
+  allocation: proportional
+  alpha_scale: 0.05
+  risk_aversion: 1.0
+
+risk:
+  max_drawdown_limit: 0.30
+  max_sector_weight: 1.0
+  stop_loss_pct: 0.20           # fixed stop from entry, enforced by engine and runner
+
+leverage:
+  max_leverage: 1.5
+  regime_spy_vol_window: 21
+  regime_thresholds:
+    low: 0.12
+    high: 0.30
+  regime_leverage_caps:
+    low_vol: 1.5
+    normal: 1.5
+    high_vol: 0.6
+  margin_annual_rate: 0.06
+
+attribution:
+  lookback_days: 252
+  min_observations: 60
+  annual_cash_return: 0.0
+
+safety:
+  max_single_order_value: 60000
+  max_single_order_shares: 10000
+  max_daily_trade_value: 600000
+  max_daily_loss: 25000
+  max_adv_fraction: 0.01
+  min_price: 1.0
+  max_position_pct_of_portfolio: 0.15   # 25 names at up to 1.5x gross: 0.08 x 1.5 = 0.12
+  require_paper_mode: true
+
+backtest:
+  rebalance_anchor_date: "2000-01-03"
+  start_date: "2010-01-01"
+  end_date: null
+  initial_capital: 100000
+  slippage_bps: 5
+  market_impact_coeff: 2.5
+  market_impact_sigma_coeff: 1.0
+  risk_free_rate: 0.04

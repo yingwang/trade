@@ -27,93 +27,7 @@ from research.factor_lab import PERIODS, fetch_universe, forward_returns, summar
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
 
-def fetch_earnings(symbols: list[str], limit: int = 100) -> dict[str, pd.DataFrame]:
-    """One frame per symbol: index = announcement date (New York calendar
-    day), columns estimate, actual, surprise_pct, after_close (bool)."""
-    import yfinance as yf
-
-    out = {}
-    t0 = time.time()
-    for i, sym in enumerate(symbols):
-        try:
-            ed = yf.Ticker(sym).get_earnings_dates(limit=limit)
-        except Exception as exc:
-            logging.warning("%s: earnings dates failed: %s", sym, exc)
-            continue
-        if ed is None or ed.empty:
-            continue
-        ed = ed.rename(columns={"EPS Estimate": "estimate", "Reported EPS": "actual", "Surprise(%)": "surprise_pct"})
-        idx = pd.DatetimeIndex(ed.index)
-        if idx.tz is not None:
-            idx = idx.tz_convert("America/New_York")
-        frame = pd.DataFrame({
-            "estimate": pd.to_numeric(ed.get("estimate"), errors="coerce").values,
-            "actual": pd.to_numeric(ed.get("actual"), errors="coerce").values,
-            "surprise_pct": pd.to_numeric(ed.get("surprise_pct"), errors="coerce").values,
-            "after_close": (idx.hour >= 16).astype(bool),
-        }, index=idx.tz_localize(None).normalize())
-        frame = frame[~frame.index.duplicated(keep="last")].sort_index()
-        out[sym] = frame
-        if (i + 1) % 100 == 0:
-            print(f"  earnings dates: {i+1}/{len(symbols)} in {time.time()-t0:.0f}s")
-    print(f"earnings dates for {len(out)}/{len(symbols)} symbols in {time.time()-t0:.0f}s")
-    return out
-
-
-def _as_of(values: pd.Series, dates: pd.DatetimeIndex) -> pd.Series:
-    """Step function: the latest value whose date is on or before each date."""
-    values = values.dropna().sort_index()
-    if values.empty:
-        return pd.Series(np.nan, index=dates)
-    pos = values.index.searchsorted(dates, side="right") - 1
-    out = pd.Series(values.values[np.clip(pos, 0, len(values) - 1)], index=dates, dtype=float)
-    out[pos < 0] = np.nan
-    return out
-
-
-def build_earnings_panels(events: dict[str, pd.DataFrame], dates: pd.DatetimeIndex, closes: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    """Daily panels (dates x symbols) of announcement-based signals, each
-    signed so that higher is expected to be better."""
-    cols = list(closes.columns)
-    panels = {k: pd.DataFrame(np.nan, index=dates, columns=cols) for k in (
-        "surprise_pct", "sue_consensus", "surprise_over_price", "sue_seasonal", "eps_growth_yoy",
-        "days_since", "days_to_next", "n_beats_4",
-    )}
-    for sym in cols:
-        ev = events.get(sym)
-        if ev is None or ev.empty:
-            continue
-        reported = ev.dropna(subset=["actual"])
-        if reported.empty:
-            continue
-        err = reported["actual"] - reported["estimate"]
-        # A run of exact hits makes the error std vanish; the ratio is
-        # clipped so one such name cannot sit at infinity (ranks are unaffected).
-        err_std = err.rolling(8, min_periods=6).std().shift(1)
-        sue_c = (err / err_std.replace(0, np.nan)).clip(-10, 10)
-        seasonal = reported["actual"] - reported["actual"].shift(4)
-        sue_s = (seasonal / seasonal.rolling(8, min_periods=6).std().shift(1).replace(0, np.nan)).clip(-10, 10)
-        growth = seasonal / reported["actual"].shift(4).abs().replace(0, np.nan)
-        beats = (err > 0).astype(float).rolling(4, min_periods=4).sum()
-        price_at = closes[sym].reindex(reported.index, method="ffill")
-        over_price = err / price_at.replace(0, np.nan)
-
-        panels["surprise_pct"][sym] = _as_of(reported["surprise_pct"], dates)
-        panels["sue_consensus"][sym] = _as_of(sue_c, dates)
-        panels["surprise_over_price"][sym] = _as_of(over_price, dates)
-        panels["sue_seasonal"][sym] = _as_of(sue_s, dates)
-        panels["eps_growth_yoy"][sym] = _as_of(growth, dates)
-        panels["n_beats_4"][sym] = _as_of(beats, dates)
-        last = _as_of(pd.Series(reported.index.values.astype("datetime64[ns]").astype("int64") / 86400e9, index=reported.index), dates)
-        panels["days_since"][sym] = dates.values.astype("datetime64[ns]").astype("int64") / 86400e9 - last.values
-        # Distance to the next scheduled announcement (future rows included):
-        # the earnings announcement premium accrues to names about to report.
-        all_dates = pd.DatetimeIndex(ev.index)
-        nxt = all_dates.values[np.clip(all_dates.searchsorted(dates, side="right"), 0, len(all_dates) - 1)]
-        days_to = (nxt - dates.values).astype("timedelta64[D]").astype(float)
-        days_to[all_dates.searchsorted(dates, side="right") >= len(all_dates)] = np.nan
-        panels["days_to_next"][sym] = days_to
-    return panels
+from quant.data.earnings import announcement_panels as build_earnings_panels, fetch_earnings  # noqa: E402
 
 
 def earnings_factors(panels: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
@@ -125,8 +39,6 @@ def earnings_factors(panels: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]
         "surprise_pct": panels["surprise_pct"],
         "sue_consensus": panels["sue_consensus"],
         "sue_consensus (recent 63d)": panels["sue_consensus"].where(recent),
-        "surprise_over_price": panels["surprise_over_price"],
-        "surprise_over_price (recent 63d)": panels["surprise_over_price"].where(recent),
         "sue_seasonal": panels["sue_seasonal"],
         "eps_growth_yoy": panels["eps_growth_yoy"],
         "n_beats_4": panels["n_beats_4"],

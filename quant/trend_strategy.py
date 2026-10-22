@@ -399,19 +399,28 @@ class TrendStrategy:
     # Backtest
     # ------------------------------------------------------------------
 
+    def warmup_start(self, start: str) -> Optional[str]:
+        warm = self.warmup_days()
+        return (datetime.strptime(start, "%Y-%m-%d") - timedelta(days=int(warm * 1.6))).strftime("%Y-%m-%d") if start else None
+
     def run_backtest(self, start: str = None, end: str = None) -> BacktestResult:
         bt_cfg = self.config["backtest"]
         start = start or bt_cfg["start_date"]
         end = end or bt_cfg.get("end_date")
         warn_survivorship_bias(self.data.symbols, start)
+        prices = self.data.fetch_prices(start=self.warmup_start(start), end=end)
+        return self.backtest_on(prices, start, end)
 
-        warm = self.warmup_days()
-        warmup_start = (datetime.strptime(start, "%Y-%m-%d") - timedelta(days=int(warm * 1.6))).strftime("%Y-%m-%d") if start else None
-        prices = self.data.fetch_prices(start=warmup_start, end=end)
+    def backtest_on(self, prices: pd.DataFrame, start: str, end: str = None) -> BacktestResult:
+        """The simulation itself, on prices already fetched (with warm-up)
+        through ``self.data`` so the same download's opens and volumes are
+        used for execution and impact.  The earnings book runs this loop on
+        its own universe."""
         report = DataQualityChecker().run_all_checks(prices)
         if not report["passed"]:
             logger.error("Data quality check FAILED:\n%s", DataQualityChecker.format_report(report))
 
+        warm = self.warmup_days()
         pre = self.precompute(prices)
         not_before = prices.index[0] + pd.Timedelta(days=int(warm * 1.5))
         scheduled = set(fixed_rebalance_dates(
