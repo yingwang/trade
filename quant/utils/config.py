@@ -128,6 +128,11 @@ def validate_config(config: dict) -> dict:
     _number(portfolio, "alpha_scale", minimum=0)
     if _number(portfolio, "risk_aversion", minimum=0) <= 0:
         raise ValueError("portfolio.risk_aversion must be positive")
+    # Optional: width of the optimizer's smooth turnover penalty.  Zero would
+    # bring back the non-differentiable L1 term that stopped SLSQP converging.
+    if "turnover_penalty_epsilon" in portfolio:
+        if _number(portfolio, "turnover_penalty_epsilon", minimum=0) <= 0:
+            raise ValueError("portfolio.turnover_penalty_epsilon must be positive")
 
     risk = config["risk"]
     for key in ("max_drawdown_limit", "max_sector_weight", "stop_loss_pct"):
