@@ -305,6 +305,19 @@ def summarize(factor: pd.DataFrame, fwd: pd.DataFrame, dates: pd.DatetimeIndex, 
     return out
 
 
+def summarize_h(factor: pd.DataFrame, fwd: pd.DataFrame, dates: pd.DatetimeIndex, horizon: int, top_n: int) -> dict:
+    ic = daily_ic(factor, fwd).dropna()
+    sub = ic.reindex(dates).dropna()
+    tmu = top_minus_universe(factor, fwd, top_n).reindex(dates).dropna()
+    recent = ic.loc["2021-01-01":]
+    return {
+        "ic": ic.mean(),
+        "t": sub.mean() / sub.std() * np.sqrt(len(sub)) if len(sub) > 5 and sub.std() > 0 else np.nan,
+        f"top{top_n}": tmu.mean() * 252 / horizon,
+        "ic_21on": recent.mean() if len(recent) > 50 else np.nan,
+    }
+
+
 PERIODS = {
     "10-15": ("2010-01-01", "2015-12-31"),
     "16-20": ("2016-01-01", "2020-12-31"),
@@ -319,8 +332,10 @@ def main():
     ap.add_argument("--universe", choices=["static", "sp500"], default="static",
                     help="static: config.yaml's 100 names; sp500: point-in-time S&P 500 membership")
     ap.add_argument("--top", default="12,25", help="top-N sizes for the long-only excess columns")
+    ap.add_argument("--horizons", default="", help="extra forward horizons in sessions, e.g. 5,10,63 (21 is always run)")
     args = ap.parse_args()
     top_ns = tuple(int(x) for x in args.top.split(","))
+    horizons = [int(x) for x in args.horizons.split(",") if x.strip()]
 
     t0 = time.time()
     config = load_config("config.yaml")
@@ -445,6 +460,28 @@ def main():
         print(stack.corr().round(2).to_string())
 
     table.to_csv(f"research/out/factor_lab_{args.universe}.csv")
+
+    # Other holding horizons: a factor can be dead at 21 sessions and alive at
+    # 5 (reversal) or 63 (slow momentum).  Same universe mask, same names.
+    if horizons:
+        blocks = {}
+        for h in horizons:
+            fwd_h = forward_returns(op, px, h).where(mask)
+            dates_h = px.index[::h]
+            rows_h = {}
+            for name, f in factors.items():
+                f = f.reindex(index=px.index, columns=symbols).where(mask)
+                r = summarize_h(f, fwd_h, dates_h, h, top_ns[0])
+                rows_h[name] = r
+            for name, comp in composites:
+                c = comp.reindex(index=px.index, columns=symbols).where(mask)
+                rows_h[name] = summarize_h(c, fwd_h, dates_h, h, top_ns[0])
+            blocks[f"h{h}"] = pd.DataFrame(rows_h).T
+        multi = pd.concat(blocks, axis=1)
+        multi.index.name = "factor"
+        print(f"\nOther horizons (sessions), same universe: ic, t on a non-overlapping subsample, top{top_ns[0]} annualized excess, IC 2021 on\n")
+        print(multi.round(3).to_string())
+        multi.to_csv(f"research/out/factor_lab_{args.universe}_horizons.csv")
     print(f"\ndone in {time.time()-t0:.0f}s")
     return 0
 
