@@ -18,8 +18,8 @@ Rules, in the order they are applied:
     with a rank buffer: a name already in the book stays as long as it is still
     inside the top ``rank_buffer``, so the book only turns over when a holding has
     genuinely faded, not on every reordering near the cut. Two kinds of name are
-    passed over whatever their rank: one sitting below its stop (rule 6, judged at
-    this close, held or not), and one sold on a stop within the last
+    passed over whatever their rank: a holding sitting below its stop (rule 6,
+    judged at this close), and one sold on a stop within the last
     ``reentry_cooldown_sessions`` sessions. Without the first, a scheduled run
     kept, and added to, a holding the daily check sold an hour later; without the
     second it bought back a name four sessions after that check had sold it.
@@ -336,12 +336,13 @@ class TrendStrategy:
         scores = self.scores_on(pre, date)
         self.last_scores_ = scores
         held_syms = list(held.index[held > 1e-6]) if held is not None else []
-        # Rule 6 comes first, over holdings and candidates alike. A holding is
-        # judged from its peak since entry, exactly as the daily check judges
-        # it; a candidate has no entry, so its 60-day high stands in, and a
-        # name more than ``trailing_stop`` under that high is a trend that has
-        # already broken, whatever its skip-month horizons still say.
-        names = pd.Index(held_syms).union(scores.index)
+        # Rule 6 comes first, over the holdings: each is judged from its peak
+        # since entry, exactly as the daily check judges it, so this run never
+        # keeps or adds to a name that check would sell an hour later. A
+        # candidate not yet held is left to the ranking: a fresh entry starts
+        # its own peak at this close, so it cannot be stopped the same day,
+        # and judging it by its 60-day high would be a new selection rule.
+        names = pd.Index(held_syms)
         known = {s: d for s, d in (entry_dates or {}).items() if s in held_syms}
         broken = set(self.trailing_exits(pre, date, names, known))
         cooling = self.active_stop_exits(pre["px"].index, date, stop_exits)

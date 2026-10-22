@@ -294,10 +294,13 @@ def test_scheduled_target_passes_over_names_under_their_stop(strategy):
     assert "AAAA" not in target.index
     assert strategy.last_decision_["exits"] == ["AAAA"]
     assert len(target) == 3
-    # Not held: its 60-day high stands in for the peak, same verdict.
+    # Not held: the ranking decides, the stop only ever judges a holding. A
+    # fresh entry starts its own peak at this close, so the daily check cannot
+    # sell it the same day; judging a candidate by its 60-day high would be a
+    # new selection rule, not part of the churn fix.
     target = strategy.scheduled_target(pre, date, None)
-    assert "AAAA" not in target.index
-    assert "AAAA" in strategy.last_decision_["below_stop"]
+    assert "AAAA" in target.index
+    assert strategy.last_decision_["below_stop"] == []
     # Opened at this very close: no peak to have fallen from yet, so it stays.
     target = strategy.scheduled_target(pre, date, held, entry_dates={"AAAA": date})
     assert "AAAA" in target.index
