@@ -189,8 +189,8 @@ class MultiFactorStrategy:
             # This preserves the vol-targeting effect.
 
             # Real turnover cap on final weights: includes exit legs and the
-            # turnover created by vol scaling, which the in-optimizer
-            # constraint cannot see.
+            # turnover created by vol scaling, over the union of old and new
+            # holdings; the allocation step only ever sees the selected names.
             weights = self.optimizer.enforce_turnover_cap(
                 weights,
                 prev_weights,
@@ -272,10 +272,11 @@ class MultiFactorStrategy:
         capital : float, optional
             Total capital to allocate. Defaults to config initial_capital.
         prev_weights : Series, optional
-            The account's ACTUAL current weights.  When provided, the
-            optimizer's turnover penalty/constraint and the final total
-            turnover cap (including exit legs) are enforced against it —
-            same semantics as the backtest loop.
+            The account's ACTUAL current weights.  When provided, the final
+            total turnover cap (including exit legs) is enforced against it,
+            and so is the optimizer's turnover penalty when
+            portfolio.allocation is "mvo"; same semantics as the backtest
+            loop.
 
         Returns
         -------

@@ -1,8 +1,8 @@
 # Quant Trading System / 量化交易系统
 
-A multi-factor quantitative trading system for medium-term US equities. Uses momentum-driven alpha signals with mean-variance portfolio optimization, dynamic leverage, and automated execution via Alpaca.
+A multi-factor quantitative trading system for medium-term US equities. Uses momentum-driven alpha signals, score-proportional allocation with vol scaling, a total turnover cap and sector and position limits, dynamic leverage, and automated execution via Alpaca. A constrained mean-variance optimizer (Ledoit-Wolf covariance, smooth turnover penalty, SLSQP with analytic gradients) is available via `portfolio.allocation: mvo` as a research option; on the backtest windows ending 2026-10-22 it came out below the proportional allocation (multi-factor 5y +127.5% MVO vs +151.8% proportional), so the live books stay on `proportional`.
 
-多因子量化交易系统，专注于美股中期投资。基于动量驱动的 Alpha 信号，结合均值-方差组合优化、动态杠杆管理，以及通过 Alpaca 自动执行交易。
+多因子量化交易系统，专注于美股中期投资。基于动量驱动的 Alpha 信号，按分数比例配置权重，再经波动率缩放、总换手上限、行业与单票上限，结合动态杠杆管理，并通过 Alpaca 自动执行交易。带约束的均值-方差优化器（Ledoit-Wolf 协方差、平滑换手惩罚、解析梯度 SLSQP）可通过 `portfolio.allocation: mvo` 启用，属研究选项：在截至 2026-10-22 的回测窗口上低于分数比例配置（多因子 5 年 MVO +127.5% 对比 +151.8%），因此实盘账本保持 `proportional`。
 
 **[Paper Performance Dashboard / Paper 模拟盘看板 →](https://yingwang.github.io/trade/)**
 
@@ -185,7 +185,8 @@ Price Data (yfinance, live path behind a hard data-quality gate)
     └── Blowoff Filter: z-score > 4.0 → score × 0.5
         │
         ▼
-    Portfolio Optimizer (Ledoit-Wolf covariance + 5x turnover penalty)
+    Portfolio construction: score-proportional weights (default;
+    constrained MVO via portfolio.allocation: mvo is a research option)
         │
         ├── Sector constraints (max 50% per sector)
         ├── Vol-targeting (22% annual, regime-adjusted)
@@ -305,7 +306,7 @@ trade/
 │   │   ├── lgbm_model.py       # 分组 LambdaRank + purged split + IC/ICIR
 │   │   └── lgbm_strategy.py    # LightGBM 策略调度器
 │   ├── portfolio/
-│   │   └── optimizer.py        # MVO优化 + Ledoit-Wolf + 换手上限 + 风控
+│   │   └── optimizer.py        # 分数比例配置（默认）/ MVO 研究选项 + Ledoit-Wolf + 换手上限 + 风控
 │   ├── backtest/
 │   │   ├── engine.py           # 事件驱动回测引擎（T+1、每日止损、保证金利息）
 │   │   └── report.py           # 报告与分析
@@ -353,6 +354,7 @@ signals:
 
 portfolio:
   max_positions: 12
+  allocation: proportional        # 分数比例配置（实盘默认）；mvo 为均值-方差研究选项
   target_volatility: 0.22
   rebalance_frequency_days: 21    # 3周再平衡
   max_turnover_per_rebalance: 0.40  # 40%总换手上限（含退出腿与杠杆变化）

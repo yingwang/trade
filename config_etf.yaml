@@ -90,6 +90,7 @@ portfolio:
   # Share of that budget liquidating exits may use; the rest is reserved for
   # entries so the book cannot sell more than it buys every cycle.
   exit_turnover_share: 0.60
+  allocation: proportional
   alpha_scale: 0.05
   risk_aversion: 1.0
 

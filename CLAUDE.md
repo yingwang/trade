@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Multi-factor quantitative equity trading system for medium-term US equities. Three strategies run live against three separate Alpaca paper accounts: a 5-factor momentum composite (paper_trade.py), a LightGBM cross-sectional ranking model (paper_trade_lgbm.py), and a leveraged trend-following book (paper_trade_trend.py, `quant/trend_strategy.py`, `config_trend.yaml`) that rebalances every ten sessions and acts on trailing stops and regime lights daily through the runner's `rebalance_trigger`. The two factor books use mean-variance portfolio optimization, dynamic leverage via market regime detection, and automated execution through the Alpaca API, driven by GitHub Actions.
+Multi-factor quantitative equity trading system for medium-term US equities. Three strategies run live against three separate Alpaca paper accounts: a 5-factor momentum composite (paper_trade.py), a LightGBM cross-sectional ranking model (paper_trade_lgbm.py), and a leveraged trend-following book (paper_trade_trend.py, `quant/trend_strategy.py`, `config_trend.yaml`) that rebalances every ten sessions and acts on trailing stops and regime lights daily through the runner's `rebalance_trigger`. The two factor books allocate score-proportional weights (then vol scaling, the total turnover cap, sector and position limits), use dynamic leverage via market regime detection, and automated execution through the Alpaca API, driven by GitHub Actions; a constrained mean-variance optimizer is available via `portfolio.allocation: mvo` as a research option.
 
 ## Commands
 
@@ -54,7 +54,7 @@ data/   signals/   portfolio/   execution/   backtest/
 - **`quant/data/market_data.py`** — yfinance wrapper for prices, same-download opens/volumes, and fundamentals
 - **`quant/data/quality.py`** — `DataQualityChecker` (logging, backtest path) and `enforce_live_data_quality` (hard gate, live path — drops dead symbols, aborts on breadth collapse)
 - **`quant/signals/factors.py`** — Alpha factor calculations. Factors are industry-neutralized and winsorized to ±3σ. `factor_weights` in config is the single source of truth: unlisted factors are 0, no hidden defaults
-- **`quant/portfolio/optimizer.py`** — Constrained MVO with Ledoit-Wolf shrinkage. `detect_regime()` (SPY vol), `apply_vol_scaling()` (0.8x–1.8x), and `enforce_turnover_cap()` — the real 40% cap, applied to final weights including exit legs and leverage changes
+- **`quant/portfolio/optimizer.py`** — Portfolio construction. `optimize_weights()` builds score-proportional weights by default (`portfolio.allocation: proportional`, what the live books run); `portfolio.allocation: mvo` runs the constrained mean-variance optimizer instead (Ledoit-Wolf covariance, smooth turnover penalty, SLSQP with analytic gradients, outcome in `last_solve_status`), a research option that backtested below proportional (multi-factor 5y +127.5% MVO vs +151.8% proportional, windows ending 2026-10-22). `detect_regime()` (SPY vol), `apply_vol_scaling()` (0.8x–1.8x), and `enforce_turnover_cap()` — the real 40% cap, applied to final weights including exit legs and leverage changes, the same way for either allocation
 - **`quant/execution/safety.py`** — `PreTradeCheck` limits; `DailyTracker` counters persist across same-day runs via the state file
 - **`quant/backtest/engine.py`** — Event-driven daily simulator: T-close signal / next-session-open execution, pending missing-bar orders, next-bar stop-losses, delisting returns, margin interest, market impact, and corrected risk metrics
 - **`quant/attribution.py`** — Actual-account attribution against SPY. Reconstructs holdings from fills; uses strictly lagged returns-based ETF factors for market/style/industry, keeps selection/cash/implementation-shortfall explicit, exposes reconciliation residual, and Carino-links terminal contributions
@@ -63,11 +63,12 @@ data/   signals/   portfolio/   execution/   backtest/
 
 ## Signal Pipeline
 
-Raw prices → live quality gate → factor scores (momentum 50%, high_proximity 20%, reversal 10%, vol_contraction 10%, trend_persistence 10%) → industry-neutral z-scores → trend filter (< 200d SMA → 0.5x) → blowoff filter (z > 4.0 → 0.5x) → composite score → MVO optimization → vol scaling → total turnover cap → target weights
+Raw prices → live quality gate → factor scores (momentum 50%, high_proximity 20%, reversal 10%, vol_contraction 10%, trend_persistence 10%) → industry-neutral z-scores → trend filter (< 200d SMA → 0.5x) → blowoff filter (z > 4.0 → 0.5x) → composite score → score-proportional allocation (or MVO when `portfolio.allocation: mvo`) → vol scaling → total turnover cap → target weights
 
 ## Key Constraints in config.yaml
 
 - Target portfolio: 12 positions, 3%–12% per stock, max 50% per sector. The held book can carry more names in transition: exits the turnover blend would leave below 3% are sold in full within the budget, larger exits are sold down over successive rebalances
+- `portfolio.allocation`: `proportional` (default, live) builds the weights from the scores; `mvo` is the research-only mean-variance path. Vol scaling, the turnover cap and the sector/position limits are applied the same way after either; `alpha_scale`, `risk_aversion` and `turnover_penalty_epsilon` only matter for `mvo`
 - `universe.sectors` is the static sector table used by both the backtest and the live path (industry neutralization, sector caps, attribution); the yfinance `.info` snapshot is only a fallback for configs without one
 - Rebalance every 21 trading days; 40% cap on TOTAL turnover (exit legs and vol-scaling included). When it binds, the budget is split between sells and buys first, so a capped rebalance slows down but never sells gross exposure below min(current, target)
 - Transaction cost: 10 bps + per-symbol volume-participation Almgren-Chriss market impact (turnover fallback when volume is missing); Sharpe/Sortino vs 4% risk-free rate

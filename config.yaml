@@ -271,8 +271,13 @@ portfolio:
   # Share of that budget liquidating exits may use; the rest is reserved for
   # entries so the book cannot sell more than it buys every cycle.
   exit_turnover_share: 0.60
-  alpha_scale: 0.05             # one cross-sectional z-score = 5% annual alpha
-  risk_aversion: 1.0            # alpha and annualized covariance share a horizon
+  # How target weights are built from the scores.  proportional (the default
+  # when absent) is what the live books run; mvo runs the constrained
+  # mean-variance optimizer, a research option: on the backtest windows ending
+  # 2026-10-22 it came out below proportional (5y +127.5% vs +151.8%).
+  allocation: proportional
+  alpha_scale: 0.05             # one cross-sectional z-score = 5% annual alpha (mvo only)
+  risk_aversion: 1.0            # alpha and annualized covariance share a horizon (mvo only)
 
 risk:
   max_drawdown_limit: 0.25     # 25% — accept more drawdown for growth

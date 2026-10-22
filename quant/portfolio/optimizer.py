@@ -26,12 +26,15 @@ logger = logging.getLogger(__name__)
 class SolveStatus:
     """Outcome of the last ``optimize_weights`` call.
 
-    ``fallback`` is True whenever the returned weights did not come from the
-    solver (score-proportional weights were used instead); ``status`` and
-    ``message`` are SLSQP's exit mode when the solver ran, and -1 with a
-    reason otherwise.
+    ``method`` is "proportional" when the weights are score-proportional by
+    configuration (no solver call) and "mvo" when the mean-variance solver
+    was asked for.  ``fallback`` is True only when the solver was asked for
+    and its result could not be used, so score-proportional weights stood
+    in; ``status`` and ``message`` are SLSQP's exit mode when the solver
+    ran, and -1 with a reason otherwise.
     """
 
+    method: str
     success: bool
     fallback: bool
     status: int
@@ -142,6 +145,14 @@ def _ledoit_wolf_shrinkage(returns: pd.DataFrame) -> pd.DataFrame:
 class PortfolioOptimizer:
     """Constructs target portfolios from alpha signals with risk constraints."""
 
+    # How target weights are built from the scores.  "proportional" takes
+    # the score-proportional weights directly, which is what the live books
+    # run; "mvo" runs the constrained mean-variance solver.  On the backtest
+    # windows ending 2026-10-22 the solver came out below proportional
+    # (multi-factor 5y +127.5% vs +151.8%, LGBM 5y +125.8% vs +137.6%), so
+    # it is kept as a research option and the default stays proportional.
+    ALLOCATIONS = ("proportional", "mvo")
+    DEFAULT_ALLOCATION = "proportional"
     # Default width of the soft-absolute-value turnover penalty (weight units).
     TURNOVER_PENALTY_EPSILON = 0.001
     # SLSQP budget.  The problem is a strictly convex program in at most
@@ -212,6 +223,16 @@ class PortfolioOptimizer:
         # the nominal mean-variance optimizer effectively a score sorter.
         self.alpha_scale = pcfg.get("alpha_scale", 0.05)
         self.risk_aversion = pcfg.get("risk_aversion", 1.0)
+        # Allocation switch; alpha_scale, risk_aversion and the turnover
+        # penalty only matter on the "mvo" path.
+        raw_allocation = pcfg.get("allocation", self.DEFAULT_ALLOCATION)
+        self.allocation = str(raw_allocation).strip().lower()
+        if self.allocation not in self.ALLOCATIONS:
+            raise ValueError(
+                "portfolio.allocation must be one of "
+                f"{list(self.ALLOCATIONS)}, got {raw_allocation!r}"
+            )
+        self._allocation_logged = False
 
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
@@ -269,10 +290,19 @@ class PortfolioOptimizer:
         prev_weights: Optional[pd.Series] = None,
         sector_map: Optional[pd.Series] = None,
     ) -> pd.Series:
-        """Mean-variance optimization with a smooth turnover penalty and
-        sector constraints.
+        """Target weights for the selected names.
 
-        Minimizes, over the selected names,
+        With ``portfolio.allocation: proportional`` (the default, and what
+        the live books run) the weights are proportional to the shifted
+        scores, projected into the position bounds and sector caps, with no
+        solver call: exactly the allocation the live books have always
+        ended up with.  Vol scaling, the total turnover cap and the hard
+        exposure limits are applied by the callers afterwards, identically
+        for either allocation.
+
+        With ``portfolio.allocation: mvo`` this is a mean-variance
+        optimization with a smooth turnover penalty and sector constraints.
+        It minimizes, over the selected names,
 
             f(w) = -alpha'w + lambda * w'Sigma*w
                    + gamma * sum_i ( sqrt((w_i - p_i)^2 + eps^2) - eps )
@@ -319,11 +349,29 @@ class PortfolioOptimizer:
         if target_gross <= 0:
             return pd.Series(dtype=float)
 
+        if self.allocation == "proportional":
+            if not self._allocation_logged:
+                logger.info(
+                    "Allocation is score-proportional by design "
+                    "(portfolio.allocation=proportional): weights follow the "
+                    "scores within the position and sector limits, then vol "
+                    "scaling and the turnover cap apply; the mean-variance "
+                    "solver is available with portfolio.allocation: mvo"
+                )
+                self._allocation_logged = True
+            self.last_solve_status = SolveStatus(
+                method="proportional", success=True, fallback=False, status=0,
+                message="score-proportional allocation by design",
+                iterations=0, n_assets=n, objective=float("nan"),
+            )
+            weights = self._score_proportional(selected, scores, sector_map)
+            return self._finalize_weights(weights, sector_map)
+
         alpha = self._scaled_alpha(selected, scores)
         cov_reg = self._annualized_covariance(selected, cov_matrix)
         if cov_reg is None:
             self.last_solve_status = SolveStatus(
-                success=False, fallback=True, status=-1,
+                method="mvo", success=False, fallback=True, status=-1,
                 message="covariance matrix is not positive-definite",
                 iterations=0, n_assets=n, objective=float("nan"),
             )
@@ -364,7 +412,8 @@ class PortfolioOptimizer:
             )
         except Exception as exc:  # any solver failure falls back
             self.last_solve_status = SolveStatus(
-                success=False, fallback=True, status=-1, message=str(exc),
+                method="mvo", success=False, fallback=True, status=-1,
+                message=str(exc),
                 iterations=0, n_assets=n, objective=float("nan"),
             )
             logger.warning("Optimization failed (%s), using score-proportional weights", exc)
@@ -376,7 +425,7 @@ class PortfolioOptimizer:
         if solved:
             weights = pd.Series(np.asarray(result.x, dtype=float), index=selected)
             self.last_solve_status = SolveStatus(
-                success=True, fallback=False, status=int(result.status),
+                method="mvo", success=True, fallback=False, status=int(result.status),
                 message=str(result.message), iterations=iterations,
                 n_assets=n, objective=float(result.fun),
             )
@@ -388,7 +437,7 @@ class PortfolioOptimizer:
             )
         else:
             self.last_solve_status = SolveStatus(
-                success=False, fallback=True, status=int(result.status),
+                method="mvo", success=False, fallback=True, status=int(result.status),
                 message=str(result.message), iterations=iterations,
                 n_assets=n, objective=float("nan"),
             )

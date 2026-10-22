@@ -128,6 +128,15 @@ def validate_config(config: dict) -> dict:
     _number(portfolio, "alpha_scale", minimum=0)
     if _number(portfolio, "risk_aversion", minimum=0) <= 0:
         raise ValueError("portfolio.risk_aversion must be positive")
+    # Optional: how target weights are built from the scores.  "proportional"
+    # (the default) is what the live books run; "mvo" is the research-only
+    # mean-variance path.
+    allocation = portfolio.get("allocation", "proportional")
+    if (
+        not isinstance(allocation, str)
+        or allocation.strip().lower() not in {"proportional", "mvo"}
+    ):
+        raise ValueError("portfolio.allocation must be 'proportional' or 'mvo'")
     # Optional: width of the optimizer's smooth turnover penalty.  Zero would
     # bring back the non-differentiable L1 term that stopped SLSQP converging.
     if "turnover_penalty_epsilon" in portfolio:
