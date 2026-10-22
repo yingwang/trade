@@ -20,7 +20,7 @@ contributions add exactly to geometric active return.
 
 ## How we decide / 我们怎么做决策
 
-**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (paper orders, not a Candidate); Trend = **Sandbox** (params frozen).
+**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (paper orders, not a Candidate); Trend = **Sandbox** (params frozen); Earnings Book = **Candidate** (fourth account, from 2026-10-22).
 
 Weekly decisions use paper-window alpha + attribution, execution health, model diagnostics, and written keep/cut/hold — **not** vanity long-window Sharpe. Full contract: [`docs/HOW_WE_DECIDE.md`](docs/HOW_WE_DECIDE.md). Stop gates: [`docs/STOP_CONDITIONS.md`](docs/STOP_CONDITIONS.md). Weekly cards: [`docs/weekly/`](docs/weekly/).
 
@@ -124,6 +124,26 @@ Recomputed 2026-10-22 by the `README Backtest Refresh` workflow (Actions run [39
 | **Sortino Ratio**       | **1.47** | — | — |
 | **Max Drawdown / 最大回撤** | -23.5% | — | — |
 | **Information Ratio**   | **0.83** | — | — |
+
+### Earnings Book / 财报账本 — **Candidate / 候选线** (fourth paper account)
+
+A fourth book on its own Alpaca paper account, built in October 2026 after an audit of where the other three books' backtest returns actually come from (`research/`, run on Actions through the `Research` workflow). Measured by 21-day rank IC over 2008 to 2026, the five price factors of the multi-factor book have no ranking power on the hand-picked 100-name universe (composite IC about zero), and that universe's own equal-weighted return, 17.1% a year over the five years to 2026-10-22 against SPY's 12.8%, together with the books' leverage, explains their backtests: SPMO, the S&P 500 momentum ETF, at 1.5x was +190% over the same five years, and the static 100 names equal-weighted at 1.5x were +162%. The SEC's free XBRL fundamentals (`quant/data/edgar.py`, point-in-time by filing date) did not help either: value, profitability, accruals and issuance all measured as weak or unstable.
+
+The one set of signals with a positive IC in every sub-period since 2010 was built from announcements on the point-in-time S&P 500: the consensus earnings surprise, year-on-year EPS growth, the distance to the next announcement, and 12-6 month momentum (`quant/earnings_strategy.py`, `config_earnings.yaml`, `paper_trade_earnings.py`; the universe is the S&P 500's membership history from the public fja05680/sp500 table and the announcements come from Yahoo's earnings calendar through yfinance). The book holds the top 25 names by the composite in equal weights, rebalanced every five sessions, with no stops, no regime lights and no leverage: every one of the trend book's risk devices cost return on this ranking in the variants run on 2026-10-22, and so did inverse-volatility sizing and volatility targeting.
+
+第四个账户于 2026 年 10 月建立，起因是一次审计：三本账的回测超额到底从哪里来。用 2008 到 2026 年的 21 日秩相关 IC 衡量，多因子那五个价格因子在那 100 只精选大盘股上没有选股能力（合成 IC 约为零）；超额来自池子本身（这 100 只等权五年年化 17.1%，SPY 12.8%）加杠杆：同期标普动量 ETF（SPMO）1.5 倍杠杆 +190%，这 100 只等权 1.5 倍 +162%。SEC 免费的 XBRL 时点基本面（`quant/data/edgar.py`，按申报日期）也没有带来稳定的因子：价值、盈利质量、应计、增发都很弱或不稳定。
+
+唯一在 2010 年以来每个子时期都为正的信号，来自标普 500 时点池上的财报公告：一致预期的盈利意外、EPS 同比增速、离下次财报的天数，再加 12 到 6 个月的中期动量。账本按合成分数取前 25 只等权，每五个交易日调仓，不设止损、不看灯号、不加杠杆：趋势本的每一样风控装置在这套排序上都减收益，波动率倒数配权与波动率目标也一样。
+
+Backtest on 2026-10-22 (Actions run [39752593599](https://github.com/yingwang/trade/actions/runs/39752593599), `research/earnings_book.py`, 2010-01-01 to 2026-10-22, the engine's next-open fills and impact model, no leverage): CAGR 16.1% against SPY's 14.7%, Sharpe 0.61, max drawdown -35.8%; 2016 to 2020 trailed SPY in every year but one (2018 -14.0% against -4.6%). The windows below are slices of that run. Delisted members have no price history, so the universe still favours survivors; the comparison that counts is the paper record.
+
+| Window / 窗口 | Strategy / 策略 | SPY | Difference / 差异 | CAGR | Sharpe | Max DD |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| 5-Year (2021-10-22 → 2026-10-22) | +168.6% | +82.4% | +86.2pp | +22.0% | 0.79 | -20.6% |
+| 3-Year (2023-10-22 → 2026-10-22) | +168.9% | +90.7% | +78.2pp | +39.4% | 1.42 | -20.6% |
+| 1-Year (2025-10-22 → 2026-10-22) | +42.7% | +17.0% | +25.7pp | +43.1% | 1.36 | -14.2% |
+
+With a fixed 1.3x gross the 2010-2026 CAGR rises to 17.2% with a 47% drawdown, with 1.5x to 18.4% and 53%; the book runs unlevered until its paper record says otherwise. Tables for this book come from `README Backtest Refresh` with the earnings option.
 
 ### LightGBM Strategy / LightGBM 策略 — **Research / 研究线** (paper orders)
 
@@ -283,16 +303,25 @@ trade/
 ├── run.py                      # CLI：回测与信号（含 backtest-lgbm / backtest-trend）
 ├── paper_trade.py              # Alpaca 自动交易入口（多因子账户）
 ├── paper_trade_lgbm.py         # Alpaca 自动交易入口（LightGBM 账户）
-├── paper_trade_common.py       # 两个交易入口的共享实现
+├── paper_trade_trend.py        # Alpaca 自动交易入口（趋势账户）
+├── paper_trade_earnings.py     # Alpaca 自动交易入口（财报账户，标普 500 时点池）
+├── paper_trade_common.py       # 各交易入口的共享实现
+├── config_trend.yaml           # 趋势本配置（冻参）
+├── config_earnings.yaml        # 财报本配置
 ├── generate_site.py            # 看板数据生成（多因子；仅在 Actions 上跑）
 ├── generate_site_lgbm.py       # 看板数据生成（LightGBM；仅在 Actions 上跑）
 ├── site_common.py              # 看板脚本共享逻辑（拆股修正、交易历史）
 ├── refresh_backtest_tables.py  # README 表格重算（经 readme-backtest workflow）
+├── research/                   # 研究脚本（因子 IC、财报信号、基准、新账本变体），只在 Actions 的 Research workflow 上跑
 ├── quant/
 │   ├── strategy.py             # 多因子策略调度器
+│   ├── trend_strategy.py       # 趋势本
+│   ├── earnings_strategy.py    # 财报本（继承趋势本的机器，自己的信号与池子）
 │   ├── attribution.py          # 实际账户 alpha 归因 + Carino 对账
 │   ├── data/
 │   │   ├── market_data.py      # Yahoo Finance 数据获取
+│   │   ├── earnings.py         # 标普 500 历史成分表、Yahoo 财报日历、时点面板
+│   │   ├── edgar.py            # SEC EDGAR XBRL 时点基本面（研究用，需 EDGAR_USER_AGENT）
 │   │   └── quality.py          # 数据质量检查 + paper/模拟盘质量闸门 + 时点数据管理
 │   ├── signals/
 │   │   ├── factors.py          # Alpha 因子计算

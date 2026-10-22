@@ -21,6 +21,8 @@ venv/
 # gh-pages; snapshots must not live on main (they only go stale and mislead)
 site/data/
 site/lgbm/data/
+site/trend/data/
+site/earnings/data/
 
 # Logs and trading state (contains personal trading data).
 # State files and per-book trade event logs ARE tracked: the rebalance

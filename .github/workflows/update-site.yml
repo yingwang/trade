@@ -54,6 +54,18 @@
             ALPACA_TREND_SECRET_KEY: ${{ secrets.ALPACA_TREND_SECRET_KEY }}
             ALPACA_CLAUDE_API_KEY: ${{ secrets.ALPACA_CLAUDE_API_KEY }}
             ALPACA_CLAUDE_SECRET_KEY: ${{ secrets.ALPACA_CLAUDE_SECRET_KEY }}
+        # The fourth book. Without its account keys the step stands down and
+        # the page keeps its previous data.
+        - run: |
+            if [ -z "$ALPACA_EARNINGS_API_KEY" ]; then
+              echo "::warning::ALPACA_EARNINGS_API_KEY not set; earnings dashboard not generated"
+            else
+              python generate_site_earnings.py
+            fi
+          env:
+            PYTHONPATH: .
+            ALPACA_EARNINGS_API_KEY: ${{ secrets.ALPACA_EARNINGS_API_KEY }}
+            ALPACA_EARNINGS_SECRET_KEY: ${{ secrets.ALPACA_EARNINGS_SECRET_KEY }}
         - uses: peaceiris/actions-gh-pages@329bcc8f12caed2cefe5a5b80781499a6f3b361b # v4
           with:
             github_token: ${{ secrets.GITHUB_TOKEN }}
