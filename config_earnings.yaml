@@ -554,6 +554,7 @@ earnings:
   sue_lookback: 8
   min_parts: 2                  # a name needs at least two of the four parts
   sizing: inverse_vol           # inverse_vol (the trend book's) or equal
+  require_uptrend: false        # true: only names above their 200-day average are ranked
   earnings_limit: 100           # announcements per name requested from Yahoo
   positions: 25
   rank_buffer: 40               # a holding stays while still inside the top 40

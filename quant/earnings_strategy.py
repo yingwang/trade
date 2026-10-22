@@ -77,6 +77,9 @@ class EarningsStrategy(TrendStrategy):
         # equal: every chosen name gets 1/n (the research simulation's book);
         # inverse_vol: the trend book's sizing.
         self.sizing = str(e.get("sizing", "inverse_vol"))
+        # The trend book's absolute gate, optional here: only names closing
+        # above their long average can be ranked.
+        self.require_uptrend = bool(e.get("require_uptrend", False))
         self.earnings_limit = int(e.get("earnings_limit", 100))
         self.universe_file = e.get("universe_file", DEFAULT_UNIVERSE_FILE)
         self.universe_lead_days = int(e.get("universe_lead_days", 400))
@@ -124,6 +127,8 @@ class EarningsStrategy(TrendStrategy):
         """The raw signal parts for every member with a price at ``date``."""
         px = pre["px"].loc[date]
         eligible = pre["mask"].loc[date] & px.notna()
+        if self.require_uptrend:
+            eligible &= px > pre["sma_long"].loc[date]
         names = eligible.index[eligible]
         ann = self._announcements(pre)
         parts = {}
