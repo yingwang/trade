@@ -35,3 +35,7 @@ logs/
 # Legacy shared event log (pre book-split); keep readable if present.
 !logs/trade_events.jsonl
 *.log
+
+# Raw EDGAR responses and universe tables are fetched on demand; never commit them.
+data/edgar_cache/
+data/universe/
