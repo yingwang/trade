@@ -175,6 +175,86 @@ def seasonality_factor(returns: pd.DataFrame, years: int = 5) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------------
+# Universes
+# ----------------------------------------------------------------------
+
+SP500_HISTORY_URL = (
+    "https://raw.githubusercontent.com/fja05680/sp500/master/"
+    "S%26P%20500%20Historical%20Components%20%26%20Changes%20(Updated).csv"
+)
+
+
+def load_sp500_membership(path: str = "data/universe/sp500_history.csv") -> pd.DataFrame:
+    """Point-in-time S&P 500 membership from the free fja05680/sp500 table.
+
+    One row per date the list changed, ``date,tickers`` with the tickers as a
+    comma-separated string.  Returns a boolean frame (snapshot dates x
+    tickers) with yfinance spelling (BRK.B -> BRK-B).
+    """
+    import csv
+    import os
+    import urllib.request
+
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        req = urllib.request.Request(SP500_HISTORY_URL, headers={"User-Agent": "yingwang-trade research"})
+        with urllib.request.urlopen(req, timeout=120) as resp, open(path, "wb") as out:
+            out.write(resp.read())
+    snapshots = {}
+    with open(path, newline="") as fh:
+        reader = csv.reader(fh)
+        header = next(reader)
+        assert header[:2] == ["date", "tickers"], header
+        for row in reader:
+            date = pd.Timestamp(row[0])
+            tickers = {t.strip().upper().replace(".", "-") for t in row[1].split(",") if t.strip()}
+            snapshots[date] = tickers
+    all_tickers = sorted(set().union(*snapshots.values()))
+    frame = pd.DataFrame(False, index=sorted(snapshots), columns=all_tickers)
+    for date, tickers in snapshots.items():
+        frame.loc[date, list(tickers)] = True
+    return frame
+
+
+def membership_mask(snapshots: pd.DataFrame, dates: pd.DatetimeIndex, columns) -> pd.DataFrame:
+    """Membership on every trading day: the latest snapshot on or before it."""
+    aligned = snapshots.reindex(columns=columns, fill_value=False)
+    return aligned.reindex(dates, method="ffill").fillna(False).astype(bool)
+
+
+def fetch_universe(config: dict, universe: str, start: str, end: str | None):
+    """Closes, opens, volumes, benchmark series and a membership mask."""
+    data = MarketData(config)
+    bench = config["universe"]["benchmark"]
+    if universe == "static":
+        closes = data.fetch_prices(start=start, end=end)
+        opens, volumes = data.last_open_prices_, data.last_volumes_
+        symbols = [c for c in closes.columns if c != bench]
+        mask = pd.DataFrame(True, index=closes.index, columns=symbols)
+        return closes, opens, volumes, bench, symbols, mask, static_sector_map(config)
+
+    snapshots = load_sp500_membership()
+    since = snapshots.loc[pd.Timestamp(start) - pd.Timedelta(days=400):]
+    members = sorted(c for c in since.columns if since[c].any())
+    data.symbols = members
+    closes = data.fetch_prices(start=start, end=end)
+    opens, volumes = data.last_open_prices_, data.last_volumes_
+    enough = closes.notna().sum() >= 252
+    symbols = [c for c in closes.columns if c != bench and enough.get(c, False)]
+    closes = closes[symbols + [bench]]
+    opens = opens[symbols]
+    volumes = volumes[symbols]
+    mask = membership_mask(snapshots, closes.index, symbols)
+    listed = closes[symbols].notna()
+    full = membership_mask(snapshots, closes.index, list(snapshots.columns))
+    print(f"S&P 500 point-in-time universe: {len(members)} tickers were members since {start}, "
+          f"{len(symbols)} have a yfinance history; members with data on a given day: "
+          + ", ".join(f"{y}: {int((mask & listed).loc[str(y)].sum(axis=1).mean()):.0f}/{int(full.loc[str(y)].sum(axis=1).mean()):.0f}"
+                      for y in (2008, 2012, 2016, 2020, 2024) if str(y) in closes.index.year.astype(str)))
+    return closes, opens, volumes, bench, symbols, mask & listed, None
+
+
+# ----------------------------------------------------------------------
 # Evaluation
 # ----------------------------------------------------------------------
 
@@ -203,20 +283,22 @@ def top_minus_universe(factor: pd.DataFrame, fwd: pd.DataFrame, top_n: int) -> p
     return top - fwd.mean(axis=1)
 
 
-def summarize(factor: pd.DataFrame, fwd: pd.DataFrame, dates: pd.DatetimeIndex) -> dict:
+def summarize(factor: pd.DataFrame, fwd: pd.DataFrame, dates: pd.DatetimeIndex, top_ns=(TOP_N,)) -> dict:
     ic = daily_ic(factor, fwd).dropna()
     sub = ic.reindex(dates).dropna()
-    tmu = top_minus_universe(factor, fwd, TOP_N).reindex(dates).dropna()
-    turnover = factor.rank(axis=1).diff(HORIZON).abs().mean(axis=1).mean() / max(1, factor.shape[1])
+    width = factor.notna().sum(axis=1).replace(0, np.nan)
+    turnover = (factor.rank(axis=1).diff(HORIZON).abs().mean(axis=1) / width).mean()
     out = {
         "ic": ic.mean(),
         "icir": ic.mean() / ic.std() if ic.std() > 0 else np.nan,
         "t": sub.mean() / sub.std() * np.sqrt(len(sub)) if len(sub) > 5 and sub.std() > 0 else np.nan,
         "hit": (ic > 0).mean(),
-        "top12_ann": tmu.mean() * 252 / HORIZON,
         "n": len(sub),
         "rank_turnover": turnover,
     }
+    for top_n in top_ns:
+        tmu = top_minus_universe(factor, fwd, top_n).reindex(dates).dropna()
+        out[f"top{top_n}_ann"] = tmu.mean() * 252 / HORIZON
     for label, (a, b) in PERIODS.items():
         part = ic.loc[a:b]
         out[f"ic_{label}"] = part.mean() if len(part) > 50 else np.nan
@@ -234,36 +316,37 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2008-01-01")
     ap.add_argument("--end", default=None)
+    ap.add_argument("--universe", choices=["static", "sp500"], default="static",
+                    help="static: config.yaml's 100 names; sp500: point-in-time S&P 500 membership")
+    ap.add_argument("--top", default="12,25", help="top-N sizes for the long-only excess columns")
     args = ap.parse_args()
+    top_ns = tuple(int(x) for x in args.top.split(","))
 
     t0 = time.time()
     config = load_config("config.yaml")
-    data = MarketData(config)
-    closes = data.fetch_prices(start=args.start, end=args.end)
-    opens = data.last_open_prices_
-    volumes = data.last_volumes_
-    bench = config["universe"]["benchmark"]
-    symbols = [c for c in closes.columns if c != bench]
+    closes, opens, volumes, bench, symbols, mask, sector_map = fetch_universe(config, args.universe, args.start, args.end)
     px = closes[symbols]
     op = opens[symbols]
     vol = volumes[symbols].astype(float)
     returns = px.pct_change(fill_method=None)
     market = closes[bench].pct_change(fill_method=None)
-    sector_map = static_sector_map(config)
-    print(f"prices {px.shape} {px.index[0].date()} -> {px.index[-1].date()} fetched in {time.time()-t0:.0f}s")
+    print(f"prices {px.shape} {px.index[0].date()} -> {px.index[-1].date()} fetched in {time.time()-t0:.0f}s; "
+          f"members per day (mean) {mask.sum(axis=1).mean():.0f}")
 
-    fwd = forward_returns(op, px, HORIZON)
+    # Everything is judged among that day's members only: scores and forward
+    # returns of non-members are blanked before ranking.
+    fwd = forward_returns(op, px, HORIZON).where(mask)
 
     # Context: how the universe itself did against the benchmark, equal-weighted
-    # and rebalanced every session, so a factor's top-12 excess can be read
+    # and rebalanced every session, so a factor's top-N excess can be read
     # against the pool it picks from.
-    ew = returns.mean(axis=1)
+    ew = returns.where(mask).mean(axis=1)
     print("\nEqual-weighted universe vs benchmark, annualized (daily rebalanced, no costs):")
     for label, (a, b) in {**PERIODS, "5y": ("2021-10-22", "2026-10-22"), "3y": ("2023-10-22", "2026-10-22"), "1y": ("2025-10-22", "2026-10-22")}.items():
         e = ew.loc[a:b]; m = market.loc[a:b]
         if len(e) > 50:
             print(f"  {label}: universe EW {((1+e).prod()**(252/len(e))-1)*100:+.1f}%/yr   {bench} {((1+m).prod()**(252/len(m))-1)*100:+.1f}%/yr   "
-                  f"names {int(returns.loc[a:b].notna().any().sum())}")
+                  f"names {int(mask.loc[a:b].any().sum())}")
     # Non-overlapping evaluation dates every 21 sessions.
     eval_dates = px.index[::HORIZON]
 
@@ -290,7 +373,7 @@ def main():
         "sharpe_mom_12_1": sharpe_momentum_factor(returns, 252, 21),
         "mom_consistency(frog)": momentum_consistency_factor(returns, 252, 21),
         "acceleration": acceleration_factor(px),
-        "sector_mom_6_1": sector_momentum_factor(px, sector_map),
+        **({"sector_mom_6_1": sector_momentum_factor(px, sector_map)} if sector_map is not None else {}),
         # --- risk-style ---
         "idio_vol(63) low": idiosyncratic_vol_factor(resid, 63),
         "max_ret(21) low": max_return_factor(returns, 21),
@@ -309,31 +392,46 @@ def main():
         "seasonality(5y)": seasonality_factor(returns, 5),
     }
 
-    # The live composite, as SignalGenerator builds it, raw and neutralized.
+    # The live composite, as SignalGenerator builds it (members only), raw and neutralized.
     gen = SignalGenerator(config)
-    composite_neutral = gen.generate(closes, closes.pct_change(fill_method=None).dropna(how="all"), pd.DataFrame(), sector_map=sector_map)
-    composite_raw = gen.generate(closes, closes.pct_change(fill_method=None).dropna(how="all"), pd.DataFrame(), sector_map=None)
+    full_mask = mask.reindex(columns=closes.columns, fill_value=False)
+    composite_raw = gen.generate(closes, closes.pct_change(fill_method=None).dropna(how="all"), pd.DataFrame(),
+                                 eligibility_mask=full_mask, sector_map=None)
+    composite_neutral = (
+        gen.generate(closes, closes.pct_change(fill_method=None).dropna(how="all"), pd.DataFrame(),
+                     eligibility_mask=full_mask, sector_map=sector_map)
+        if sector_map is not None else None
+    )
+    reference = (composite_neutral if composite_neutral is not None else composite_raw).reindex(index=px.index, columns=symbols)
 
     rows = []
     for name, f in factors.items():
-        f = f.reindex(index=px.index, columns=symbols)
-        raw = summarize(f, fwd, eval_dates)
-        neu = summarize(neutralize_by_sector(f, sector_map), fwd, eval_dates)
-        corr = f.corrwith(composite_neutral.reindex(index=px.index, columns=symbols), axis=1).mean()
-        rows.append({"factor": name, "corr_live": corr, **{f"raw_{k}": v for k, v in raw.items()}, **{f"neu_{k}": v for k, v in neu.items()}})
-    for name, comp in (("LIVE composite (neutral)", composite_neutral), ("LIVE composite (raw)", composite_raw)):
-        c = comp.reindex(index=px.index, columns=symbols)
-        s = summarize(c, fwd, eval_dates)
-        rows.append({"factor": name, "corr_live": np.nan, **{f"raw_{k}": v for k, v in s.items()}, **{f"neu_{k}": np.nan for k in s}})
+        f = f.reindex(index=px.index, columns=symbols).where(mask)
+        raw = summarize(f, fwd, eval_dates, top_ns)
+        row = {"factor": name, "corr_live": f.corrwith(reference, axis=1).mean(), **{f"raw_{k}": v for k, v in raw.items()}}
+        if sector_map is not None:
+            neu = summarize(neutralize_by_sector(f, sector_map), fwd, eval_dates, top_ns)
+            row.update({f"neu_{k}": v for k, v in neu.items()})
+        rows.append(row)
+    composites = [("LIVE composite (raw)", composite_raw)]
+    if composite_neutral is not None:
+        composites.insert(0, ("LIVE composite (neutral)", composite_neutral))
+    for name, comp in composites:
+        c = comp.reindex(index=px.index, columns=symbols).where(mask)
+        s = summarize(c, fwd, eval_dates, top_ns)
+        rows.append({"factor": name, "corr_live": np.nan, **{f"raw_{k}": v for k, v in s.items()}})
 
     table = pd.DataFrame(rows).set_index("factor")
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
-    cols = ["raw_ic", "raw_t", "raw_hit", "raw_top12_ann", "raw_ic_10-15", "raw_ic_16-20", "raw_ic_21-26",
-            "neu_ic", "neu_t", "neu_top12_ann", "neu_ic_21-26", "raw_rank_turnover", "corr_live"]
-    print(f"\n21-day forward IC, next-open execution, {len(eval_dates)} non-overlapping evaluation dates; "
-          f"top12_ann = annualized return of the factor's top {TOP_N} over the universe mean; "
-          f"neu_* = after within-sector z-scoring by the static table\n")
+    top_cols = [f"raw_top{n}_ann" for n in top_ns]
+    cols = ["raw_ic", "raw_t", "raw_hit", *top_cols, "raw_ic_10-15", "raw_ic_16-20", "raw_ic_21-26"]
+    if sector_map is not None:
+        cols += ["neu_ic", "neu_t", f"neu_top{top_ns[0]}_ann", "neu_ic_21-26"]
+    cols += ["raw_rank_turnover", "corr_live"]
+    print(f"\n21-day forward IC, next-open execution, {len(eval_dates)} non-overlapping evaluation dates, "
+          f"universe={args.universe}; topN_ann = annualized return of the factor's top N over the universe mean"
+          + ("; neu_* = after within-sector z-scoring by the static table" if sector_map is not None else "") + "\n")
     print(table[cols].round(3).sort_values("raw_t", ascending=False).to_string())
 
     # Correlations between the stronger candidates, to see what is really new.
@@ -341,12 +439,12 @@ def main():
     strong = [s for s in strong if s in factors]
     if len(strong) > 1:
         last = px.index[-1]
-        frames = {s: factors[s].reindex(index=px.index, columns=symbols) for s in strong}
+        frames = {s: factors[s].reindex(index=px.index, columns=symbols).where(mask) for s in strong}
         stack = pd.concat({s: frames[s].loc["2016":].stack() for s in strong}, axis=1)
         print("\nCross-sectional correlation of the stronger factors (2016 on, pooled):\n")
         print(stack.corr().round(2).to_string())
 
-    table.to_csv("research/out/factor_lab.csv")
+    table.to_csv(f"research/out/factor_lab_{args.universe}.csv")
     print(f"\ndone in {time.time()-t0:.0f}s")
     return 0
 
