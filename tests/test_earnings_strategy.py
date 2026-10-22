@@ -175,3 +175,44 @@ def test_backtest_runs_offline_on_the_point_in_time_universe(strategy):
     # JJJJ left the index at the end of 2020: it is never bought afterwards.
     after = [row for row in result.positions_history if row["date"] > pd.Timestamp("2021-02-01")]
     assert all(row["holdings"].get("JJJJ", 0) == 0 for row in after)
+
+
+def test_runner_skips_the_fixed_stop_when_it_is_off():
+    """risk.stop_loss_pct 0 must mean no stop, not a stop on every losing position."""
+    import paper_trade_common as common
+
+    class Optimizer:
+        stop_loss_pct = 0.0
+
+    class Broker:
+        def get_positions(self):
+            raise AssertionError("the broker must not be consulted when the stop is off")
+
+    state = {"entry_prices": {"AAAA": 100.0}}
+    assert common.check_stop_losses(Broker(), Optimizer(), state) == []
+
+
+def test_earnings_config_and_profile_load():
+    from quant.utils.config import load_config
+    import paper_trade_earnings
+
+    config = load_config("config_earnings.yaml")
+    assert config["risk"]["stop_loss_pct"] == 0.0
+    strategy = EarningsStrategy(config)
+    assert strategy.trailing_stop == 0.0 and strategy.fixed_gross == 1.0 and strategy.sizing == "equal"
+    assert strategy.regime_cap({"benchmark_below_sma": True, "benchmark_vol_high": True}) == strategy.max_leverage
+    assert paper_trade_earnings.PROFILE.config_file == "config_earnings.yaml"
+    assert paper_trade_earnings.PROFILE.rebalance_trigger is None
+
+
+def test_fixed_gross_and_no_trailing_stop(strategy):
+    strategy.fixed_gross = 1.0
+    strategy.trailing_stop = 0.0
+    strategy.regime_caps = {0: None, 1: None, 2: None}
+    prices = _prices()
+    pre = strategy.precompute(prices)
+    target = strategy.scheduled_target(pre, prices.index[-1], None)
+    assert abs(target.sum() - 1.0) < 1e-9
+    held = pd.Series(0.3, index=["AAAA", "BBBB"])
+    assert strategy.trailing_exits(pre, prices.index[-1], held, {"AAAA": prices.index[0]}) == []
+    assert strategy.maintenance_target(pre, prices.index[-1], held) is None

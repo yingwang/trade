@@ -8,10 +8,16 @@ explains the backtests.  On the point-in-time S&P 500 the one set of signals
 whose 21-day IC was positive in every sub-period since 2010 was built from
 announcements: the consensus earnings surprise, year-on-year EPS growth, the
 distance to the next announcement, and intermediate (12-6 month) momentum.
-This book trades exactly that composite, with the trend book's machinery
-around it: inverse-volatility sizing, a volatility target with a leverage
-ceiling, the three regime lights, a trailing stop with a re-entry cooldown,
-and a scheduled rebalance every ten sessions.
+This book trades exactly that composite.  The trend book's machinery
+(inverse-volatility sizing, volatility targeting, regime lights, trailing
+stop and cooldown) is available through the same parameters, but the
+variants run on 2026-10-22 (research/earnings_book.py, runs 39745666138 to
+39750748713) showed every one of those pieces costing return on this
+ranking: equal weights, no stops, no lights and a fixed gross exposure,
+rebalanced every five sessions, was the configuration that kept the
+research simulation's result (2010-2026 CAGR 16.1% against SPY's 14.7%,
+five years to 2026-10-22 22.0% against 12.8%, unlevered), so that is what
+config_earnings.yaml runs.
 
 Universe.  The membership history of the S&P 500 (quant/data/earnings.py), so
 a backtest ranks each day's members and not today's list.  Delisted names
@@ -80,6 +86,10 @@ class EarningsStrategy(TrendStrategy):
         # The trend book's absolute gate, optional here: only names closing
         # above their long average can be ranked.
         self.require_uptrend = bool(e.get("require_uptrend", False))
+        # A fixed gross exposure instead of the volatility target: the book
+        # holds this times its equity (capped by the regime and leverage caps).
+        fixed = e.get("fixed_gross")
+        self.fixed_gross = None if fixed in (None, "", False) else float(fixed)
         self.earnings_limit = int(e.get("earnings_limit", 100))
         self.universe_file = e.get("universe_file", DEFAULT_UNIVERSE_FILE)
         self.universe_lead_days = int(e.get("universe_lead_days", 400))
@@ -188,6 +198,20 @@ class EarningsStrategy(TrendStrategy):
         result.metrics["Point-in-Time Universe"] = True
         result.metrics["Survivorship Bias Warning"] = True
         return result
+
+    def gross_target(self, returns: pd.DataFrame, weights: pd.Series, cap: float) -> float:
+        if self.fixed_gross is None:
+            return super().gross_target(returns, weights, cap)
+        if weights.empty or cap <= 0:
+            return 0.0
+        return float(min(self.fixed_gross, cap))
+
+    def trailing_exits(self, pre: dict, date, held, entry_dates: Optional[dict] = None) -> list[str]:
+        # trailing_stop 0 turns the trailing stop off (the research book runs
+        # without one); the trend book's rule would read 0 as "sell everything".
+        if self.trailing_stop <= 0:
+            return []
+        return super().trailing_exits(pre, date, held, entry_dates)
 
     def inverse_vol_weights(self, returns: pd.DataFrame, symbols: list[str]) -> pd.Series:
         if self.sizing != "equal":

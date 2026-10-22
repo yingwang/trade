@@ -553,32 +553,36 @@ earnings:
   momentum_skip: 126
   sue_lookback: 8
   min_parts: 2                  # a name needs at least two of the four parts
-  sizing: inverse_vol           # inverse_vol (the trend book's) or equal
+  sizing: equal                 # equal (the research book) or inverse_vol (the trend book's)
+  fixed_gross: 1.0              # hold this times equity (capped by the regime and leverage caps); null = volatility target
   require_uptrend: false        # true: only names above their 200-day average are ranked
   earnings_limit: 100           # announcements per name requested from Yahoo
   positions: 25
   rank_buffer: 40               # a holding stays while still inside the top 40
+  # Stops and regime lights are off: on this ranking each of them cost return
+  # in the 2026-10-22 variants (see quant/earnings_strategy.py). The engine
+  # and the live runner read 0 as "no fixed stop".
   vol_window: 60
   sma_long: 200
   sma_short: 50
-  trailing_stop: 0.20           # exit when 20% below the peak close since entry
+  trailing_stop: 0.0            # 0 = no trailing stop
   trailing_window: 60
   reentry_cooldown_sessions: 5
   benchmark_vol_window: 21
   benchmark_vol_high: 0.30
   breadth_min: 0.30
-  regime_caps:                  # gross exposure by number of lights on
-    0: null                     # no light: leverage.max_leverage
-    1: 0.6
-    2: 0.0
+  regime_caps:                  # gross exposure by number of lights on; null = no cap
+    0: null
+    1: null
+    2: null
   deleverage_tolerance: 0.10
 
 portfolio:
   max_positions: 25
-  max_position_weight: 0.08     # of the unlevered sleeve
+  max_position_weight: 0.08     # of the unlevered sleeve (25 equal weights of 4%)
   min_position_weight: 0.01
-  target_volatility: 0.25       # annualized, before the regime cap
-  rebalance_frequency_days: 10  # every ten sessions on the shared anchored calendar
+  target_volatility: 0.25       # only used when earnings.fixed_gross is null
+  rebalance_frequency_days: 5   # every five sessions on the shared anchored calendar
   transaction_cost_bps: 10
   max_turnover_per_rebalance: 1.0
   exit_turnover_share: 1.0
@@ -589,17 +593,17 @@ portfolio:
 risk:
   max_drawdown_limit: 0.30
   max_sector_weight: 1.0
-  stop_loss_pct: 0.20           # fixed stop from entry, enforced by engine and runner
+  stop_loss_pct: 0.0            # no fixed stop (engine and runner treat 0 as off)
 
 leverage:
-  max_leverage: 1.5
+  max_leverage: 1.0             # 1.3x gave 2010-2026 CAGR 17.2% with a 47% drawdown, 1.5x 18.4% / 53%
   regime_spy_vol_window: 21
   regime_thresholds:
     low: 0.12
     high: 0.30
   regime_leverage_caps:
-    low_vol: 1.5
-    normal: 1.5
+    low_vol: 1.0
+    normal: 1.0
     high_vol: 0.6
   margin_annual_rate: 0.06
 
@@ -615,7 +619,7 @@ safety:
   max_daily_loss: 25000
   max_adv_fraction: 0.01
   min_price: 1.0
-  max_position_pct_of_portfolio: 0.15   # 25 names at up to 1.5x gross: 0.08 x 1.5 = 0.12
+  max_position_pct_of_portfolio: 0.15   # 25 names at 1.0x gross: 0.08 with room for drift
   require_paper_mode: true
 
 backtest:
