@@ -96,29 +96,30 @@ jobs:
           ALPACA_LGBM_API_KEY: ${{ secrets.ALPACA_LGBM_API_KEY }}
           ALPACA_LGBM_SECRET_KEY: ${{ secrets.ALPACA_LGBM_SECRET_KEY }}
 
-      # A run that could not do its job must fail the job, so GitHub mails
-      # the owner: a green run that quietly did nothing is how 10/05 and
-      # 10/12 passed unnoticed.  paper_trade_common.py prints one marker
-      # line at each stand-down site: FULL_DAY_MARKET_CLOSED when every
-      # attempt of the day found the market closed, STAND_DOWN:<reason> for
-      # a drawdown-gate breach, orders left open by an earlier run, the
+      # A run that could not do its job is marked, not failed: the owner
+      # asked for no failure mail (2026-10-22), so a stand-down shows as a
+      # warning annotation and in the job summary, and the morning check of
+      # the run list is where it gets noticed.  A traceback (stale data, a
+      # held lock) still fails the step above, since that is a broken run,
+      # not a quiet one.  paper_trade_common.py prints one marker line at
+      # each stand-down site: FULL_DAY_MARKET_CLOSED when every attempt of
+      # the day found the market closed, STAND_DOWN:<reason> for a
+      # drawdown-gate breach, orders left open by an earlier run, the
       # daily-loss kill-switch, missing broker quotes or a failed rebalance
-      # trigger.  A traceback (stale data, missing keys, a held lock)
-      # already fails the step above.  A single early or late arrival that
-      # finds the market closed only warns, since the other slots retry, and
-      # a quiet in-session run ("Not time to rebalance yet") stays green.
-      - name: Fail the job if the run stood down
+      # trigger.  A single early or late arrival that finds the market
+      # closed only warns too, since the other slots retry, and a quiet
+      # in-session run ("Not time to rebalance yet") stays silent.
+      - name: Flag a run that stood down
         run: |
           markers="$(grep -oE 'FULL_DAY_MARKET_CLOSED|STAND_DOWN:[A-Za-z0-9_]+' run.log | sort -u || true)"
           if [ -n "$markers" ]; then
-            echo "::error::Run stood down: $(echo "$markers" | tr '\n' ' ')"
+            echo "::warning::Run stood down: $(echo "$markers" | tr '\n' ' ')"
             {
               echo "## Run stood down at $(date -u +%H:%M) UTC"
               echo '```'
               echo "$markers"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
           fi
           if [ "${{ github.event_name }}" = "schedule" ] && grep -q "Market is closed" run.log; then
             echo "::warning::Scheduled run landed outside market hours (scheduler delay); no stop-loss check or rebalance from this attempt, the other slots retry"
@@ -126,9 +127,8 @@ jobs:
           fi
 
       # Commit updated trade logs and state back to repo
-      # always(): a run that traded and then failed, or that stood down and
-      # failed on purpose above, must still land its state and event log on
-      # main; git is the only record of the state.
+      # always(): a run that traded and then failed must still land its
+      # state and event log on main; git is the only record of the state.
       - name: Commit trade logs
         if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'dry-run-force' && github.event.inputs.mode != 'status'
         run: |
