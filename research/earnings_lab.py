@@ -87,10 +87,12 @@ def build_earnings_panels(events: dict[str, pd.DataFrame], dates: pd.DatetimeInd
         if reported.empty:
             continue
         err = reported["actual"] - reported["estimate"]
+        # A run of exact hits makes the error std vanish; the ratio is
+        # clipped so one such name cannot sit at infinity (ranks are unaffected).
         err_std = err.rolling(8, min_periods=6).std().shift(1)
-        sue_c = err / err_std.replace(0, np.nan)
+        sue_c = (err / err_std.replace(0, np.nan)).clip(-10, 10)
         seasonal = reported["actual"] - reported["actual"].shift(4)
-        sue_s = seasonal / seasonal.rolling(8, min_periods=6).std().shift(1).replace(0, np.nan)
+        sue_s = (seasonal / seasonal.rolling(8, min_periods=6).std().shift(1).replace(0, np.nan)).clip(-10, 10)
         growth = seasonal / reported["actual"].shift(4).abs().replace(0, np.nan)
         beats = (err > 0).astype(float).rolling(4, min_periods=4).sum()
         price_at = closes[sym].reindex(reported.index, method="ffill")
