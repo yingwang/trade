@@ -16,6 +16,37 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Floor under the notional of a rebalance order.  Share rounding and small
+# weight drifts otherwise produce orders that are all cost and no risk
+# change: on 2026-10-13 the trend book sent six one-share trims, and a later
+# preview carried a $207 buy.  The floor is the larger of a dollar amount and
+# a fraction of equity, so it scales with the account.  The config keys
+# ``portfolio.min_trade_notional_usd`` and ``portfolio.min_trade_fraction``
+# override these; absent keys mean these defaults.
+DEFAULT_MIN_TRADE_NOTIONAL_USD = 300.0
+DEFAULT_MIN_TRADE_FRACTION = 0.0025
+
+
+def min_trade_notional(
+    portfolio_value: float,
+    min_trade_notional_usd: float = DEFAULT_MIN_TRADE_NOTIONAL_USD,
+    min_trade_fraction: float = DEFAULT_MIN_TRADE_FRACTION,
+) -> float:
+    """The smallest order notional worth sending for a book of this size."""
+    try:
+        floor_usd = float(min_trade_notional_usd)
+        fraction = float(min_trade_fraction)
+        equity = float(portfolio_value)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(floor_usd) or floor_usd < 0:
+        floor_usd = 0.0
+    if not math.isfinite(fraction) or fraction < 0:
+        fraction = 0.0
+    if not math.isfinite(equity) or equity < 0:
+        equity = 0.0
+    return max(floor_usd, fraction * equity)
+
 
 @dataclass
 class Order:
@@ -179,6 +210,8 @@ def generate_rebalance_orders(
     order_type: str = "market",
     limit_offset_bps: float = 0,
     batch: str = "",
+    min_trade_notional_usd: float = DEFAULT_MIN_TRADE_NOTIONAL_USD,
+    min_trade_fraction: float = DEFAULT_MIN_TRADE_FRACTION,
 ) -> list[Order]:
     """Generate the orders needed to move from current to target portfolio.
 
@@ -190,9 +223,17 @@ def generate_rebalance_orders(
     limit_offset_bps : float
         Basis points offset from current price for limit orders. E.g. 10 means
         willing to pay up to 0.1% above current price on buys.
+    min_trade_notional_usd, min_trade_fraction : float
+        An order whose notional is below
+        ``max(min_trade_notional_usd, min_trade_fraction * portfolio_value)``
+        is not generated, unless it closes the whole position: a full exit is
+        always sent, however small.  Zero for both disables the floor.
     """
     orders = []
     all_symbols = set(current_positions.index) | set(target_weights.index)
+    floor = min_trade_notional(
+        portfolio_value, min_trade_notional_usd, min_trade_fraction
+    )
 
     for sym in all_symbols:
         current_shares = current_positions.get(sym, 0)
@@ -211,6 +252,19 @@ def generate_rebalance_orders(
 
         side = "buy" if delta > 0 else "sell"
         qty = abs(delta)
+
+        # A trim or add below the floor is noise from share rounding; it is
+        # dropped here so no book pays to move a few dollars.  Selling the
+        # whole position is never noise and always goes through.
+        notional = qty * price
+        full_exit = side == "sell" and qty >= current_shares
+        if notional < floor and not full_exit:
+            logger.info(
+                "Skipping %s %s %.0f share(s): notional $%.0f is below the "
+                "$%.0f minimum trade size",
+                side.upper(), sym, qty, notional, floor,
+            )
+            continue
 
         limit_price = None
         otype = order_type

@@ -128,6 +128,11 @@ def validate_config(config: dict) -> dict:
     _number(portfolio, "alpha_scale", minimum=0)
     if _number(portfolio, "risk_aversion", minimum=0) <= 0:
         raise ValueError("portfolio.risk_aversion must be positive")
+    # Minimum trade size (optional; defaults live in quant.execution.broker).
+    if "min_trade_notional_usd" in portfolio:
+        _number(portfolio, "min_trade_notional_usd", minimum=0)
+    if "min_trade_fraction" in portfolio:
+        _number(portfolio, "min_trade_fraction", minimum=0, maximum=1)
 
     risk = config["risk"]
     for key in ("max_drawdown_limit", "max_sector_weight", "stop_loss_pct"):
