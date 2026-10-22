@@ -27,6 +27,7 @@ def _trend_config(config):
         "breadth_min": 0.30,
         "regime_caps": {0: None, 1: 0.6, 2: 0.0},
         "deleverage_tolerance": 0.10,
+        "reentry_cooldown_sessions": 5,
     }
     cfg["portfolio"] = dict(config["portfolio"], max_positions=3, max_position_weight=0.5,
                             target_volatility=0.35, rebalance_frequency_days=5,
@@ -51,6 +52,21 @@ def _synthetic_prices(seed=7, days=900, drifts=None):
         rets = rng.normal(mu, 0.010, size=days)
         frames[sym] = 100.0 * np.cumprod(1.0 + rets)
     frames["BENCH"] = 100.0 * np.cumprod(1.0 + rng.normal(0.0004, 0.01, size=days))
+    return pd.DataFrame(frames, index=dates)
+
+
+def _calm_prices(days=800, seed=3):
+    """Ten steady uptrends with next to no noise, so that across a whole
+    backtest only a move written into a name by hand can trip a stop."""
+    rng = np.random.default_rng(seed)
+    dates = pd.bdate_range("2019-01-01", periods=days)
+    symbols = ["AAAA", "BBBB", "CCCC", "DDDD", "EEEE",
+               "FFFF", "GGGG", "HHHH", "IIII", "JJJJ"]
+    frames = {}
+    for i, sym in enumerate(symbols):
+        rets = rng.normal(0.0005 + 0.0001 * i, 0.002, size=days)
+        frames[sym] = 100.0 * np.cumprod(1.0 + rets)
+    frames["BENCH"] = 100.0 * np.cumprod(1.0 + rng.normal(0.0004, 0.002, size=days))
     return pd.DataFrame(frames, index=dates)
 
 
@@ -256,4 +272,182 @@ def test_shipped_config_validates_and_builds():
     assert strat.max_leverage <= 2.0
     # The safety cap must leave room for the largest levered position.
     assert cfg["safety"]["max_position_pct_of_portfolio"] >= strat.max_weight * strat.max_leverage
+
+
+def test_scheduled_target_passes_over_names_under_their_stop(strategy):
+    prices = _synthetic_prices()
+    n = len(prices)
+    prices["BBBB"] = np.linspace(100.0, 140.0, n)  # steady, never near a stop
+    # AAAA: by far the strongest trend in the frame, then a quarter lost from
+    # its peak over the last ten sessions. It still ranks first on every horizon.
+    aaaa = 100.0 * np.exp(0.008 * np.arange(n))
+    aaaa[-10:] = np.linspace(aaaa[-11], aaaa[-11] * 0.75, 10)
+    prices["AAAA"] = aaaa
+    pre = strategy.precompute(prices)
+    date = prices.index[-1]
+    assert strategy.scores_on(pre, date).index[0] == "AAAA"
+
+    # Held, with its peak since entry a third above the close: sold here, not
+    # kept for the daily check to sell an hour later.
+    held = pd.Series({"AAAA": 0.5, "BBBB": 0.5})
+    target = strategy.scheduled_target(pre, date, held, entry_dates={"AAAA": prices.index[-30]})
+    assert "AAAA" not in target.index
+    assert strategy.last_decision_["exits"] == ["AAAA"]
+    assert len(target) == 3
+    # Not held: its 60-day high stands in for the peak, same verdict.
+    target = strategy.scheduled_target(pre, date, None)
+    assert "AAAA" not in target.index
+    assert "AAAA" in strategy.last_decision_["below_stop"]
+    # Opened at this very close: no peak to have fallen from yet, so it stays.
+    target = strategy.scheduled_target(pre, date, held, entry_dates={"AAAA": date})
+    assert "AAAA" in target.index
+    assert strategy.last_decision_["exits"] == []
+
+
+def test_stopped_name_is_not_bought_back_inside_the_cooldown(strategy):
+    prices = _synthetic_prices()
+    idx = prices.index
+    prices["AAAA"] = 100.0 * np.exp(0.004 * np.arange(len(idx)))  # ranked first, at its high
+    pre = strategy.precompute(prices)
+    date = idx[-1]
+    assert strategy.scores_on(pre, date).index[0] == "AAAA"
+
+    # Sold on a stop at the previous close: not bought back the next session...
+    target = strategy.scheduled_target(pre, date, None, stop_exits={"AAAA": str(idx[-2].date())})
+    assert "AAAA" not in target.index
+    assert strategy.last_decision_["cooldown"] == ["AAAA"]
+    # ...nor five sessions on, the last session of the cooldown...
+    target = strategy.scheduled_target(pre, date, None, stop_exits={"AAAA": idx[-6]})
+    assert "AAAA" not in target.index
+    # ...but six sessions on it is a candidate again and its record has lapsed.
+    target = strategy.scheduled_target(pre, date, None, stop_exits={"AAAA": idx[-7]})
+    assert "AAAA" in target.index
+    assert strategy.last_decision_["cooldown"] == []
+    assert strategy.active_stop_exits(idx, date, {"AAAA": idx[-7], "BBBB": idx[-6]}) == {"BBBB": idx[-6]}
+
+
+def test_backtest_and_live_path_agree_on_a_stopped_name(config, monkeypatch):
+    from quant.backtest.calendar import fixed_rebalance_dates
+
+    # No rank buffer here: the names bought in AAAA's absence would otherwise
+    # keep their places, and the question is whether AAAA may come back.
+    cfg = _trend_config(config)
+    cfg["trend"]["rank_buffer"] = cfg["trend"]["positions"]
+    strategy = TrendStrategy(cfg)
+    prices = _calm_prices()
+    idx = prices.index
+    scheduled = fixed_rebalance_dates(idx, strategy.rebalance_freq, anchor=strategy.anchor)
+    # AAAA leads the whole frame. Three sessions before a scheduled date it
+    # closes 16% under its peak (the daily check sells it at the next open),
+    # falls further, then recovers to 8% under the peak and stays there. At
+    # that scheduled date it ranks first on every horizon and is no longer
+    # under its stop: only the record of the stop keeps it out. One scheduled
+    # date later the cooldown has run and it is bought back.
+    rebalance = [d for d in scheduled if d <= idx[-40]][-1]
+    stop_pos = idx.get_loc(rebalance) - 3
+    aaaa = 100.0 * np.exp(0.004 * np.arange(len(idx)))
+    peak = aaaa[stop_pos - 1]
+    aaaa[stop_pos] = peak * 0.84
+    aaaa[stop_pos + 1] = peak * 0.76
+    aaaa[stop_pos + 2] = peak * 0.85
+    aaaa[stop_pos + 3:] = peak * 0.92
+    prices["AAAA"] = aaaa
+    stop_day = idx[stop_pos]
+    after = next(d for d in scheduled if d > rebalance)
+
+    monkeypatch.setattr(strategy.data, "fetch_prices", lambda start=None, end=None: prices)
+    strategy.data.last_open_prices_ = None
+    strategy.data.last_volumes_ = None
+    result = strategy.run_backtest(start="2020-06-01")
+    targets = result.targets
+    before = [d for d in scheduled if d < stop_day][-1]
+    assert "AAAA" in targets[before].index
+    assert "AAAA" not in targets[stop_day].index          # the trailing stop
+    assert "AAAA" not in targets[rebalance].index         # the cooldown
+    assert "AAAA" in targets[after].index                 # and back in
+
+    def live_decision(date):
+        """The live path at ``date``, handed the book, entry dates and stop
+        record the backtest kept for itself up to that close."""
+        rows = [r for r in result.positions_history if r["date"] <= date]
+        held = (rows[-1]["holdings"] * prices.loc[date]).dropna() / rows[-1]["value"]
+        held = held[held > 1e-6]
+        entry_dates = {}
+        for sym in held.index:
+            for row in reversed(rows):
+                if float(row["holdings"].get(sym, 0.0)) <= 0:
+                    break
+                entry_dates[sym] = row["date"]
+        live = TrendStrategy(cfg)
+        monkeypatch.setattr("quant.trend_strategy.enforce_live_data_quality",
+                            lambda p, benchmark=None, as_of=None: p)
+        monkeypatch.setattr(live.data, "fetch_prices", lambda start=None, end=None: prices.loc[:date])
+        table = live.get_current_portfolio(
+            capital=100_000.0, prev_weights=held,
+            entry_dates=entry_dates, stop_exits={"AAAA": str(stop_day.date())},
+        )
+        return live, table
+
+    live, table = live_decision(rebalance)
+    assert live.last_scores_.index[0] == "AAAA"
+    assert live.last_decision_["cooldown"] == ["AAAA"]
+    assert live.last_decision_["exits"] == [] and live.last_decision_["below_stop"] == []
+    expected = targets[rebalance]
+    assert set(table.index) == set(expected.index)
+    assert np.allclose(table["weight"].reindex(expected.index).to_numpy(), expected.to_numpy())
+
+    live, table = live_decision(after)
+    assert live.last_decision_["cooldown"] == []
+    expected = targets[after]
+    assert "AAAA" in table.index and set(table.index) == set(expected.index)
+    assert np.allclose(table["weight"].reindex(expected.index).to_numpy(), expected.to_numpy())
+
+
+def test_stop_exits_are_kept_in_state_and_handed_to_the_strategy(strategy):
+    import paper_trade_trend as trend
+
+    today = pd.Timestamp.today().normalize()
+    today_str = str(today.date())
+    # The runner's fixed stop fires before any prices are fetched: recorded
+    # for today, nothing pruned.
+    state = {"entry_prices": {"MU": 900.0}, "entry_dates": {"MU": "2026-09-21"}}
+    strategy.last_prices_ = None
+    strategy.last_decision_ = {}
+    trend._record_stop_exits(strategy, state, ["AMD"])
+    assert state["stop_exits"] == {"AMD": today_str}
+    # A later decision that sold on the trailing stop adds its exits, dated by
+    # the close that triggered them, and drops records past the cooldown.
+    idx = pd.date_range(end=today, periods=20, freq="D")
+    strategy.last_prices_ = pd.DataFrame({"X": 1.0}, index=idx)
+    strategy.last_decision_ = {"mode": "scheduled", "date": today_str, "exits": ["MRVL"]}
+    state["stop_exits"]["OLD"] = str(idx[0].date())
+    state["stop_exits"]["INTC"] = str(idx[-4].date())
+    trend._record_stop_exits(strategy, state, [])
+    assert state["stop_exits"] == {"AMD": today_str, "INTC": str(idx[-4].date()), "MRVL": today_str}
+    # Both records reach the scheduled rebalance through the profile.
+    assert trend.PROFILE.portfolio_context(state) == {
+        "entry_dates": {"MU": "2026-09-21"}, "stop_exits": state["stop_exits"],
+    }
+    assert trend.PROFILE.record_stop_exits is trend._record_stop_exits
+    # A state from before the record existed reads the runner's flagged
+    # stop-loss sells back from the fill history; other sells stay unknown.
+    legacy = {"trade_history": [
+        {"date": "2026-10-13T18:39:09", "completed": True, "trades": [
+            {"symbol": "INTC", "side": "sell", "status": "filled", "time": "2026-10-13T18:38:58"},
+        ]},
+        {"date": "2026-10-20T15:00:00", "completed": True, "stop_loss": True, "trades": [
+            {"symbol": "SNOW", "side": "sell", "status": "filled", "time": "2026-10-20T14:59:00"},
+        ]},
+    ]}
+    assert trend._stop_exits(legacy) == {"SNOW": "2026-10-20"}
+
+
+def test_reentry_cooldown_is_configured_and_validated():
+    from quant.utils.config import load_config, validate_config
+    cfg = load_config("config_trend.yaml")
+    assert TrendStrategy(cfg).reentry_cooldown == 5
+    for bad in (-1, 2.5, True, "5"):
+        cfg["trend"]["reentry_cooldown_sessions"] = bad
+        with pytest.raises(ValueError, match="reentry_cooldown_sessions"):
+            validate_config(cfg)
 

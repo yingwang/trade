@@ -72,6 +72,15 @@ class TradeProfile:
     # Optional (strategy, broker, state) -> reason. Asked on days when no
     # scheduled rebalance is due; a reason forces one (exits, de-risking).
     rebalance_trigger: Optional[Callable[[object, object, dict], Optional[str]]] = None
+    # Optional state -> keyword arguments for get_current_portfolio: what a
+    # book keeps in its state file for the strategy's benefit (the trend
+    # book's entry dates and recent stop exits).
+    portfolio_context: Optional[Callable[[dict], dict]] = None
+    # Optional (strategy, state, stopped), called after the fixed stop sold
+    # ``stopped`` and, with an empty list, after a rebalance ran, so a book
+    # with a re-entry cooldown can note what left on a stop before the state
+    # is saved.
+    record_stop_exits: Optional[Callable[[object, dict, list], None]] = None
 
 
 def setup_logging(log_prefix: str):
@@ -511,7 +520,8 @@ def run_rebalance(strategy, broker, config, dry_run=False,
                   batch_id: str = "",
                   events_log: str = "logs/trade_events_multi.jsonl",
                   drawdown_breached: bool = False,
-                  drawdown_info: Optional[tuple] = None):
+                  drawdown_info: Optional[tuple] = None,
+                  portfolio_context: Optional[dict] = None):
     """Compute target portfolio and execute rebalance trades.
 
     Returns (filled, target_weights) where filled is:
@@ -523,6 +533,8 @@ def run_rebalance(strategy, broker, config, dry_run=False,
 
     When drawdown_breached is True, new opens (buys) are blocked and only
     de-risking sells are submitted; an alert is written to the event log.
+    ``portfolio_context`` is passed on to get_current_portfolio as keyword
+    arguments (see TradeProfile.portfolio_context).
     """
     exec_log = exec_logger_cls(events_log)
     capital = broker.get_portfolio_value()
@@ -561,6 +573,8 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     portfolio_kwargs = {"capital": capital, "prev_weights": prev_weights}
     if prev_scores is not None:
         portfolio_kwargs["prev_scores"] = prev_scores
+    if portfolio_context:
+        portfolio_kwargs.update(portfolio_context)
     portfolio = strategy.get_current_portfolio(**portfolio_kwargs)
     target_weights = portfolio["weight"]
 
@@ -831,7 +845,8 @@ def run_main(profile: TradeProfile):
             return
         capital = broker.get_portfolio_value()
         portfolio = strategy.get_current_portfolio(
-            capital=capital, prev_weights=current_broker_weights(broker)
+            capital=capital, prev_weights=current_broker_weights(broker),
+            **(profile.portfolio_context(state) if profile.portfolio_context else {}),
         )
         target_weights = portfolio["weight"]
         drift_df = broker.reconcile(target_weights)
@@ -944,6 +959,8 @@ def run_main(profile: TradeProfile):
         if stopped:
             logger.info("Stopped out %d position(s): %s", len(stopped), stopped)
             if not args.dry_run:
+                if profile.record_stop_exits is not None:
+                    profile.record_stop_exits(strategy, state, stopped)
                 save_state(profile.state_file, state)
             # A rebalance computed from the pre-stop portfolio can immediately
             # re-buy the same symbol or submit a second exit with a different
@@ -1022,6 +1039,13 @@ def run_main(profile: TradeProfile):
             }
             persist_runtime_state(state)
 
+        # What the book keeps in its state file for the strategy (entry dates,
+        # stop exits) travels with the target request, so a scheduled run
+        # judges the book exactly as the daily check does.
+        portfolio_context = (
+            profile.portfolio_context(state) if profile.portfolio_context else {}
+        )
+
         filled, target_weights = run_rebalance(
             strategy, broker, config, dry_run=args.dry_run,
             banner=profile.portfolio_banner,
@@ -1033,9 +1057,15 @@ def run_main(profile: TradeProfile):
             events_log=profile.events_log,
             drawdown_breached=drawdown_breached,
             drawdown_info=drawdown_info,
+            portfolio_context=portfolio_context,
         )
 
         rebalance_completed = False
+
+        if filled is not None and not args.dry_run and profile.record_stop_exits is not None:
+            # Whatever the strategy's own stop sold today is noted before
+            # either branch below writes the state.
+            profile.record_stop_exits(strategy, state, [])
 
         if filled is not None and not args.dry_run and not filled:
             # Portfolio already at target: counts as a completed rebalance,
