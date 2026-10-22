@@ -1,14 +1,25 @@
 """Tests for portfolio optimizer and risk management."""
 
+import logging
+
 import numpy as np
 import pandas as pd
 import pytest
 
+import quant.portfolio.optimizer as optimizer_module
 from quant.portfolio.optimizer import (
     PortfolioOptimizer,
     RiskMonitor,
+    SolveStatus,
     _ledoit_wolf_shrinkage,
 )
+
+
+def _with_allocation(config, allocation):
+    """Copy of the test config with portfolio.allocation set."""
+    cfg = dict(config)
+    cfg["portfolio"] = dict(config["portfolio"], allocation=allocation)
+    return cfg
 
 
 class TestPortfolioOptimizer:
@@ -22,8 +33,9 @@ class TestPortfolioOptimizer:
         assert len(selected) == config["portfolio"]["max_positions"]  # 5
         assert selected[0] == "A"
 
-    def test_weights_sum_to_one(self, config):
-        opt = PortfolioOptimizer(config)
+    @pytest.mark.parametrize("allocation", ["proportional", "mvo"])
+    def test_weights_sum_to_one(self, config, allocation):
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
         selected = ["A", "B", "C", "D", "E"]
         scores = pd.Series({"A": 2.0, "B": 1.5, "C": 1.0, "D": 0.5, "E": 0.3})
         cov = pd.DataFrame(
@@ -33,8 +45,9 @@ class TestPortfolioOptimizer:
         weights = opt.optimize_weights(selected, scores, cov)
         assert abs(weights.sum() - 1.0) < 1e-6
 
-    def test_weights_respect_bounds(self, config):
-        opt = PortfolioOptimizer(config)
+    @pytest.mark.parametrize("allocation", ["proportional", "mvo"])
+    def test_weights_respect_bounds(self, config, allocation):
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
         selected = ["A", "B", "C", "D", "E"]
         scores = pd.Series({"A": 5.0, "B": 0.1, "C": 0.1, "D": 0.1, "E": 0.1})
         cov = pd.DataFrame(
@@ -178,9 +191,14 @@ class TestTransactionCostPenalty:
     """Tests for the turnover penalty in the optimizer."""
 
     def test_turnover_penalty_reduces_deviation_from_prev(self, config):
-        """With high turnover penalty, optimizer should stay closer to prev_weights."""
+        """With high turnover penalty, optimizer should stay closer to prev_weights.
+
+        The penalty only exists on the mvo path; proportional weights never
+        look at the previous book (the turnover cap does that afterwards).
+        """
         config_high_tc = {**config}
-        config_high_tc["portfolio"] = {**config["portfolio"], "turnover_penalty": 0.5}
+        config_high_tc["portfolio"] = {**config["portfolio"], "turnover_penalty": 0.5,
+                                       "allocation": "mvo"}
         opt = PortfolioOptimizer(config_high_tc)
 
         selected = ["A", "B", "C", "D", "E"]
@@ -196,7 +214,8 @@ class TestTransactionCostPenalty:
 
         # Without turnover penalty
         config_no_tc = {**config}
-        config_no_tc["portfolio"] = {**config["portfolio"], "turnover_penalty": 0.0}
+        config_no_tc["portfolio"] = {**config["portfolio"], "turnover_penalty": 0.0,
+                                     "allocation": "mvo"}
         opt_no_tc = PortfolioOptimizer(config_no_tc)
         weights_no_tc = opt_no_tc.optimize_weights(
             selected, scores, cov, prev_weights=prev_w
@@ -255,7 +274,7 @@ class TestTurnoverCap:
 
     def test_leverage_change_counted(self, config):
         """Same names, leverage 1.0 -> 1.5: the vol-scaling turnover the
-        in-optimizer constraint cannot see is capped here."""
+        allocation step never sees is capped here."""
         opt = self._opt(config, 0.40)
         prev = pd.Series({"A": 0.5, "B": 0.5})
         new = pd.Series({"A": 0.75, "B": 0.75})
@@ -370,16 +389,17 @@ class TestTurnoverCap:
         pd.testing.assert_series_equal(result, new)
 
 
+@pytest.mark.parametrize("allocation", ["proportional", "mvo"])
 class TestSectorConstraints:
-    """Tests for sector constraint enforcement in optimizer."""
+    """Sector limits hold on both allocation paths."""
 
-    def test_sector_constraint_limits_concentration(self, config):
+    def test_sector_constraint_limits_concentration(self, config, allocation):
         """Sector constraint should prevent over-concentration.
 
         Uses 4 sectors so the constraint (30% per sector) is feasible with sum=1.
         Without constraints, Tech (highest alpha) would dominate at ~60%.
         """
-        opt = PortfolioOptimizer(config)
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
         selected = ["A", "B", "C", "D", "E"]
         # Strong alpha for Tech stocks
         scores = pd.Series({"A": 3.0, "B": 2.5, "C": 1.0, "D": 0.8, "E": 0.6})
@@ -396,9 +416,9 @@ class TestSectorConstraints:
         # max_sector_weight in test config is 0.30
         assert tech_weight <= config["risk"]["max_sector_weight"] + 0.02  # small tolerance
 
-    def test_optimizer_works_without_sector_map(self, config):
+    def test_optimizer_works_without_sector_map(self, config, allocation):
         """Optimizer should function normally when no sector_map is provided."""
-        opt = PortfolioOptimizer(config)
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
         selected = ["A", "B", "C", "D", "E"]
         scores = pd.Series({"A": 2.0, "B": 1.5, "C": 1.0, "D": 0.5, "E": 0.3})
         cov = pd.DataFrame(np.eye(5) * 0.04 / 252, index=selected, columns=selected)
@@ -406,9 +426,9 @@ class TestSectorConstraints:
         weights = opt.optimize_weights(selected, scores, cov, sector_map=None)
         assert abs(weights.sum() - 1.0) < 1e-6
 
-    def test_infeasible_single_sector_cap_leaves_cash(self, config):
+    def test_infeasible_single_sector_cap_leaves_cash(self, config, allocation):
         """Normalization must not recreate a documented sector-cap breach."""
-        opt = PortfolioOptimizer(config)
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
         selected = ["A", "B", "C", "D", "E"]
         scores = pd.Series({symbol: 1.0 for symbol in selected})
         cov = pd.DataFrame(np.eye(5) * 0.04 / 252, index=selected, columns=selected)
@@ -421,8 +441,8 @@ class TestSectorConstraints:
         assert weights.sum() == pytest.approx(config["risk"]["max_sector_weight"])
         assert weights.sum() < 1.0
 
-    def test_missing_sector_classifications_share_unknown_cap(self, config):
-        opt = PortfolioOptimizer(config)
+    def test_missing_sector_classifications_share_unknown_cap(self, config, allocation):
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
         selected = ["A", "B", "C", "D", "E"]
         scores = pd.Series({symbol: 1.0 for symbol in selected})
         cov = pd.DataFrame(np.eye(5) * 0.04 / 252, index=selected, columns=selected)
@@ -697,12 +717,22 @@ class TestRiskMonitor:
 
 
 class TestLeveragedPreviousWeights:
-    """The in-optimizer turnover terms must compare composition, not gross."""
+    """The in-optimizer turnover penalty must compare composition, not gross."""
 
     def test_leveraged_prev_weights_do_not_break_optimization(self, config, caplog):
-        import logging
+        """Previous book at 1.5x gross, three of its six names leaving.
+
+        Written for the gross-gap rescaling fix, this case only ever exercised
+        the one shape the old subset turnover constraint could still satisfy
+        (half the book retained, so the forced buying stayed inside the 40%
+        cap); it did not catch the live calls with seven new names out of
+        twelve, which that constraint made infeasible.  It now also checks the
+        solver's own report, not only the absence of a warning, and the
+        seven-new-names shape has its own test in TestSolverConvergence.
+        """
         config = dict(config)
-        config["portfolio"] = dict(config["portfolio"], max_turnover_per_rebalance=0.40)
+        config["portfolio"] = dict(config["portfolio"], max_turnover_per_rebalance=0.40,
+                                   allocation="mvo")
         opt = PortfolioOptimizer(config)
         selected = ["A", "B", "C", "D", "E", "F"]
         scores = pd.Series({s: v for s, v in zip(selected, [1.5, 1.2, 1.0, 0.8, 0.6, 0.4])})
@@ -715,6 +745,8 @@ class TestLeveragedPreviousWeights:
             weights = opt.optimize_weights(selected, scores, cov, prev_weights=prev)
         assert "did not converge" not in caplog.text
         assert "score-proportional" not in caplog.text
+        assert opt.last_solve_status.success
+        assert not opt.last_solve_status.fallback
         assert weights.sum() == pytest.approx(1.0, abs=1e-6)
 
 
@@ -762,3 +794,440 @@ class TestPositionCapMargin:
         assert opt._effective_position_cap() == pytest.approx(0.19)
         scaled = opt.apply_hard_exposure_limits(pd.Series({"A": 0.24, "B": 0.10}))
         assert scaled["A"] <= 0.19 + 1e-12
+
+
+def _production_like(config, allocation="mvo"):
+    """The live multi-factor book's portfolio and risk limits on the test config.
+
+    ``allocation=None`` leaves the key out, which must mean proportional.
+    """
+    cfg = dict(config)
+    cfg["portfolio"] = dict(
+        config["portfolio"],
+        max_positions=12,
+        max_position_weight=0.12,
+        min_position_weight=0.03,
+        max_turnover_per_rebalance=0.40,
+        exit_turnover_share=0.6,
+        alpha_scale=0.05,
+        risk_aversion=1.0,
+    )
+    if allocation is not None:
+        cfg["portfolio"]["allocation"] = allocation
+    cfg["risk"] = dict(config["risk"], max_sector_weight=0.50)
+    cfg["safety"] = {"max_position_pct_of_portfolio": 0.20}
+    return cfg
+
+
+def _twelve_names_seven_new(opt, seed=7):
+    """Shaped like the 23 September 2026 live calls.
+
+    Twelve names selected, seven of them new; the previous book held twelve
+    names at 1.3x gross, seven of which are leaving.  The retained names
+    carried 5/12 of the previous composition, so at least 58% of the subset
+    had to be bought: the old in-optimizer turnover constraint (40% on the
+    selected names alone) could not be satisfied and SLSQP exited with
+    mode 8 on every such call.  The previous book is spread over four
+    sectors inside the 50% cap, so the turnover cap's sector-breach bypass
+    does not fire on it.
+    """
+    rng = np.random.default_rng(seed)
+    held = [f"H{i}" for i in range(5)]
+    new = [f"N{i}" for i in range(7)]
+    gone = [f"X{i}" for i in range(7)]
+    selected = held + new
+    sectors = pd.Series({
+        **{s: "Technology" for s in held[:3] + new[:3] + gone[:1]},
+        **{s: "Healthcare" for s in held[3:] + new[3:5] + gone[1:3]},
+        **{s: "Financial Services" for s in new[5:] + gone[3:6]},
+        **{s: "Energy" for s in gone[6:]},
+    })
+    scores = pd.Series(rng.normal(0.0, 1.0, len(selected)), index=selected)
+    rets = pd.DataFrame(
+        rng.normal(0.0, 0.015, (126, len(selected))), columns=selected
+    )
+    cov = opt.compute_covariance(rets, method="ledoit_wolf")
+    prev = pd.Series({s: 1.3 / 12 for s in held + gone})
+    return selected, scores, cov, prev, sectors
+
+
+class TestSolverConvergence:
+    """The reworked objective is smooth and its constraints are feasible, so
+    SLSQP converges instead of silently handing the book to the
+    score-proportional fallback."""
+
+    def test_twelve_names_seven_new_converges(self, config, caplog):
+        opt = PortfolioOptimizer(_production_like(config))
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        assert opt.last_solve_status is None
+        with caplog.at_level(logging.INFO, logger="quant.portfolio.optimizer"):
+            weights = opt.optimize_weights(
+                selected, scores, cov, prev_weights=prev, sector_map=sectors
+            )
+        status = opt.last_solve_status
+        assert isinstance(status, SolveStatus)
+        assert status.success and not status.fallback
+        assert status.status == 0
+        assert 0 < status.iterations <= 100
+        assert status.n_assets == 12
+        assert np.isfinite(status.objective)
+        assert "MVO converged" in caplog.text
+        assert "score-proportional" not in caplog.text
+        assert weights.sum() == pytest.approx(1.0, abs=1e-6)
+        # The covariance now shapes the book: the solver's weights are not the
+        # fallback's, which only ever saw the scores.
+        fallback = opt._score_proportional(selected, scores, sectors)
+        assert not np.allclose(
+            weights.reindex(selected).to_numpy(),
+            fallback.reindex(selected).to_numpy(),
+            atol=1e-3,
+        )
+
+    def test_solution_respects_bounds_sum_and_sector_caps(self, config):
+        opt = PortfolioOptimizer(_production_like(config))
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        # Make Technology the strongest sector so its 50% cap binds.
+        tech = sectors.reindex(selected) == "Technology"
+        scores = scores.copy()
+        scores[tech[tech].index] += 3.0
+        weights = opt.optimize_weights(
+            selected, scores, cov, prev_weights=prev, sector_map=sectors
+        )
+        assert opt.last_solve_status.success
+        assert weights.sum() == pytest.approx(1.0, abs=1e-6)
+        assert weights.min() >= 0.03 - 1e-6
+        assert weights.max() <= 0.12 + 1e-6
+        tech_weight = float(weights[tech[tech].index].sum())
+        assert tech_weight <= 0.50 + 1e-6
+        assert tech_weight == pytest.approx(0.50, abs=1e-3)
+        for sector in sectors.unique():
+            names = sectors[sectors == sector].index.intersection(weights.index)
+            assert float(weights[names].sum()) <= 0.50 + 1e-6
+
+    def test_turnover_penalty_still_anchors_on_the_previous_book(self, config):
+        """The smooth penalty keeps the same role as the exact L1 term: a
+        larger coefficient moves the solution closer to the previous
+        composition, and both solve (no fallback masking the comparison)."""
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(
+            PortfolioOptimizer(_production_like(config))
+        )
+        turnover = {}
+        for penalty in (0.0, 0.05):
+            cfg = _production_like(config)
+            cfg["portfolio"] = dict(cfg["portfolio"], turnover_penalty=penalty)
+            opt = PortfolioOptimizer(cfg)
+            weights = opt.optimize_weights(
+                selected, scores, cov, prev_weights=prev, sector_map=sectors
+            )
+            assert opt.last_solve_status.success
+            composition = prev.reindex(selected).fillna(0.0) / prev.sum()
+            turnover[penalty] = float((weights.reindex(selected) - composition).abs().sum())
+        assert turnover[0.05] < turnover[0.0]
+
+    def test_min_weight_dropped_when_a_sector_cannot_carry_it(self, config):
+        """Eight names in one sector capped at 30% cannot all hold 5%; the
+        lower bound must give way or the program has no feasible point."""
+        cfg = dict(config)
+        cfg["portfolio"] = dict(config["portfolio"], max_positions=8)
+        opt = PortfolioOptimizer(cfg)
+        selected = [f"T{i}" for i in range(8)] + ["F0", "F1"]
+        sectors = pd.Series({**{s: "Tech" for s in selected[:8]},
+                             "F0": "Finance", "F1": "Finance"})
+        scores = pd.Series(np.linspace(1.0, 0.0, len(selected)), index=selected)
+        cov = pd.DataFrame(np.eye(len(selected)) * 0.04 / 252,
+                           index=selected, columns=selected)
+        weights = opt.optimize_weights(selected, scores, cov, sector_map=sectors)
+        assert opt.last_solve_status.success
+        assert float(weights[selected[:8]].sum()) <= 0.30 + 1e-6
+        assert weights.sum() == pytest.approx(0.60, abs=1e-6)   # 30% Tech + 30% Finance
+
+
+class TestRiskAversionShapesTheBook:
+    """With the solver converging, the covariance term finally has an effect."""
+
+    def _solve(self, config, risk_aversion):
+        cfg = dict(config)
+        cfg["portfolio"] = dict(
+            config["portfolio"], risk_aversion=risk_aversion, turnover_penalty=0.0,
+            allocation="mvo",
+        )
+        opt = PortfolioOptimizer(cfg)
+        selected = ["A", "B", "C", "D", "E"]
+        scores = pd.Series({"A": 2.0, "B": 1.5, "C": 1.0, "D": 0.5, "E": 0.0})
+        # The best-scored names are also the most volatile.
+        vols = np.array([0.45, 0.40, 0.35, 0.15, 0.10])
+        cov = pd.DataFrame(np.diag(vols ** 2) / 252.0, index=selected, columns=selected)
+        weights = opt.optimize_weights(selected, scores, cov)
+        assert opt.last_solve_status.success
+        return weights.reindex(selected), cov.to_numpy() * 252.0
+
+    def test_near_zero_risk_aversion_follows_the_score_ranking(self, config):
+        weights, _ = self._solve(config, risk_aversion=1e-4)
+        # Weights are ordered like the scores, as score-proportional weights are:
+        # the best names fill up to the cap, the worst sit at the floor.
+        assert np.all(np.diff(weights.to_numpy()) <= 1e-6)
+        assert weights["A"] == pytest.approx(config["portfolio"]["max_position_weight"], abs=1e-4)
+        assert weights["E"] == pytest.approx(config["portfolio"]["min_position_weight"], abs=1e-4)
+        assert weights.sum() == pytest.approx(1.0, abs=1e-6)
+
+    def test_high_risk_aversion_diversifies(self, config):
+        low, cov = self._solve(config, risk_aversion=1e-4)
+        high, _ = self._solve(config, risk_aversion=50.0)
+        var_low = float(low.to_numpy() @ cov @ low.to_numpy())
+        var_high = float(high.to_numpy() @ cov @ high.to_numpy())
+        assert var_high < var_low
+        # The calmest name overtakes the top score once risk dominates.
+        assert high["E"] > high["A"]
+        assert high.sum() == pytest.approx(1.0, abs=1e-6)
+        assert high.max() <= config["portfolio"]["max_position_weight"] + 1e-6
+        assert high.min() >= config["portfolio"]["min_position_weight"] - 1e-6
+
+
+class TestObjectiveGradient:
+    def test_analytic_gradient_matches_finite_differences(self):
+        from scipy.optimize import check_grad
+
+        rng = np.random.default_rng(1)
+        n = 8
+        alpha = rng.normal(0.0, 0.05, n)
+        cov = np.cov(rng.normal(0.0, 0.02, (126, n)), rowvar=False) * 252.0
+        w_prev = np.full(n, 1.0 / n)
+        objective, gradient = PortfolioOptimizer._objective_and_gradient(
+            alpha, cov, w_prev, risk_aversion=1.0, turnover_penalty=0.005, eps=1e-3
+        )
+        for _ in range(5):
+            w = np.abs(rng.normal(0.1, 0.05, n))
+            assert check_grad(objective, gradient, w) < 1e-6
+        # At the previous weights themselves, the kink of the exact L1 term.
+        assert check_grad(objective, gradient, w_prev.copy()) < 1e-6
+        assert np.all(np.isfinite(gradient(w_prev)))
+        assert objective(w_prev) == pytest.approx(
+            -alpha @ w_prev + w_prev @ cov @ w_prev
+        )
+
+    def test_soft_abs_approaches_the_l1_distance(self):
+        n = 4
+        alpha = np.zeros(n)
+        cov = np.zeros((n, n))
+        w_prev = np.zeros(n)
+        objective, _ = PortfolioOptimizer._objective_and_gradient(
+            alpha, cov, w_prev, risk_aversion=0.0, turnover_penalty=1.0, eps=1e-3
+        )
+        w = np.array([0.10, -0.05, 0.02, 0.0])
+        l1 = float(np.abs(w).sum())
+        assert l1 - n * 1e-3 <= objective(w) <= l1
+
+
+class TestSolverFallback:
+    def _case(self, config, allocation="mvo"):
+        opt = PortfolioOptimizer(_with_allocation(config, allocation))
+        selected = ["A", "B", "C", "D", "E"]
+        scores = pd.Series({"A": 2.0, "B": 1.5, "C": 1.0, "D": 0.5, "E": 0.3})
+        cov = pd.DataFrame(np.eye(5) * 0.04 / 252, index=selected, columns=selected)
+        return opt, selected, scores, cov
+
+    def test_fallback_when_the_solver_raises(self, config, monkeypatch, caplog):
+        def exploding_minimize(*args, **kwargs):
+            raise RuntimeError("solver exploded")
+
+        monkeypatch.setattr(optimizer_module, "minimize", exploding_minimize)
+        opt, selected, scores, cov = self._case(config)
+        with caplog.at_level(logging.WARNING, logger="quant.portfolio.optimizer"):
+            weights = opt.optimize_weights(selected, scores, cov)
+        status = opt.last_solve_status
+        assert status.fallback and not status.success
+        assert status.status == -1
+        assert "solver exploded" in status.message
+        assert "score-proportional" in caplog.text
+        expected = opt._finalize_weights(opt._score_proportional(selected, scores), None)
+        pd.testing.assert_series_equal(weights, expected)
+        assert weights.sum() == pytest.approx(1.0, abs=1e-6)
+
+    def test_fallback_when_the_solver_reports_no_convergence(self, config, monkeypatch, caplog):
+        from scipy.optimize import OptimizeResult
+
+        def stuck_minimize(fun, x0, *args, **kwargs):
+            return OptimizeResult(
+                x=np.asarray(x0, dtype=float), fun=fun(x0), success=False,
+                status=9, message="Iteration limit reached", nit=500,
+            )
+
+        monkeypatch.setattr(optimizer_module, "minimize", stuck_minimize)
+        opt, selected, scores, cov = self._case(config)
+        with caplog.at_level(logging.WARNING, logger="quant.portfolio.optimizer"):
+            weights = opt.optimize_weights(selected, scores, cov)
+        status = opt.last_solve_status
+        assert status.fallback and not status.success
+        assert status.status == 9 and status.iterations == 500
+        assert "did not converge" in caplog.text
+        expected = opt._finalize_weights(opt._score_proportional(selected, scores), None)
+        pd.testing.assert_series_equal(weights, expected)
+
+    @pytest.mark.parametrize("allocation", ["proportional", "mvo"])
+    def test_status_is_serializable_for_dashboards(self, config, allocation):
+        opt, selected, scores, cov = self._case(config, allocation)
+        opt.optimize_weights(selected, scores, cov)
+        as_dict = opt.last_solve_status.as_dict()
+        assert as_dict["success"] is True
+        assert as_dict["fallback"] is False
+        assert as_dict["method"] == allocation
+        assert set(as_dict) == {
+            "method", "success", "fallback", "status", "message",
+            "iterations", "n_assets", "objective",
+        }
+
+
+class TestTurnoverPenaltyEpsilonConfig:
+    def test_default_and_override(self, config):
+        assert PortfolioOptimizer(config).turnover_penalty_epsilon == pytest.approx(0.001)
+        cfg = dict(config)
+        cfg["portfolio"] = dict(config["portfolio"], turnover_penalty_epsilon=0.005)
+        assert PortfolioOptimizer(cfg).turnover_penalty_epsilon == pytest.approx(0.005)
+
+    def test_validate_config_rejects_zero_epsilon(self):
+        import copy
+
+        from quant.utils.config import load_config, validate_config
+
+        config = copy.deepcopy(load_config("config.yaml"))
+        config["portfolio"]["turnover_penalty_epsilon"] = 0.002
+        validate_config(config)
+        config["portfolio"]["turnover_penalty_epsilon"] = 0.0
+        with pytest.raises(ValueError, match="turnover_penalty_epsilon"):
+            validate_config(config)
+
+
+class TestAllocationSwitch:
+    """portfolio.allocation: proportional (the default) reproduces exactly the
+    allocation the live books have been running, which until now was the
+    solver's fallback; mvo is the converging solver.  The live books stay on
+    proportional because on the backtest windows ending 2026-10-22 the
+    multi-factor book did 5y +127.5% with MVO against +151.8% with
+    proportional weights (LGBM 5y +125.8% against +137.6%)."""
+
+    # What the pre-rework optimizer (main at bc3fbdf) returned on the inputs
+    # of _twelve_names_seven_new: SLSQP exit mode 8, then the
+    # score-proportional fallback through _finalize_weights.
+    OLD_FALLBACK = pd.Series({
+        "H0": 0.08695169314494236, "H1": 0.10823075156856962,
+        "H2": 0.06701405493844179, "H3": 0.0578790301577322,
+        "H4": 0.07173656774338799, "N0": 0.03835550916853621,
+        "N1": 0.09121723961094055, "N2": 0.10823075156856962,
+        "N3": 0.06932043922017986, "N4": 0.06106396287869989,
+        "N5": 0.12, "N6": 0.12,
+    })
+
+    def test_absent_key_means_proportional_and_equals_the_old_fallback(self, config, caplog):
+        opt = PortfolioOptimizer(_production_like(config, allocation=None))
+        assert opt.allocation == "proportional"
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        with caplog.at_level(logging.INFO, logger="quant.portfolio.optimizer"):
+            weights = opt.optimize_weights(
+                selected, scores, cov, prev_weights=prev, sector_map=sectors
+            )
+        # Byte for byte the old fallback: the same two unchanged functions.
+        expected = opt._finalize_weights(
+            opt._score_proportional(selected, scores, sectors), sectors
+        )
+        pd.testing.assert_series_equal(weights, expected, check_exact=True)
+        # And the values main produced on these inputs before the rework.
+        pd.testing.assert_series_equal(
+            weights, self.OLD_FALLBACK, check_exact=False, rtol=0.0, atol=1e-12
+        )
+        status = opt.last_solve_status
+        assert status.method == "proportional"
+        assert status.fallback is False
+        assert status.success is True
+        assert status.iterations == 0
+        assert "score-proportional by design" in caplog.text
+        assert "MVO converged" not in caplog.text
+        assert "did not converge" not in caplog.text
+
+    def test_proportional_never_calls_the_solver(self, config, monkeypatch, caplog):
+        def exploding_minimize(*args, **kwargs):
+            raise AssertionError("the solver must not run on the proportional path")
+
+        monkeypatch.setattr(optimizer_module, "minimize", exploding_minimize)
+        opt = PortfolioOptimizer(_production_like(config, allocation="proportional"))
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        with caplog.at_level(logging.WARNING, logger="quant.portfolio.optimizer"):
+            weights = opt.optimize_weights(
+                selected, scores, cov, prev_weights=prev, sector_map=sectors
+            )
+        pd.testing.assert_series_equal(
+            weights, self.OLD_FALLBACK, check_exact=False, rtol=0.0, atol=1e-12
+        )
+        assert not caplog.records
+
+    def test_mvo_differs_from_proportional(self, config):
+        opt = PortfolioOptimizer(_production_like(config, allocation="mvo"))
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        weights = opt.optimize_weights(
+            selected, scores, cov, prev_weights=prev, sector_map=sectors
+        )
+        assert opt.last_solve_status.method == "mvo"
+        assert opt.last_solve_status.fallback is False
+        assert not np.allclose(
+            weights.reindex(self.OLD_FALLBACK.index).to_numpy(),
+            self.OLD_FALLBACK.to_numpy(),
+            atol=1e-3,
+        )
+
+    def test_proportional_logs_the_design_once_per_optimizer(self, config, caplog):
+        opt = PortfolioOptimizer(_production_like(config, allocation="proportional"))
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        with caplog.at_level(logging.INFO, logger="quant.portfolio.optimizer"):
+            for _ in range(3):
+                opt.optimize_weights(
+                    selected, scores, cov, prev_weights=prev, sector_map=sectors
+                )
+        assert caplog.text.count("score-proportional by design") == 1
+
+    @pytest.mark.parametrize("allocation", ["proportional", "mvo"])
+    def test_post_processing_applies_identically(self, config, allocation):
+        """Vol scaling, the hard exposure limits and the total turnover cap are
+        the callers' post-processing on whatever optimize_weights returned, so
+        both allocations go through the same functions with the same arguments
+        and end inside the same limits."""
+        opt = PortfolioOptimizer(_production_like(config, allocation=allocation))
+        selected, scores, cov, prev, sectors = _twelve_names_seven_new(opt)
+        weights = opt.optimize_weights(
+            selected, scores, cov, prev_weights=prev, sector_map=sectors
+        )
+        assert opt.last_solve_status.method == allocation
+        regime = "normal"
+        regime_cap = min(opt.regime_caps[regime], opt.max_leverage)
+        scaled = opt.apply_vol_scaling(weights, cov, regime=regime, sector_map=sectors)
+        final = opt.enforce_turnover_cap(
+            scaled, prev, gross_exposure_cap=regime_cap, sector_map=sectors
+        )
+        union = final.index.union(prev.index)
+        turnover = float(
+            (final.reindex(union).fillna(0.0) - prev.reindex(union).fillna(0.0)).abs().sum()
+        )
+        assert turnover <= 0.40 + 1e-9
+        assert float(final.sum()) <= regime_cap + 1e-9
+        assert float(final.max()) <= opt._effective_position_cap() + 1e-9
+        for sector in sectors.unique():
+            names = sectors[sectors == sector].index.intersection(final.index)
+            assert float(final[names].sum()) <= 0.50 + 1e-9
+
+    def test_unknown_allocation_is_rejected(self, config):
+        with pytest.raises(ValueError, match="allocation"):
+            PortfolioOptimizer(_with_allocation(config, "equal_weight"))
+
+    def test_validate_config_checks_the_allocation_key(self):
+        import copy
+
+        from quant.utils.config import load_config, validate_config
+
+        config = copy.deepcopy(load_config("config.yaml"))
+        assert config["portfolio"]["allocation"] == "proportional"
+        config["portfolio"]["allocation"] = "mvo"
+        validate_config(config)
+        del config["portfolio"]["allocation"]
+        validate_config(config)
+        assert PortfolioOptimizer(config).allocation == "proportional"
+        config["portfolio"]["allocation"] = "equal_weight"
+        with pytest.raises(ValueError, match="allocation"):
+            validate_config(config)

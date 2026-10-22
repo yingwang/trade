@@ -12,6 +12,7 @@ Enhancements (Phase 2 Portfolio Audit):
 """
 
 import logging
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 import numpy as np
@@ -19,6 +20,31 @@ import pandas as pd
 from scipy.optimize import minimize
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SolveStatus:
+    """Outcome of the last ``optimize_weights`` call.
+
+    ``method`` is "proportional" when the weights are score-proportional by
+    configuration (no solver call) and "mvo" when the mean-variance solver
+    was asked for.  ``fallback`` is True only when the solver was asked for
+    and its result could not be used, so score-proportional weights stood
+    in; ``status`` and ``message`` are SLSQP's exit mode when the solver
+    ran, and -1 with a reason otherwise.
+    """
+
+    method: str
+    success: bool
+    fallback: bool
+    status: int
+    message: str
+    iterations: int
+    n_assets: int
+    objective: float
+
+    def as_dict(self) -> dict:
+        return asdict(self)
 
 
 def _ledoit_wolf_shrinkage(returns: pd.DataFrame) -> pd.DataFrame:
@@ -119,6 +145,23 @@ def _ledoit_wolf_shrinkage(returns: pd.DataFrame) -> pd.DataFrame:
 class PortfolioOptimizer:
     """Constructs target portfolios from alpha signals with risk constraints."""
 
+    # How target weights are built from the scores.  "proportional" takes
+    # the score-proportional weights directly, which is what the live books
+    # run; "mvo" runs the constrained mean-variance solver.  On the backtest
+    # windows ending 2026-10-22 the solver came out below proportional
+    # (multi-factor 5y +127.5% vs +151.8%, LGBM 5y +125.8% vs +137.6%), so
+    # it is kept as a research option and the default stays proportional.
+    ALLOCATIONS = ("proportional", "mvo")
+    DEFAULT_ALLOCATION = "proportional"
+    # Default width of the soft-absolute-value turnover penalty (weight units).
+    TURNOVER_PENALTY_EPSILON = 0.001
+    # SLSQP budget.  The problem is a strictly convex program in at most
+    # max_positions variables with analytic gradients; it converges in a few
+    # dozen iterations, so hitting this limit means something is wrong and
+    # the fallback should take over.
+    SOLVER_MAX_ITER = 500
+    SOLVER_FTOL = 1e-10
+
     def __init__(self, config: dict):
         pcfg = config["portfolio"]
         rcfg = config["risk"]
@@ -146,7 +189,19 @@ class PortfolioOptimizer:
         # Default: txn_cost in decimal * 5 (aggressive penalty to reduce churn)
         self.turnover_penalty = pcfg.get("turnover_penalty",
                                          self.txn_cost_bps / 10000 * 5)
+        # Width (in weight units) of the smooth soft-absolute-value used for
+        # the turnover penalty inside the optimizer: below this distance from
+        # the previous weight the penalty is quadratic, above it linear.  The
+        # exact |w - w_prev| is not differentiable at the previous weight,
+        # which is where the solution tends to sit, and SLSQP could not find a
+        # descent direction there (exit mode 8).  0.001 is 10 bps of NAV, an
+        # order below the smallest trade the book places.
+        self.turnover_penalty_epsilon = float(
+            pcfg.get("turnover_penalty_epsilon", self.TURNOVER_PENALTY_EPSILON)
+        )
         self.max_turnover = pcfg.get("max_turnover_per_rebalance", 1.0)
+        # Outcome of the last optimize_weights call, for tests and dashboards.
+        self.last_solve_status: Optional[SolveStatus] = None
         # Share of the turnover budget that liquidating exits may take. Selling an
         # exit stub outright is worth doing, but it must not crowd out the entry
         # legs: with the whole budget available to exits the book sells more than
@@ -168,6 +223,16 @@ class PortfolioOptimizer:
         # the nominal mean-variance optimizer effectively a score sorter.
         self.alpha_scale = pcfg.get("alpha_scale", 0.05)
         self.risk_aversion = pcfg.get("risk_aversion", 1.0)
+        # Allocation switch; alpha_scale, risk_aversion and the turnover
+        # penalty only matter on the "mvo" path.
+        raw_allocation = pcfg.get("allocation", self.DEFAULT_ALLOCATION)
+        self.allocation = str(raw_allocation).strip().lower()
+        if self.allocation not in self.ALLOCATIONS:
+            raise ValueError(
+                "portfolio.allocation must be one of "
+                f"{list(self.ALLOCATIONS)}, got {raw_allocation!r}"
+            )
+        self._allocation_logged = False
 
     def select_top_stocks(self, scores: pd.Series) -> pd.Index:
         """Pick the top N stocks by composite alpha score."""
@@ -225,12 +290,44 @@ class PortfolioOptimizer:
         prev_weights: Optional[pd.Series] = None,
         sector_map: Optional[pd.Series] = None,
     ) -> pd.Series:
-        """Mean-variance optimization with transaction cost penalty and
-        sector constraints.
+        """Target weights for the selected names.
 
-        Objective: max alpha'w - lambda * w'Sigma*w - gamma * |w - w_prev| * TC
+        With ``portfolio.allocation: proportional`` (the default, and what
+        the live books run) the weights are proportional to the shifted
+        scores, projected into the position bounds and sector caps, with no
+        solver call: exactly the allocation the live books have always
+        ended up with.  Vol scaling, the total turnover cap and the hard
+        exposure limits are applied by the callers afterwards, identically
+        for either allocation.
 
-        Falls back to score-proportional weights if optimization fails.
+        With ``portfolio.allocation: mvo`` this is a mean-variance
+        optimization with a smooth turnover penalty and sector constraints.
+        It minimizes, over the selected names,
+
+            f(w) = -alpha'w + lambda * w'Sigma*w
+                   + gamma * sum_i ( sqrt((w_i - p_i)^2 + eps^2) - eps )
+
+        subject to sum(w) = target gross, lb <= w_i <= ub and sector sums
+        <= max_sector_weight, where alpha are the cross-sectional z-scores
+        on the alpha_scale horizon, Sigma the annualized covariance, p the
+        previous composition and gamma the turnover penalty.  The last term
+        is a soft absolute value: it equals |w_i - p_i| - eps once a name
+        has moved more than eps and is quadratic inside that band, so the
+        objective is smooth everywhere and SLSQP, given the analytic
+        gradient, converges in a few dozen iterations.
+
+        The earlier formulation used the exact L1 distance and also imposed
+        max_turnover as a constraint on these same selected names.  That
+        constraint counted every entry at its full weight while the exits it
+        pays for were outside the subset, so it was infeasible whenever the
+        new names exceeded roughly the cap; combined with the kink of the L1
+        term, every live call ended in SLSQP exit mode 8 or 9 and the book
+        was silently built from score-proportional weights.  The real cap is
+        applied afterwards by enforce_turnover_cap on the final weights, over
+        the union of old and new holdings, so it is not needed here.
+
+        Falls back to score-proportional weights if optimization fails; the
+        outcome of every call is kept in ``last_solve_status``.
 
         Parameters
         ----------
@@ -252,111 +349,274 @@ class PortfolioOptimizer:
         if target_gross <= 0:
             return pd.Series(dtype=float)
 
+        if self.allocation == "proportional":
+            if not self._allocation_logged:
+                logger.info(
+                    "Allocation is score-proportional by design "
+                    "(portfolio.allocation=proportional): weights follow the "
+                    "scores within the position and sector limits, then vol "
+                    "scaling and the turnover cap apply; the mean-variance "
+                    "solver is available with portfolio.allocation: mvo"
+                )
+                self._allocation_logged = True
+            self.last_solve_status = SolveStatus(
+                method="proportional", success=True, fallback=False, status=0,
+                message="score-proportional allocation by design",
+                iterations=0, n_assets=n, objective=float("nan"),
+            )
+            weights = self._score_proportional(selected, scores, sector_map)
+            return self._finalize_weights(weights, sector_map)
+
+        alpha = self._scaled_alpha(selected, scores)
+        cov_reg = self._annualized_covariance(selected, cov_matrix)
+        if cov_reg is None:
+            self.last_solve_status = SolveStatus(
+                method="mvo", success=False, fallback=True, status=-1,
+                message="covariance matrix is not positive-definite",
+                iterations=0, n_assets=n, objective=float("nan"),
+            )
+            logger.warning("Covariance matrix is not positive-definite, "
+                           "using score-proportional weights")
+            return self._finalize_weights(
+                self._score_proportional(selected, scores, sector_map), sector_map
+            )
+
+        w_prev = self._previous_composition(selected, prev_weights, target_gross)
+        lower_bound, upper_bound = self._position_bounds(selected, target_gross, sector_map)
+        constraints = self._linear_constraints(selected, target_gross, sector_map)
+
+        objective, gradient = self._objective_and_gradient(
+            alpha, cov_reg, w_prev,
+            risk_aversion=float(self.risk_aversion),
+            turnover_penalty=float(self.turnover_penalty),
+            eps=float(self.turnover_penalty_epsilon),
+        )
+
+        # Start from a point that already satisfies the bounds, the gross
+        # target and the sector caps: the score-proportional weights.  The
+        # program is strictly convex, so the optimum is unique and the start
+        # only affects the iteration count.
+        w0 = (
+            self._score_proportional(selected, scores, sector_map)
+            .reindex(selected).fillna(target_gross / n)
+            .to_numpy(dtype=float)
+            .clip(lower_bound, upper_bound)
+        )
+
+        try:
+            result = minimize(
+                objective, w0, jac=gradient, method="SLSQP",
+                bounds=[(lower_bound, upper_bound)] * n,
+                constraints=constraints,
+                options={"maxiter": self.SOLVER_MAX_ITER, "ftol": self.SOLVER_FTOL},
+            )
+        except Exception as exc:  # any solver failure falls back
+            self.last_solve_status = SolveStatus(
+                method="mvo", success=False, fallback=True, status=-1,
+                message=str(exc),
+                iterations=0, n_assets=n, objective=float("nan"),
+            )
+            logger.warning("Optimization failed (%s), using score-proportional weights", exc)
+            weights = self._score_proportional(selected, scores, sector_map)
+            return self._finalize_weights(weights, sector_map)
+
+        iterations = int(getattr(result, "nit", 0) or 0)
+        solved = bool(result.success) and np.all(np.isfinite(result.x))
+        if solved:
+            weights = pd.Series(np.asarray(result.x, dtype=float), index=selected)
+            self.last_solve_status = SolveStatus(
+                method="mvo", success=True, fallback=False, status=int(result.status),
+                message=str(result.message), iterations=iterations,
+                n_assets=n, objective=float(result.fun),
+            )
+            logger.info(
+                "MVO converged: %d names, SLSQP status %d (%s) in %d iterations, "
+                "objective %.6f, composition change vs previous %.1f%%",
+                n, int(result.status), result.message, iterations,
+                float(result.fun), float(np.abs(result.x - w_prev).sum()) * 100,
+            )
+        else:
+            self.last_solve_status = SolveStatus(
+                method="mvo", success=False, fallback=True, status=int(result.status),
+                message=str(result.message), iterations=iterations,
+                n_assets=n, objective=float("nan"),
+            )
+            logger.warning(
+                "Optimization did not converge (status=%d: %s, %d iterations), "
+                "using score-proportional weights",
+                int(result.status), result.message, iterations,
+            )
+            weights = self._score_proportional(selected, scores, sector_map)
+        return self._finalize_weights(weights, sector_map)
+
+    @staticmethod
+    def _objective_and_gradient(
+        alpha: np.ndarray,
+        cov: np.ndarray,
+        w_prev: np.ndarray,
+        *,
+        risk_aversion: float,
+        turnover_penalty: float,
+        eps: float,
+    ):
+        """The smooth objective and its analytic gradient, as closures.
+
+            f(w) = -alpha'w + risk_aversion * w'cov w
+                   + turnover_penalty * sum_i ( sqrt((w_i - p_i)^2 + eps^2) - eps )
+
+            grad f(w) = -alpha + 2 * risk_aversion * cov w
+                        + turnover_penalty * (w - p) / sqrt((w - p)^2 + eps^2)
+
+        The soft absolute value is infinitely differentiable, with curvature
+        at most turnover_penalty / eps, so the quasi-Newton model SLSQP builds
+        stays well conditioned; at eps = 0 the term would be the exact L1
+        distance whose kink at the previous weights defeated the line search.
+        """
+        cov = np.asarray(cov, dtype=float)
+        cov_sym = 0.5 * (cov + cov.T)
+        alpha = np.asarray(alpha, dtype=float)
+        w_prev = np.asarray(w_prev, dtype=float)
+        eps = max(float(eps), 1e-12)
+        eps_sq = eps * eps
+        risk_aversion = float(risk_aversion)
+        turnover_penalty = float(turnover_penalty)
+
+        def objective(w):
+            delta = w - w_prev
+            soft_abs = np.sqrt(delta * delta + eps_sq)
+            return float(
+                -alpha @ w
+                + risk_aversion * (w @ cov_sym @ w)
+                + turnover_penalty * np.sum(soft_abs - eps)
+            )
+
+        def gradient(w):
+            delta = w - w_prev
+            soft_abs = np.sqrt(delta * delta + eps_sq)
+            return (
+                -alpha
+                + 2.0 * risk_aversion * (cov_sym @ w)
+                + turnover_penalty * delta / soft_abs
+            )
+
+        return objective, gradient
+
+    def _scaled_alpha(self, selected: list[str], scores: pd.Series) -> np.ndarray:
+        """Cross-sectional z-scores of the selected names on the alpha_scale horizon."""
         raw_alpha = pd.to_numeric(
             scores.reindex(selected), errors="coerce"
-        ).replace([np.inf, -np.inf], np.nan).fillna(0).values
+        ).replace([np.inf, -np.inf], np.nan).fillna(0).to_numpy(dtype=float)
         alpha_std = float(np.std(raw_alpha))
         if alpha_std > 1e-12:
             alpha = (raw_alpha - float(np.mean(raw_alpha))) / alpha_std
         else:
             alpha = np.zeros_like(raw_alpha)
-        alpha = alpha * self.alpha_scale
+        return alpha * float(self.alpha_scale)
 
+    @staticmethod
+    def _annualized_covariance(
+        selected: list[str], cov_matrix: pd.DataFrame
+    ) -> Optional[np.ndarray]:
+        """Annualized, ridge-regularized covariance; None when not positive-definite."""
+        n = len(selected)
         # Input covariance is daily.  Keep alpha and risk on the same annual
         # horizon so both terms materially influence the solution.
         cov = (
             cov_matrix.reindex(index=selected, columns=selected)
             .replace([np.inf, -np.inf], np.nan)
             .fillna(0)
-            .values
+            .to_numpy(dtype=float)
             * 252.0
         )
-
         # Regularize covariance: add small ridge to diagonal for numerical stability
         ridge = 1e-6 * np.trace(cov) / n if np.trace(cov) > 0 else 1e-8
         cov_reg = cov + ridge * np.eye(n)
-
-        # Validate covariance is positive-definite after regularization
         eigenvalues = np.linalg.eigvalsh(cov_reg)
         if np.any(eigenvalues <= 0) or np.any(np.isnan(eigenvalues)):
             logger.warning("Covariance matrix is not positive-definite "
-                           "(min eigenvalue=%.2e), using score-proportional weights",
-                           np.min(eigenvalues))
-            return self._score_proportional(selected, scores, sector_map)
+                           "(min eigenvalue=%.2e)", float(np.min(eigenvalues)))
+            return None
+        return cov_reg
 
-        # Previous weights for the turnover penalty and constraint. The
-        # candidate weights sum to target_gross (1.0 in the usual case) while the
-        # previous weights carry the account's actual gross exposure, anywhere
-        # between 0.8x and 1.8x after vol scaling.  Compared raw, the L1 distance
-        # can never drop below |target_gross - gross_prev|: with a 40% cap that
-        # made the constraint infeasible whenever the leverage gap plus any name
-        # change exceeded it, SLSQP failed, and the optimizer silently fell back
-        # to score-proportional weights.  Scale the previous weights to the same
-        # gross so both terms measure the change in composition only; gross
-        # changes are charged by enforce_turnover_cap on the final weights.
-        if prev_weights is not None:
-            w_prev = prev_weights.reindex(selected).fillna(0).values.astype(float)
-            prev_gross = float(np.abs(prev_weights).sum())
-            if prev_gross > 1e-12:
-                w_prev = w_prev * (target_gross / prev_gross)
-        else:
-            w_prev = np.full(n, target_gross / n)
+    @staticmethod
+    def _previous_composition(
+        selected: list[str],
+        prev_weights: Optional[pd.Series],
+        target_gross: float,
+    ) -> np.ndarray:
+        """Previous weights of the selected names, rescaled to the target gross.
 
-        # Objective: maximize alpha'w - lambda * w'Cov*w - gamma * |w - w_prev|
-        risk_aversion = self.risk_aversion
-        turnover_penalty = self.turnover_penalty
+        The candidate weights sum to target_gross (1.0 in the usual case)
+        while the previous weights carry the account's actual gross exposure,
+        anywhere between 0.8x and 1.8x after vol scaling.  Compared raw, the
+        penalty would charge the leverage gap on every name; scaled to the
+        same gross it measures the change in composition only.  Gross changes
+        are charged by enforce_turnover_cap on the final weights.  Without a
+        previous book the penalty anchors on equal weights, as before.
+        """
+        n = len(selected)
+        if prev_weights is None:
+            return np.full(n, target_gross / n)
+        w_prev = pd.to_numeric(
+            prev_weights.reindex(selected), errors="coerce"
+        ).replace([np.inf, -np.inf], np.nan).fillna(0).to_numpy(dtype=float)
+        prev_gross = float(np.abs(prev_weights).sum())
+        if prev_gross > 1e-12:
+            w_prev = w_prev * (target_gross / prev_gross)
+        return w_prev
 
-        def neg_utility(w):
-            ret = alpha @ w
-            risk = w @ cov_reg @ w
-            turnover_cost = turnover_penalty * np.sum(np.abs(w - w_prev))
-            return -(ret - risk_aversion * risk - turnover_cost)
+    def _position_bounds(
+        self,
+        selected: list[str],
+        target_gross: float,
+        sector_map: Optional[pd.Series],
+    ) -> tuple[float, float]:
+        """Per-position bounds that keep the program feasible.
 
-        # Constraints
+        The minimum weight is dropped to zero when the selected names cannot
+        all carry it: either in total against the gross target, or within one
+        sector against its cap.
+        """
+        n = len(selected)
+        lower = float(self.min_weight)
+        if lower * n > target_gross + 1e-12:
+            lower = 0.0
+        elif sector_map is not None:
+            sectors = self._aligned_sectors(selected, sector_map)
+            counts = sectors.value_counts()
+            if float(counts.max()) * lower > self.max_sector_weight + 1e-12:
+                lower = 0.0
+        upper = self._effective_position_cap()
+        return lower, max(lower, upper)
+
+    def _linear_constraints(
+        self,
+        selected: list[str],
+        target_gross: float,
+        sector_map: Optional[pd.Series],
+    ) -> list[dict]:
+        """Gross-target equality and sector-cap inequalities with their Jacobians."""
+        n = len(selected)
+        ones = np.ones(n)
         constraints = [
             {
                 "type": "eq",
-                "fun": lambda w, target=target_gross: np.sum(w) - target,
+                "fun": lambda w, target=target_gross: float(np.sum(w) - target),
+                "jac": lambda w, g=ones: g,
             },
         ]
-
-        # Max turnover constraint
-        if self.max_turnover < 1.0:
-            constraints.append({
-                "type": "ineq",
-                "fun": lambda w: self.max_turnover - np.sum(np.abs(w - w_prev)),
-            })
-
-        # Sector constraints: max weight per sector
         if sector_map is not None:
             sectors = self._aligned_sectors(selected, sector_map)
+            cap = float(self.max_sector_weight)
             for sector_name in sectors.unique():
-                sector_mask = (sectors == sector_name).reindex(selected).fillna(False).values
-                if sector_mask.sum() > 0:
+                mask = (sectors == sector_name).to_numpy(dtype=float)
+                if mask.sum() > 0:
                     constraints.append({
                         "type": "ineq",
-                        "fun": lambda w, m=sector_mask: self.max_sector_weight - np.sum(w[m]),
+                        "fun": lambda w, m=mask, c=cap: float(c - m @ w),
+                        "jac": lambda w, m=mask: -m,
                     })
-
-        lower_bound = self.min_weight if self.min_weight * n <= target_gross else 0.0
-        bounds = [(lower_bound, self._effective_position_cap())] * n
-        w0 = np.full(n, target_gross / n)
-
-        try:
-            result = minimize(neg_utility, w0, method="SLSQP",
-                              bounds=bounds, constraints=constraints,
-                              options={"maxiter": 1000, "ftol": 1e-10})
-            if result.success:
-                weights = pd.Series(result.x, index=selected)
-            else:
-                logger.warning("Optimization did not converge (status=%d: %s), "
-                               "using score-proportional weights",
-                               result.status, result.message)
-                weights = self._score_proportional(selected, scores, sector_map)
-        except Exception as e:
-            logger.warning("Optimization failed (%s), using score-proportional weights", e)
-            weights = self._score_proportional(selected, scores, sector_map)
-        return self._finalize_weights(weights, sector_map)
+        return constraints
 
     def _score_proportional(self, selected: list[str], scores: pd.Series,
                              sector_map: Optional[pd.Series] = None) -> pd.Series:

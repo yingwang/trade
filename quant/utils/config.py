@@ -133,6 +133,20 @@ def validate_config(config: dict) -> dict:
         _number(portfolio, "min_trade_notional_usd", minimum=0)
     if "min_trade_fraction" in portfolio:
         _number(portfolio, "min_trade_fraction", minimum=0, maximum=1)
+    # Optional: how target weights are built from the scores.  "proportional"
+    # (the default) is what the live books run; "mvo" is the research-only
+    # mean-variance path.
+    allocation = portfolio.get("allocation", "proportional")
+    if (
+        not isinstance(allocation, str)
+        or allocation.strip().lower() not in {"proportional", "mvo"}
+    ):
+        raise ValueError("portfolio.allocation must be 'proportional' or 'mvo'")
+    # Optional: width of the optimizer's smooth turnover penalty.  Zero would
+    # bring back the non-differentiable L1 term that stopped SLSQP converging.
+    if "turnover_penalty_epsilon" in portfolio:
+        if _number(portfolio, "turnover_penalty_epsilon", minimum=0) <= 0:
+            raise ValueError("portfolio.turnover_penalty_epsilon must be positive")
 
     risk = config["risk"]
     for key in ("max_drawdown_limit", "max_sector_weight", "stop_loss_pct"):
