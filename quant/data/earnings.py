@@ -173,10 +173,12 @@ def announcement_panels(
     * ``days_to_next``: calendar days to the next announcement on Yahoo's
       calendar (future dates included), NaN past the last known one.  In a
       backtest that calendar is the realized one, so a date is "known" long
-      before the company confirmed it; ``next_known_within_days`` blanks
-      the value until the announcement is that close, which is how far
-      ahead dates are typically confirmed (the live path only ever sees
-      Yahoo's forward calendar, so it needs no such cut).
+      before the company confirmed it; with ``next_known_within_days`` the
+      realized date is used only once the announcement is that close (how
+      far ahead dates are typically confirmed) and before that the value is
+      the usual quarterly cadence, 91 days after the last announcement, the
+      same rough expectation Yahoo's forward calendar shows before a date
+      is confirmed (the live path only ever sees that calendar).
     """
     cols = list(closes.columns)
     names = ("surprise_pct", "sue_consensus", "sue_seasonal", "eps_growth_yoy", "n_beats_4", "days_since", "days_to_next")
@@ -210,6 +212,8 @@ def announcement_panels(
         days_to = ((nxt - dates.values) / day).astype(float)
         days_to[nxt_pos >= len(all_dates)] = np.nan
         if next_known_within_days is not None:
-            days_to[days_to > float(next_known_within_days)] = np.nan
+            expected = np.maximum(last.values + 91.0 - dates.values.astype("datetime64[D]").astype(float), 0.0)
+            far = ~(days_to <= float(next_known_within_days))
+            days_to = np.where(far, expected, days_to)
         panels["days_to_next"][sym] = days_to
     return panels

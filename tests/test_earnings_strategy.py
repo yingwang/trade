@@ -126,10 +126,13 @@ def test_announcement_panels_are_point_in_time():
     assert panels["surprise_pct"].loc[a_date, "AAAA"] == events["AAAA"].loc[a_date, "surprise_pct"]
     assert panels["days_since"].loc[a_date, "AAAA"] == 0
     assert panels["days_to_next"].loc[before, "AAAA"] == (a_date - before).days
-    # With a horizon on how early the next date is known, far-off dates are blank.
+    # With a horizon on how early the next date is known, a far-off date is
+    # replaced by the quarterly expectation (91 days after the last one).
     cut = announcement_panels(events, dates, closes, next_known_within_days=30)
     far = dates[dates < a_date - pd.Timedelta(days=45)][-1]
-    assert np.isnan(cut["days_to_next"].loc[far, "AAAA"]) and not np.isnan(panels["days_to_next"].loc[far, "AAAA"])
+    last_before_far = ann[ann <= far][-1]
+    assert cut["days_to_next"].loc[far, "AAAA"] == max((last_before_far + pd.Timedelta(days=91) - far).days, 0)
+    assert cut["days_to_next"].loc[far, "AAAA"] != panels["days_to_next"].loc[far, "AAAA"]
     assert cut["days_to_next"].loc[before, "AAAA"] == (a_date - before).days
     # The persistent beater carries a positive SUE, the persistent misser a negative one.
     late = dates[-1]
