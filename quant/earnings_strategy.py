@@ -79,6 +79,10 @@ class EarningsStrategy(TrendStrategy):
         self.momentum_lookback = int(e.get("momentum_lookback", 252))
         self.momentum_skip = int(e.get("momentum_skip", 126))
         self.sue_lookback = int(e.get("sue_lookback", 8))
+        # Backtests only: treat the next announcement date as unknown until it
+        # is this close (the realized calendar would otherwise be read early).
+        known = e.get("next_known_within_days")
+        self.next_known_within_days = None if known in (None, "", False) else float(known)
         self.min_parts = int(e.get("min_parts", 2))
         # equal: every chosen name gets 1/n (the research simulation's book);
         # inverse_vol: the trend book's sizing.
@@ -130,7 +134,10 @@ class EarningsStrategy(TrendStrategy):
             events = self._events
             if events is None:
                 events = self._events = fetch_earnings(list(px.columns), limit=self.earnings_limit)
-            pre["announcements"] = announcement_panels(events, px.index, px, sue_lookback=self.sue_lookback)
+            pre["announcements"] = announcement_panels(
+                events, px.index, px, sue_lookback=self.sue_lookback,
+                next_known_within_days=self.next_known_within_days,
+            )
         return pre["announcements"]
 
     def parts_on(self, pre: dict, date) -> pd.DataFrame:

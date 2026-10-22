@@ -152,6 +152,7 @@ def announcement_panels(
     closes: pd.DataFrame,
     sue_lookback: int = 8,
     sue_clip: float = 10.0,
+    next_known_within_days: float | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Daily panels (dates x symbols) built from the announcement history.
 
@@ -170,7 +171,12 @@ def announcement_panels(
     * ``n_beats_4``: beats in the last four announcements.
     * ``days_since``: sessions-agnostic calendar days since the last announcement.
     * ``days_to_next``: calendar days to the next announcement on Yahoo's
-      calendar (future dates included), NaN past the last known one.
+      calendar (future dates included), NaN past the last known one.  In a
+      backtest that calendar is the realized one, so a date is "known" long
+      before the company confirmed it; ``next_known_within_days`` blanks
+      the value until the announcement is that close, which is how far
+      ahead dates are typically confirmed (the live path only ever sees
+      Yahoo's forward calendar, so it needs no such cut).
     """
     cols = list(closes.columns)
     names = ("surprise_pct", "sue_consensus", "sue_seasonal", "eps_growth_yoy", "n_beats_4", "days_since", "days_to_next")
@@ -203,5 +209,7 @@ def announcement_panels(
         nxt = all_dates.values[np.clip(nxt_pos, 0, len(all_dates) - 1)]
         days_to = ((nxt - dates.values) / day).astype(float)
         days_to[nxt_pos >= len(all_dates)] = np.nan
+        if next_known_within_days is not None:
+            days_to[days_to > float(next_known_within_days)] = np.nan
         panels["days_to_next"][sym] = days_to
     return panels
