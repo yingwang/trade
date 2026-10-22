@@ -65,14 +65,16 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          START=$(python -c "from datetime import date; from dateutil.relativedelta import relativedelta; print((date.today() - relativedelta(years=5)).isoformat())")
-          python run.py backtest --start "$START" --plot --plot-output backtest_5yr.png
+          # The same window as the tables: five years to the last completed session.
+          END=$(python -c "import refresh_backtest_tables as r; print(r.last_completed_session())")
+          START=$(python -c "from datetime import date; from dateutil.relativedelta import relativedelta; print((date.fromisoformat('$END') - relativedelta(years=5)).isoformat())")
+          python run.py backtest --start "$START" --end "$END" --plot --plot-output backtest_5yr.png
 
       - name: Publish tables to job summary
         if: always()
         run: |
           {
-            echo "# README backtest tables — windows ending $(date -u +%F)"
+            echo "# README backtest tables — windows ending at the last completed session before $(date -u +%F)"
             echo ""
             echo '```'
             cat tables_output.txt 2>/dev/null || echo "(no output captured)"

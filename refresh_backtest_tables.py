@@ -20,6 +20,19 @@ from quant.utils.config import load_config
 from quant.strategy import MultiFactorStrategy
 
 
+def last_completed_session() -> str:
+    """The latest calendar day whose US close is in (16:15 New York grace),
+    stepped back over weekends; holidays simply have no bar."""
+    from datetime import timedelta
+    from quant.data.market_data import MarketData
+
+    exclusive = date.fromisoformat(MarketData._exclusive_download_end())
+    day = exclusive - timedelta(days=1)
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day.isoformat()
+
+
 def _m(metrics, *keys, default=None):
     """Fetch first matching metric key (handles naming drift)."""
     for k in keys:
@@ -83,10 +96,15 @@ def main():
     ap.add_argument("--lgbm", action="store_true", help="also run the LightGBM strategy")
     ap.add_argument("--trend", action="store_true", help="also run the trend strategy (config_trend.yaml)")
     ap.add_argument("--earnings", action="store_true", help="also run the earnings book (config_earnings.yaml)")
-    ap.add_argument("--end", default=date.today().isoformat(), help="end date YYYY-MM-DD (default: today)")
+    ap.add_argument("--end", default=None,
+                    help="end date YYYY-MM-DD (default: the last completed US session)")
     args = ap.parse_args()
 
-    end = args.end
+    # An explicit end date is inclusive and fetches that day's bar whatever
+    # its state, so "today" during the US session pulled a half-formed candle
+    # into every window (and the benchmark).  The default is the last session
+    # whose close is in, the same rule the live path uses.
+    end = args.end or last_completed_session()
     end_d = date.fromisoformat(end)
     windows = [
         ("5-Year Backtest", 5),
