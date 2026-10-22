@@ -37,46 +37,42 @@ Weekly decisions use paper-window alpha + attribution, execution health, model d
 
 ### Multi-Factor Strategy / 多因子策略 — **Candidate / 候选线**
 
-Recomputed 2026-09-22 by the `README Backtest Refresh` workflow (Actions run [35768997115](https://github.com/yingwang/trade/actions/runs/35768997115)) on commit `4b81fe3`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, a turnover cap that may slow a rebalance but not sell the book below min(current, target) gross, and Sharpe/Sortino against a 4% risk-free rate.
+Recomputed 2026-10-22 by the `README Backtest Refresh` workflow (Actions run [39707077519](https://github.com/yingwang/trade/actions/runs/39707077519)) on commit `3228cf0`: one continuous simulation sliced into windows, next-session-open execution, the anchored rebalance calendar, the static sector table on both paths, targets computed from the actual drifted book, the volatility-scaled impact model, a turnover cap that may slow a rebalance but not sell the book below min(current, target) gross, and Sharpe/Sortino against a 4% risk-free rate.
 
-由 `README Backtest Refresh` workflow 于 2026-09-22 重算（Actions run 35768997115，commit `4b81fe3`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与 paper/模拟盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，换手上限只放慢调仓、不把毛头寸卖到「现有」与「目标」两者较低者之下，Sharpe/Sortino 按 4% 无风险利率计算。
+由 `README Backtest Refresh` workflow 于 2026-10-22 重算（Actions run 39707077519，commit `3228cf0`）：一次连续模拟切成三个窗口，次日开盘成交，锚定的再平衡日历，回测与 paper/模拟盘共用的静态行业表，目标组合按真实漂移持仓计算，波动率尺度的冲击成本，换手上限只放慢调仓、不把毛头寸卖到「现有」与「目标」两者较低者之下，Sharpe/Sortino 按 4% 无风险利率计算。
 
-#### 5-Year Backtest (2021-09-22 → 2026-09-22)
-
-| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
-|---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+127.1%** | +89.0% | **+38.0pp** |
-| **CAGR / 年化收益** | **+17.9%** | — | — |
-| **Sharpe Ratio** | **0.78** | — | — |
-| **Sortino Ratio** | **1.11** | — | — |
-| **Max Drawdown / 最大回撤** | -16.9% | — | — |
-| **Information Ratio** | **0.27** | — | — |
-
-#### 3-Year Backtest (2023-09-22 → 2026-09-22)
+#### 5-Year Backtest (2021-10-22 → 2026-10-22)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+95.0%** | +86.5% | **+8.5pp** |
-| **CAGR / 年化收益** | **+25.1%** | — | — |
-| **Sharpe Ratio** | **1.07** | — | — |
-| **Sortino Ratio** | **1.56** | — | — |
-| **Max Drawdown / 最大回撤** | -16.9% | — | — |
-| **Information Ratio** | **0.15** | — | — |
+| **Total Return / 总收益**  | **+151.8%** | +82.4% | **+69.4pp** |
+| **CAGR / 年化收益**         | **+20.4%** | — | — |
+| **Sharpe Ratio**        | **0.77** | — | — |
+| **Sortino Ratio**       | **1.09** | — | — |
+| **Max Drawdown / 最大回撤** | -25.6% | — | — |
+| **Information Ratio**   | **0.50** | — | — |
 
-#### 1-Year Backtest (2025-09-22 → 2026-09-22)
+#### 3-Year Backtest (2023-10-22 → 2026-10-22)
 
 | Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
 |---------------|:-----------:|:---:|:---------:|
-| **Total Return / 总收益** | **+35.5%** | +17.3% | **+18.2pp** |
-| **CAGR / 年化收益** | **+35.7%** | — | — |
-| **Sharpe Ratio** | **1.26** | — | — |
-| **Sortino Ratio** | **1.88** | — | — |
-| **Max Drawdown / 最大回撤** | -15.1% | — | — |
-| **Information Ratio** | **0.95** | — | — |
+| **Total Return / 总收益**  | **+126.2%** | +90.7% | **+35.6pp** |
+| **CAGR / 年化收益**         | **+31.5%** | — | — |
+| **Sharpe Ratio**        | **1.09** | — | — |
+| **Sortino Ratio**       | **1.59** | — | — |
+| **Max Drawdown / 最大回撤** | -25.6% | — | — |
+| **Information Ratio**   | **0.50** | — | — |
 
-The same windows on the previous turnover cap (commit `cbe823a`, run [35769424492](https://github.com/yingwang/trade/actions/runs/35769424492)) gave +125.8% / +101.9% / +38.6%, and a third variant tried the same day landed at +129.8% / +99.2% / +34.1%. Differences of that size are mostly path: which names happen to trade on which rebalance day. The change is justified by what it stops, a capped rebalance quietly selling the book below its volatility target (the live 2026-09-23 preview would have gone from 77% to 68% invested against a 98% target), not by these numbers.
+#### 1-Year Backtest (2025-10-22 → 2026-10-22)
 
-同样的窗口，换手上限改动之前的代码（commit `cbe823a`，run 35769424492）是 +125.8% / +101.9% / +38.6%，同日试过的第三种写法是 +129.8% / +99.2% / +34.1%。这种量级的差别主要来自路径，也就是哪只股票恰好在哪个调仓日成交。这次改动的理由在于它堵住的问题：封顶的调仓会悄悄把仓位卖到波动率目标之下（2026-09-23 的实盘预演本会从 77% 仓位调到 68%，而目标是 98%），而不在这几个数字。
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益**  | **+46.2%** | +17.0% | **+29.2pp** |
+| **CAGR / 年化收益**         | **+46.6%** | — | — |
+| **Sharpe Ratio**        | **1.45** | — | — |
+| **Sortino Ratio**       | **2.18** | — | — |
+| **Max Drawdown / 最大回撤** | -15.8% | — | — |
+| **Information Ratio**   | **1.33** | — | — |
 
 #### Performance Chart / 净值曲线 (5-Year)
 
@@ -92,54 +88,54 @@ A third book, on its own Alpaca paper account, built to compete with the two abo
 
 第三个账户走的是另一条路：集中、带杠杆的趋势跟随。在 200 日线之上的股票里按 12-1、6-1、3 个月动量混合排序取前七只，按波动率倒数配权，把组合年化波动定在 35% 并允许最高 1.9 倍毛头寸；大盘破 200 日线、大盘 21 日波动率超过 30%、市场宽度弱于 30% 这三盏警示灯亮一盏毛头寸压到 0.6 倍、亮两盏清仓。每十个交易日按共享的锚定日历调仓，每个交易日检查 20% 移动止损与仓位上限并当天执行。参数由五年窗口上的十二组对照定下：十日调仓代替五日、七只代替十只是两处真正起作用的改动，收紧止损和放松减仓门槛都更差。回测表由 `Trend Backtest` workflow 生成，幸存者偏差的说明与多因子表相同。
 
-Recomputed 2026-09-17 by the `README Backtest Refresh` workflow (Actions run [35218038435](https://github.com/yingwang/trade/actions/runs/35218038435)) on commit `e59fe3e`, the same continuous simulation sliced into windows as the multi-factor tables above. Static universe, so the same survivorship caveat applies, and the concentration (seven names, up to 1.9x gross) makes the numbers more sensitive to it than the multi-factor book's.
+Recomputed 2026-10-22 by the `README Backtest Refresh` workflow (Actions run [39707077519](https://github.com/yingwang/trade/actions/runs/39707077519)) on commit `3228cf0`, with the trailing stop measured from the highest close since entry (the 18 September fix) and the turnover cap that lets an under-invested book re-lever, the same continuous simulation sliced into windows as the multi-factor tables above. Static universe, so the same survivorship caveat applies, and the concentration (seven names, up to 1.9x gross) makes the numbers more sensitive to it than the multi-factor book's.
 
-由 `README Backtest Refresh` workflow 于 2026-09-17 重算（Actions run 35218038435，commit `e59fe3e`），与上面多因子表同样是一次连续模拟切成三个窗口。股票池是静态的，幸存者偏差的说明同上；这一本只持七只、最高 1.9 倍毛头寸，对这种偏差比多因子那本更敏感。
+由 `README Backtest Refresh` workflow 于 2026-10-22 重算（Actions run 39707077519，commit `3228cf0`），移动止损已按入场以来最高收盘计算（9 月 18 日的修正），换手上限也已允许欠配的账户加回仓位，与上面多因子表同样是一次连续模拟切成三个窗口。股票池是静态的，幸存者偏差的说明同上；这一本只持七只、最高 1.9 倍毛头寸，对这种偏差比多因子那本更敏感。
 
-### 5-Year Backtest (2021-09-17 → 2026-09-17)
+### 5-Year Backtest (2021-10-22 → 2026-10-22)
 
-| Metric / 指标             | Strategy / 策略 | SPY    | Difference / 差异 |
-| ----------------------- | ------------- | ------ | --------------- |
-| **Total Return / 总收益**  | **+256.8%** | +82.2% | **+174.6pp** |
-| **CAGR / 年化收益**         | **+29.2%** | — | — |
-| **Sharpe Ratio**        | **0.87** | — | — |
-| **Sortino Ratio**       | **1.28** | — | — |
-| **Max Drawdown / 最大回撤** | -26.7% | — | — |
-| **Information Ratio**   | **0.65** | — | — |
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益**  | **+200.1%** | +82.4% | **+117.7pp** |
+| **CAGR / 年化收益**         | **+24.7%** | — | — |
+| **Sharpe Ratio**        | **0.74** | — | — |
+| **Sortino Ratio**       | **1.08** | — | — |
+| **Max Drawdown / 最大回撤** | -31.3% | — | — |
+| **Information Ratio**   | **0.52** | — | — |
 
-### 3-Year Backtest (2023-09-17 → 2026-09-17)
+### 3-Year Backtest (2023-10-22 → 2026-10-22)
 
-| Metric / 指标             | Strategy / 策略 | SPY    | Difference / 差异 |
-| ----------------------- | ------------- | ------ | --------------- |
-| **Total Return / 总收益**  | **+220.4%** | +75.8% | **+144.6pp** |
-| **CAGR / 年化收益**         | **+47.8%** | — | — |
-| **Sharpe Ratio**        | **1.24** | — | — |
-| **Sortino Ratio**       | **1.88** | — | — |
-| **Max Drawdown / 最大回撤** | -26.7% | — | — |
-| **Information Ratio**   | **0.92** | — | — |
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益**  | **+220.8%** | +90.7% | **+130.2pp** |
+| **CAGR / 年化收益**         | **+47.9%** | — | — |
+| **Sharpe Ratio**        | **1.21** | — | — |
+| **Sortino Ratio**       | **1.82** | — | — |
+| **Max Drawdown / 最大回撤** | -29.7% | — | — |
+| **Information Ratio**   | **0.81** | — | — |
 
-### 1-Year Backtest (2025-09-17 → 2026-09-17)
+### 1-Year Backtest (2025-10-22 → 2026-10-22)
 
-| Metric / 指标             | Strategy / 策略 | SPY    | Difference / 差异 |
-| ----------------------- | ------------- | ------ | --------------- |
-| **Total Return / 总收益**  | **+65.9%** | +15.7% | **+50.2pp** |
-| **CAGR / 年化收益**         | **+66.5%** | — | — |
-| **Sharpe Ratio**        | **1.49** | — | — |
-| **Sortino Ratio**       | **2.24** | — | — |
-| **Max Drawdown / 最大回撤** | -19.9% | — | — |
-| **Information Ratio**   | **1.46** | — | — |
+| Metric / 指标 | Strategy / 策略 | SPY | Difference / 差异 |
+|---------------|:-----------:|:---:|:---------:|
+| **Total Return / 总收益**  | **+40.6%** | +17.0% | **+23.6pp** |
+| **CAGR / 年化收益**         | **+41.0%** | — | — |
+| **Sharpe Ratio**        | **1.02** | — | — |
+| **Sortino Ratio**       | **1.47** | — | — |
+| **Max Drawdown / 最大回撤** | -23.5% | — | — |
+| **Information Ratio**   | **0.83** | — | — |
 
 ### LightGBM Strategy / LightGBM 策略 — **Research / 研究线** (paper orders)
 
-Same run, same windows. The ranking model does not beat the benchmark in any window of the honest backtest; the paper account's excess return since April 2026 is, by the dashboard's attribution, mostly sector exposure (industry +18.7pp against selection +6.4pp through 2026-09-18). Treat this strategy as research until that changes. Its paper account trades on schedule; from 2026-09-18 to 09-22 the schedule ran dry-run and the account sat frozen, so that stretch of its paper record is not the model.
+Same run, same windows. In this run the ranking model is ahead of the benchmark in all three windows; in the 2026-09-22 run (35768997115) it trailed in all three (5-year +61.7% against +89.0%). What changed between the two runs is not the model but the turnover cap, which now lets an under-invested book re-lever instead of pinning it, plus a month of market rolling into every window. The nightly training diagnostics are unchanged (best iteration between 1 and 8, baseline skill negative), and the paper account's excess return since April 2026 is, by the dashboard's attribution, mostly sector exposure. Treat this strategy as research until the model itself shows skill. Its paper account trades on schedule; from 2026-09-18 to 09-22 the schedule ran dry-run and the account sat frozen, so that stretch of its paper record is not the model.
 
-同一次运行、同样的窗口。排序模型在诚实回测的任何窗口内都没有跑赢基准；模拟账户自 2026 年 4 月以来的超额收益，按看板归因，主要来自行业暴露（截至 2026-09-18 行业 +18.7pp，选股 +6.4pp）。在这一点改变之前，这条策略应视为研究项目。它的模拟账户照常定时交易；2026-09-18 到 09-22 定时任务只做 dry-run，账户原样冻结，这一段模拟盘记录反映的不是模型。
+同一次运行、同样的窗口。这一次排序模型在三个窗口都领先基准；2026-09-22 那次（run 35768997115）它三个窗口全部落后（五年 +61.7% 对 +89.0%）。两次之间变的不是模型，而是换手上限：它现在允许欠配的账户加回仓位，不再把账户钉在原地，另外每个窗口都多滚进了一个月行情。每夜重训的诊断没有变化（best iteration 在 1 到 8 之间，基线技能为负），模拟账户自 2026 年 4 月以来的超额收益按看板归因主要来自行业暴露。在模型本身显出能力之前，这条策略仍应视为研究项目。它的模拟账户照常定时交易；2026-09-18 到 09-22 定时任务只做 dry-run，账户原样冻结，这一段模拟盘记录反映的不是模型。
 
 | Window / 窗口 | Strategy / 策略 | SPY | Difference / 差异 | Sharpe | Max DD |
 |---|:---:|:---:|:---:|:---:|:---:|
-| 5-Year (2021-09-22 → 2026-09-22) | +61.7% | +89.0% | -27.4pp | 0.53 | -17.0% |
-| 3-Year (2023-09-22 → 2026-09-22) | +58.9% | +86.5% | -27.6pp | 1.17 | -10.7% |
-| 1-Year (2025-09-22 → 2026-09-22) | +15.6% | +17.3% | -1.7pp | 1.22 | -6.2% |
+| 5-Year (2021-10-22 → 2026-10-22) | +137.6% | +82.4% | +55.2pp | 0.77 | -20.5% |
+| 3-Year (2023-10-22 → 2026-10-22) | +128.7% | +90.7% | +38.1pp | 1.30 | -20.5% |
+| 1-Year (2025-10-22 → 2026-10-22) | +30.7% | +17.0% | +13.6pp | 1.28 | -9.4% |
 
 Even after rerunning, the default static stock universe must be labelled as
 survivorship-biased. A bias-reduced run requires both the optional
