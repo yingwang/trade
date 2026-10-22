@@ -85,15 +85,25 @@ jobs:
             *)             echo "args="                  >> "$GITHUB_OUTPUT" ;;
           esac
 
-      # Without keys the book cannot trade.  Warn and skip the run (no
+      # The earnings book trades the paper account the trend book had: the
+      # owner retired the trend book on 2026-10-22 as the lowest actual
+      # paper return of the three (100,000 on 2026-09-17, 92,707 on 10/22),
+      # and rebalance-trend.yml is disabled and refuses live runs.  Its keys
+      # are ALPACA_TREND_* or, as the trend workflow read them, the legacy
+      # ALPACA_CLAUDE_*.  Scheduled runs start on 2026-10-23, the date the
+      # owner was told the first order would go in; a manual dry run works
+      # before that.  Without keys the run stands down with a warning (no
       # failure mail, per the owner) rather than let the script trace back.
       - name: Check the account keys are configured
         id: keys
         env:
-          ALPACA_EARNINGS_API_KEY: ${{ secrets.ALPACA_EARNINGS_API_KEY }}
+          ALPACA_EARNINGS_API_KEY: ${{ secrets.ALPACA_TREND_API_KEY || secrets.ALPACA_CLAUDE_API_KEY }}
         run: |
-          if [ -z "$ALPACA_EARNINGS_API_KEY" ]; then
-            echo "::warning::Earnings account keys missing (set ALPACA_EARNINGS_API_KEY / ALPACA_EARNINGS_SECRET_KEY); standing down"
+          if [ "${{ github.event_name }}" = "schedule" ] && [[ "$(date -u +%F)" < "2026-10-23" ]]; then
+            echo "::notice::The earnings book takes over the trend account on 2026-10-23; scheduled runs wait until then"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$ALPACA_EARNINGS_API_KEY" ]; then
+            echo "::warning::Earnings account keys missing (the trend account's ALPACA_TREND_* or ALPACA_CLAUDE_*); standing down"
             echo "STAND_DOWN:missing_keys at $(date -u +%H:%M) UTC: earnings account keys are not configured" >> "$GITHUB_STEP_SUMMARY"
             echo "present=false" >> "$GITHUB_OUTPUT"
           else
@@ -107,8 +117,8 @@ jobs:
           python paper_trade_earnings.py ${{ steps.flags.outputs.args }} 2>&1 | tee run.log
         env:
           PYTHONPATH: .
-          ALPACA_EARNINGS_API_KEY: ${{ secrets.ALPACA_EARNINGS_API_KEY }}
-          ALPACA_EARNINGS_SECRET_KEY: ${{ secrets.ALPACA_EARNINGS_SECRET_KEY }}
+          ALPACA_EARNINGS_API_KEY: ${{ secrets.ALPACA_TREND_API_KEY || secrets.ALPACA_CLAUDE_API_KEY }}
+          ALPACA_EARNINGS_SECRET_KEY: ${{ secrets.ALPACA_TREND_SECRET_KEY || secrets.ALPACA_CLAUDE_SECRET_KEY }}
 
       # A run that could not do its job is marked, not failed: the owner
       # asked for no failure mail (2026-10-22), so a stand-down shows as a

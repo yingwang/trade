@@ -164,9 +164,15 @@ def main():
 
     # Compute the recommendation once and share it between sections.
     logger.info("Computing current portfolio...")
+    # The runner's stop record goes with the request, so the published target
+    # respects the re-entry cooldown the way the next rebalance will.
+    from paper_trade_common import load_state, stop_exit_context
+    from paper_trade import STATE_FILE
+
     current_portfolio = strategy.get_current_portfolio(
         capital=capital,
         prev_weights=prev_weights,
+        **stop_exit_context(load_state(STATE_FILE)),
     )
 
     logger.info("Generating portfolio data...")

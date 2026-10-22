@@ -61,6 +61,9 @@ PROFILE = TradeProfile(
     secret_key_env="ALPACA_LGBM_SECRET_KEY",
     persist_scores=True,
     events_log="logs/trade_events_lgbm.jsonl",
+    # Re-entry cooldown after a fixed stop (risk.reentry_cooldown_sessions).
+    portfolio_context=common.stop_exit_context,
+    record_stop_exits=common.record_fixed_stop_exits,
 )
 
 

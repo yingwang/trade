@@ -360,8 +360,13 @@ def fetch_trade_history(
     secret_key_env: str,
     state_file: str,
     split_cash_compensations: dict | None = None,
+    since: str | None = None,
 ) -> dict:
     """Trade history + positions + equity history for one Alpaca account.
+
+    ``since`` (YYYY-MM-DD) keeps only the fills and the daily equity from that
+    date on, for a book that took over an account another book had traded:
+    the earnings book's page must not show the trend book's history as its own.
 
     Falls back to local log files if API keys are not available.
     """
@@ -374,6 +379,7 @@ def fetch_trade_history(
             secret_key,
             state_file,
             split_cash_compensations=split_cash_compensations,
+            since=since,
         )
 
     logger.warning("No Alpaca keys in %s/%s, falling back to local logs",
@@ -568,6 +574,7 @@ def _fetch_trades_from_alpaca(
     secret_key,
     state_file,
     split_cash_compensations: dict | None = None,
+    since: str | None = None,
 ) -> dict:
     """Pull trade history and current positions from the Alpaca API."""
     try:
@@ -608,6 +615,8 @@ def _fetch_trades_from_alpaca(
                             len(portfolio_history))
         except Exception as e:
             logger.warning("Could not fetch portfolio history: %s", e)
+        if since:
+            portfolio_history = [row for row in portfolio_history if row["date"] >= since]
 
         # Current positions (split-corrected where needed)
         raw_positions = api.get_all_positions()
@@ -651,6 +660,11 @@ def _fetch_trades_from_alpaca(
         # Include partially filled and later-cancelled orders: actual shares
         # changed hands even when the terminal status is not "filled".
         filled_orders = [o for o in orders if float(o.filled_qty or 0) > 0]
+        if since:
+            filled_orders = [
+                o for o in filled_orders
+                if (_eastern_date(_parse_timestamp(o.filled_at or o.submitted_at)) or "") >= since
+            ]
 
         # Group orders by date into "rebalances"
         by_date = defaultdict(list)

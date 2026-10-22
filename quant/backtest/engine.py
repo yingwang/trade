@@ -70,6 +70,9 @@ class BacktestEngine:
         )
         # Fallback daily volatility when none is supplied for a symbol.
         self.default_daily_sigma = 0.02
+        # Symbol -> session its fixed stop was executed, for the strategies'
+        # re-entry cooldown (read by their target providers during run()).
+        self.stop_exits: dict[str, pd.Timestamp] = {}
 
     @staticmethod
     def _valid_price(value) -> bool:
@@ -174,6 +177,7 @@ class BacktestEngine:
         """
 
         result = BacktestResult()
+        self.stop_exits = {}
         if prices is None or prices.empty:
             result.metrics = {}
             return result
@@ -298,6 +302,7 @@ class BacktestEngine:
                 holdings[symbol] = 0.0
                 entry_prices[symbol] = np.nan
                 executed_stops.append(symbol)
+                self.stop_exits[symbol] = date
 
             if stop_value > 0:
                 stop_cost = self._cost(

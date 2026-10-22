@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "last_rebalance": null,
+  "trade_history": [],
+  "equity_history_seeded_at": "2026-10-22T00:00:00",
+  "account_inherited_from": "trend",
+  "book_started": "2026-10-23"
+}

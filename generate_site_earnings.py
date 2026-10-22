@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate static dashboard data for the earnings book (fourth account).
+"""Generate static dashboard data for the earnings book (the trend book's
+paper account since 2026-10-23).
 
 Produces JSON data files in site/earnings/data/ that the earnings dashboard
 loads. Runs nightly in update-site.yml, never locally against the live
@@ -95,6 +96,8 @@ def main():
     strategy = EarningsStrategy(config)
 
     logger.info("Fetching trade history and current account...")
+    # The account traded the trend book until 2026-10-22; the page starts at
+    # the takeover (dashboard.account_since in config_earnings.yaml).
     trades = fetch_trade_history(
         "ALPACA_EARNINGS_API_KEY",
         "ALPACA_EARNINGS_SECRET_KEY",
@@ -102,6 +105,7 @@ def main():
         split_cash_compensations=(
             config.get("dashboard", {}).get("split_cash_compensations", {}).get("earnings", {})
         ),
+        since=config.get("dashboard", {}).get("account_since"),
     )
     if trades.get("source") == "local":
         # Without account keys, refuse rather than publishing another book's history.

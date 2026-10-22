@@ -20,7 +20,7 @@ from quant.portfolio.optimizer import (
     _ledoit_wolf_shrinkage,
 )
 from quant.backtest.engine import BacktestEngine, BacktestResult
-from quant.backtest.calendar import fixed_rebalance_dates
+from quant.backtest.calendar import active_cooldowns, fixed_rebalance_dates
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,11 @@ class MultiFactorStrategy:
         self.risk_monitor = RiskMonitor(config)
         self.backtest_engine = BacktestEngine(config)
         self.pit_universe, self.delisting_returns = load_point_in_time_bundle(config)
+        # A name sold on its fixed stop is not bought back for this many
+        # sessions (risk.reentry_cooldown_sessions; 0 turns it off).  The
+        # backtest reads the engine's record of executed stops, the live path
+        # the runner's (state["stop_exits"]), through active_cooldowns.
+        self.reentry_cooldown = int(config.get("risk", {}).get("reentry_cooldown_sessions", 0) or 0)
         # Live-path price snapshot, exposed for site generation reuse
         self.last_prices_ = None
         # The matching live fundamental snapshot is reused by actual-return
@@ -149,6 +154,11 @@ class MultiFactorStrategy:
             if self.pit_universe is not None:
                 members = self.pit_universe.members_as_of(date)
                 day_scores = day_scores[day_scores.index.isin(members)]
+            if self.reentry_cooldown > 0:
+                cooling = active_cooldowns(
+                    prices.index, date, self.backtest_engine.stop_exits, self.reentry_cooldown,
+                )
+                day_scores = day_scores.drop(labels=list(cooling), errors="ignore")
             if day_scores.empty:
                 return None
 
@@ -264,6 +274,7 @@ class MultiFactorStrategy:
         self,
         capital: float = None,
         prev_weights: pd.Series = None,
+        stop_exits: dict = None,
     ) -> pd.DataFrame:
         """Get optimized target portfolio with weights and dollar amounts.
 
@@ -277,6 +288,9 @@ class MultiFactorStrategy:
             and so is the optimizer's turnover penalty when
             portfolio.allocation is "mvo"; same semantics as the backtest
             loop.
+        stop_exits : dict, optional
+            Symbol to the day the runner sold it on its fixed stop; names
+            still inside risk.reentry_cooldown_sessions are not selected.
 
         Returns
         -------
@@ -322,6 +336,11 @@ class MultiFactorStrategy:
             sector_map=sector_map,
         )
         day_scores = signals.iloc[-1].dropna()
+        if self.reentry_cooldown > 0 and stop_exits:
+            cooling = active_cooldowns(prices.index, prices.index[-1], stop_exits, self.reentry_cooldown)
+            if cooling:
+                logger.info("Re-entry cooldown after a stop: not buying %s", sorted(cooling))
+            day_scores = day_scores.drop(labels=list(cooling), errors="ignore")
 
         # Select top stocks
         selected = self.optimizer.select_top_stocks(day_scores)

@@ -20,11 +20,11 @@ contributions add exactly to geometric active return.
 
 ## How we decide / 我们怎么做决策
 
-**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (paper orders, not a Candidate); Trend = **Sandbox** (params frozen); Earnings Book = **Candidate** (fourth account, from 2026-10-22).
+**Capital stance: paper only.** Line roles: Multi-Factor = **Candidate**; LightGBM = **Research** (paper orders, not a Candidate); Earnings Book = **Candidate** (on the former trend account from 2026-10-23); Trend = **Retired** 2026-10-22 (lowest actual paper return of the three, its account handed to the earnings book).
 
 Weekly decisions use paper-window alpha + attribution, execution health, model diagnostics, and written keep/cut/hold — **not** vanity long-window Sharpe. Full contract: [`docs/HOW_WE_DECIDE.md`](docs/HOW_WE_DECIDE.md). Stop gates: [`docs/STOP_CONDITIONS.md`](docs/STOP_CONDITIONS.md). Weekly cards: [`docs/weekly/`](docs/weekly/).
 
-资本姿态：仅 paper。多因子 = **候选线**；LightGBM = **研究线**（干跑遥测）；Trend = **沙盒**（冻参）。周决策看 paper 窗 α+归因、执行健康、模型诊断与书面 keep/cut/hold，**不以**长窗夏普作资本叙事。详见上列文档。
+资本姿态：仅 paper。多因子 = **候选线**；LightGBM = **研究线**；财报账本 = **候选线**（2026-10-23 起使用原趋势本的账户）；趋势本 = **已退役**（2026-10-22，三本里实盘收益最低，账户交给财报账本）。周决策看 paper 窗 α+归因、执行健康、模型诊断与书面 keep/cut/hold，**不以**长窗夏普作资本叙事。详见上列文档。
 
 
 ---
@@ -86,7 +86,12 @@ The earlier 2026-10-22 table (run 39707077519: 5-year +151.8%) still came from a
 
 同日早些时候那张表（run 39707077519，五年 +151.8%）出自一个从未做行业中性化的回测：`SignalGenerator.generate` 从基本面快照里取行业，而回测没有快照，实盘却每天都在中性化。现在两条路径都按静态行业表中性化，上面这张表才是账户真正交易的那套信号，修正让五年少了约 24 个百分点。同样的窗口里，这 100 只等权持有年化约 17%，SPY 12.8%；`docs/research/2026-10-22-alpha-audit.md` 测得合成信号 2008 到 2026 年的 21 日秩相关 IC 接近零：这本账的超额主要来自股票池和杠杆，而非排序。
 
-### Trend Strategy / 趋势策略 — **Sandbox / 沙盒** (params frozen; third paper account)
+### Trend Strategy / 趋势策略 — **Retired / 已退役** (2026-10-22)
+
+Retired on 2026-10-22 at the owner's call as the lowest actual paper return of the three books: its account went from 100,000 on 2026-09-17 to 92,707 on 2026-10-22, while the other two were up over the same stretch. From 2026-10-23 that account trades the earnings book below; `rebalance-trend.yml` has no schedule and refuses live runs. The description and tables are kept as the record of what it was.
+
+2026-10-22 按她的决定退役：三本账里它的实盘收益最低，账户从 2026-09-17 的 100,000 到 2026-10-22 的 92,707，同期另外两本都是正的。该账户自 2026-10-23 起交给下面的财报账本；`rebalance-trend.yml` 不再定时、拒绝实盘运行。以下说明与表格作为记录保留。
+
 
 A third book, on its own Alpaca paper account, built to compete with the two above on raw return: concentrated leveraged trend-following (`quant/trend_strategy.py`, `config_trend.yaml`, `paper_trade_trend.py`). Seven names, chosen by blended 12-1 / 6-1 / 3-month momentum among stocks above their 200-day average, sized by inverse volatility, scaled to a 35% volatility target with up to 1.9x gross. Three market warning lights (SPY below its 200-day average, SPY 21-day volatility above 30%, fewer than 30% of the universe above their 50-day averages) cap gross at 0.6x with one light on and send the book to cash with two. Rebalance every ten sessions on the shared anchored calendar; every session checks trailing stops (20% below the highest close since entry) and the regime cap, and acts the same day. The parameters were settled by a twelve-variant sweep on the five-year window: rebalancing every ten sessions rather than five and holding seven names rather than ten were the two changes that mattered, while tighter stops and a softer regime cut both hurt. Backtest tables come from the `Trend Backtest` workflow and `README Backtest Refresh` with the trend option; they carry the same survivorship caveat as the multi-factor table.
 
@@ -129,13 +134,13 @@ Recomputed 2026-10-22 by the `README Backtest Refresh` workflow (Actions run [39
 | **Max Drawdown / 最大回撤** | -19.4% | — | — |
 | **Information Ratio**   | **0.82** | — | — |
 
-### Earnings Book / 财报账本 — **Candidate / 候选线** (fourth paper account)
+### Earnings Book / 财报账本 — **Candidate / 候选线** (the former trend account, from 2026-10-23)
 
-A fourth book on its own Alpaca paper account, built in October 2026 after an audit of where the other three books' backtest returns actually come from (`research/`, run on Actions through the `Research` workflow). Measured by 21-day rank IC over 2008 to 2026, the five price factors of the multi-factor book have no ranking power on the hand-picked 100-name universe (composite IC about zero), and that universe's own equal-weighted return, 17.1% a year over the five years to 2026-10-22 against SPY's 12.8%, together with the books' leverage, explains their backtests: SPMO, the S&P 500 momentum ETF, at 1.5x was +190% over the same five years, and the static 100 names equal-weighted at 1.5x were +162%. The SEC's free XBRL fundamentals (`quant/data/edgar.py`, point-in-time by filing date) did not help either: value, profitability, accruals and issuance all measured as weak or unstable.
+A book built in October 2026, trading from 2026-10-23 on the Alpaca paper account the retired trend book had, after an audit of where the other three books' backtest returns actually come from (`research/`, run on Actions through the `Research` workflow). Measured by 21-day rank IC over 2008 to 2026, the five price factors of the multi-factor book have no ranking power on the hand-picked 100-name universe (composite IC about zero), and that universe's own equal-weighted return, 17.1% a year over the five years to 2026-10-22 against SPY's 12.8%, together with the books' leverage, explains their backtests: SPMO, the S&P 500 momentum ETF, at 1.5x was +190% over the same five years, and the static 100 names equal-weighted at 1.5x were +162%. The SEC's free XBRL fundamentals (`quant/data/edgar.py`, point-in-time by filing date) did not help either: value, profitability, accruals and issuance all measured as weak or unstable.
 
 The one set of signals with a positive IC in every sub-period since 2010 was built from announcements on the point-in-time S&P 500: the consensus earnings surprise, year-on-year EPS growth and 12-6 month momentum (`quant/earnings_strategy.py`, `config_earnings.yaml`, `paper_trade_earnings.py`; the universe is the S&P 500's membership history from the public fja05680/sp500 table and the announcements come from Yahoo's earnings calendar through yfinance). The distance to the next announcement was part of the research composite but is off in the book: its backtest contribution needed the realized date earlier than a company confirms it. The book holds the top 25 names by the composite in equal weights, rebalanced every five sessions, with no stops, no regime lights and no leverage: every one of the trend book's risk devices cost return on this ranking in the variants run on 2026-10-22, and so did inverse-volatility sizing and volatility targeting (`docs/research/2026-10-22-alpha-audit.md`).
 
-第四个账户于 2026 年 10 月建立，起因是一次审计：三本账的回测超额到底从哪里来。用 2008 到 2026 年的 21 日秩相关 IC 衡量，多因子那五个价格因子在那 100 只精选大盘股上没有选股能力（合成 IC 约为零）；超额来自池子本身（这 100 只等权五年年化 17.1%，SPY 12.8%）加杠杆：同期标普动量 ETF（SPMO）1.5 倍杠杆 +190%，这 100 只等权 1.5 倍 +162%。SEC 免费的 XBRL 时点基本面（`quant/data/edgar.py`，按申报日期）也没有带来稳定的因子：价值、盈利质量、应计、增发都很弱或不稳定。
+这本账建于 2026 年 10 月，自 2026-10-23 起使用退役的趋势本的模拟账户，起因是一次审计：三本账的回测超额到底从哪里来。用 2008 到 2026 年的 21 日秩相关 IC 衡量，多因子那五个价格因子在那 100 只精选大盘股上没有选股能力（合成 IC 约为零）；超额来自池子本身（这 100 只等权五年年化 17.1%，SPY 12.8%）加杠杆：同期标普动量 ETF（SPMO）1.5 倍杠杆 +190%，这 100 只等权 1.5 倍 +162%。SEC 免费的 XBRL 时点基本面（`quant/data/edgar.py`，按申报日期）也没有带来稳定的因子：价值、盈利质量、应计、增发都很弱或不稳定。
 
 唯一在 2010 年以来每个子时期都为正的信号，来自标普 500 时点池上的财报公告：一致预期的盈利意外、EPS 同比增速，再加 12 到 6 个月的中期动量。研究里的合成还有一项「离下次财报的天数」，账本没有用它：它在回测里的贡献来自比公司确认日期更早地知道日期。账本按合成分数取前 25 只等权，每五个交易日调仓，不设止损、不看灯号、不加杠杆：趋势本的每一样风控装置在这套排序上都减收益，波动率倒数配权与波动率目标也一样（见 `docs/research/2026-10-22-alpha-audit.md`）。
 
@@ -187,7 +192,7 @@ its universe selection as well as in its survivorship.
 | **Max Turnover** | 40% per rebalance | 总换手上限（含退出腿与杠杆变化）；超限时向上期组合渐进过渡。预算分两份：退出腿最多用 60%（`exit_turnover_share`），其余留给买入腿，退出腿用不完的仍归买入腿，这样卖出不会挤掉买入 |
 | **Max Sector** | 50% | 允许科技股集中但有上限 |
 | **Max Drawdown** | 25% | 回测与 paper/模拟盘共用 `risk.max_drawdown_limit`：突破后阻断新开仓、允许减仓卖出并写事件告警；另有日亏损熔断与每日止损 |
-| **Stop Loss** | 15% | 单只股票止损线，回测与 paper/模拟盘均每日检查 |
+| **Stop Loss** | 15% | 单只股票止损线，回测与 paper/模拟盘均每日检查；止损卖出后 5 个交易日内不买回（`risk.reentry_cooldown_sessions`，2026-10-22 起，两本因子账本都适用） |
 | **Leverage** | Up to 1.8x (calm) / 0.8x (stress) | 动态杠杆，基于SPY波动率的市场环境检测 |
 | **Cost Model** | Square-root impact | 固定 15bps + 系数 × 个股 20 日波动率 × √(成交股数 / 20 日 ADV)，两者均取前一日已知值；缺失成交量时退回换手率代理 |
 

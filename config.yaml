@@ -283,6 +283,10 @@ risk:
   max_drawdown_limit: 0.25     # 25% — accept more drawdown for growth
   max_sector_weight: 0.50      # 50% — let tech run when momentum says so
   stop_loss_pct: 0.15          # 15% — wider to avoid whipsawing volatile winners
+  # A name sold on its stop is not bought back for 5 sessions (owner, 2026-10-22,
+  # after the LightGBM book was about to rebuy the three names it had just
+  # stopped out). Applies to both factor books, backtest and live alike.
+  reentry_cooldown_sessions: 5
 
 leverage:
   max_leverage: 2.0              # Alpaca margin 最高 2x

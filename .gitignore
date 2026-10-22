@@ -27,13 +27,17 @@ site/earnings/data/
 # Logs and trading state (contains personal trading data).
 # State files and per-book trade event logs ARE tracked: the rebalance
 # workflows commit them to main as the durable record of live state.
-logs/
+# logs/* rather than logs/: git cannot re-include a file whose parent
+# directory is excluded, so the exceptions below only work this way.
+logs/*
 !logs/paper_trade_state.json
 !logs/paper_trade_lgbm_state.json
 !logs/paper_trade_trend_state.json
+!logs/paper_trade_earnings_state.json
 !logs/trade_events_multi.jsonl
 !logs/trade_events_lgbm.jsonl
 !logs/trade_events_trend.jsonl
+!logs/trade_events_earnings.jsonl
 # Legacy shared event log (pre book-split); keep readable if present.
 !logs/trade_events.jsonl
 *.log

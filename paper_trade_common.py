@@ -422,6 +422,52 @@ def current_broker_weights(broker) -> Optional[pd.Series]:
         raise RuntimeError(f"Could not derive current broker weights: {e}") from e
 
 
+def stop_exit_record(state: dict) -> dict:
+    """Symbol to the day it was last sold on a stop, for the re-entry cooldown.
+
+    ``state["stop_exits"]`` when the runner has kept one; for a state written
+    before that record existed, the fixed stops flagged in the fill history
+    (so a stop sold the day the cooldown was introduced still counts).
+    """
+    if "stop_exits" in state:
+        return dict(state["stop_exits"])
+    exits: dict = {}
+    for entry in state.get("trade_history", []):
+        if not entry.get("stop_loss"):
+            continue
+        for trade in entry.get("trades", []):
+            if trade.get("side") != "sell" or trade.get("status") not in (
+                "filled", "partial_fill", "partial_fill_open",
+            ):
+                continue
+            day = str(trade.get("time") or entry.get("date") or "")[:10]
+            if day:
+                exits[trade["symbol"]] = max(day, exits.get(trade["symbol"], ""))
+    return exits
+
+
+def record_fixed_stop_exits(strategy, state: dict, stopped: list) -> None:
+    """TradeProfile.record_stop_exits for the factor books: note today's fixed
+    stops and drop records past the strategy's cooldown once it has prices
+    to count sessions on (the trend book keeps its own, richer record)."""
+    from quant.backtest.calendar import active_cooldowns
+
+    exits = stop_exit_record(state)
+    today = datetime.now().strftime("%Y-%m-%d")
+    for sym in stopped:
+        exits[sym] = today
+    cooldown = int(getattr(strategy, "reentry_cooldown", 0) or 0)
+    prices = getattr(strategy, "last_prices_", None)
+    if cooldown > 0 and prices is not None and len(prices.index):
+        exits = active_cooldowns(prices.index, prices.index[-1], exits, cooldown)
+    state["stop_exits"] = exits
+
+
+def stop_exit_context(state: dict) -> dict:
+    """TradeProfile.portfolio_context for the factor books."""
+    return {"stop_exits": stop_exit_record(state)}
+
+
 def check_stop_losses(
     broker,
     optimizer,

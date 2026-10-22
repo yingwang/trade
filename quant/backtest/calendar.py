@@ -61,3 +61,37 @@ def fixed_rebalance_dates(
             mapped.append(session)
             seen.add(session)
     return mapped
+
+
+def active_cooldowns(
+    sessions: pd.DatetimeIndex,
+    date,
+    stop_exits: dict | None,
+    cooldown_sessions: int,
+) -> dict:
+    """The stop exits still inside a re-entry cooldown at ``date``.
+
+    ``stop_exits`` maps a symbol to the day it was sold on a stop.  A name is
+    blocked from that session through the ``cooldown_sessions`` sessions
+    after it, counted on ``sessions`` (the price index), so a holiday week
+    counts the same on the backtest and the live path.  A record dated after
+    the last session in the index (the live runner sells during a session
+    whose bar is not in yet) counts as that last session.  What comes back is
+    also what callers keep, so a record never outlives its window.
+    """
+    if not stop_exits or cooldown_sessions <= 0:
+        return {}
+    idx = pd.DatetimeIndex(sessions)
+    today = int(idx.searchsorted(pd.Timestamp(date), side="right")) - 1
+    if today < 0:
+        return {}
+    active: dict = {}
+    for symbol, stopped in stop_exits.items():
+        try:
+            at = int(idx.searchsorted(pd.Timestamp(stopped), side="left"))
+        except (TypeError, ValueError):
+            continue
+        if today - min(at, today) <= int(cooldown_sessions):
+            active[symbol] = stopped
+    return active
+

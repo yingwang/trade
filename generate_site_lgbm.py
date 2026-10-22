@@ -254,10 +254,14 @@ def main():
 
     # Compute the current portfolio once; model training is the expensive step.
     logger.info("Computing current LightGBM portfolio...")
+    from paper_trade_common import load_state as _load_state, stop_exit_context
+    from paper_trade_lgbm import STATE_FILE as _LGBM_STATE
+
     current_portfolio = strategy.get_current_portfolio(
         capital=capital,
         prev_weights=prev_weights,
         prev_scores=prev_scores,
+        **stop_exit_context(_load_state(_LGBM_STATE)),
     )
 
     logger.info("Generating LightGBM portfolio data...")

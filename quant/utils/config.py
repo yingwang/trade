@@ -155,6 +155,8 @@ def validate_config(config: dict) -> dict:
     # A fixed stop of 0 means "no fixed stop": the backtest engine and the
     # live runner both skip the check then (the earnings book runs that way).
     _number(risk, "stop_loss_pct", minimum=0, maximum=1)
+    if "reentry_cooldown_sessions" in risk:
+        _number(risk, "reentry_cooldown_sessions", minimum=0)
 
     leverage = config.get("leverage", {})
     if leverage:

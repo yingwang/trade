@@ -42,7 +42,7 @@ from quant.portfolio.optimizer import (
     _ledoit_wolf_shrinkage,
 )
 from quant.backtest.engine import BacktestEngine, BacktestResult
-from quant.backtest.calendar import fixed_rebalance_dates
+from quant.backtest.calendar import active_cooldowns, fixed_rebalance_dates
 
 ML_BACKEND_AVAILABLE = LGBM_AVAILABLE or SKLEARN_FALLBACK
 
@@ -107,6 +107,8 @@ class LGBMStrategy:
         self.risk_monitor = RiskMonitor(config)
         self.backtest_engine = BacktestEngine(config)
         self.pit_universe, self.delisting_returns = load_point_in_time_bundle(config)
+        # Re-entry cooldown after a fixed stop, as in MultiFactorStrategy.
+        self.reentry_cooldown = int(config.get("risk", {}).get("reentry_cooldown_sessions", 0) or 0)
 
         # LightGBM model
         default_lgbm = {
@@ -465,6 +467,11 @@ class LGBMStrategy:
             # Apply turnover penalty to stabilize scores across rebalances
             scores = self._apply_turnover_penalty(scores, self._prev_scores)
             self._prev_scores = scores.copy()
+            if self.reentry_cooldown > 0:
+                cooling = active_cooldowns(
+                    returns.index, date, self.backtest_engine.stop_exits, self.reentry_cooldown,
+                )
+                scores = scores.drop(labels=list(cooling), errors="ignore")
 
             # Select top stocks and optimize weights
             selected = self.optimizer.select_top_stocks(scores)
@@ -628,6 +635,7 @@ class LGBMStrategy:
         capital: float = None,
         prev_weights: Optional[pd.Series] = None,
         prev_scores: Optional[pd.Series] = None,
+        stop_exits: Optional[dict] = None,
     ) -> pd.DataFrame:
         """Get optimized target portfolio with weights and dollar amounts.
 
@@ -719,6 +727,11 @@ class LGBMStrategy:
         # Same score-level turnover damping as the backtest loop
         scores = self._apply_turnover_penalty(scores, prev_scores)
         self.last_scores_ = scores.copy()
+        if self.reentry_cooldown > 0 and stop_exits:
+            cooling = active_cooldowns(prices.index, prices.index[-1], stop_exits, self.reentry_cooldown)
+            if cooling:
+                logger.info("Re-entry cooldown after a stop: not buying %s", sorted(cooling))
+            scores = scores.drop(labels=list(cooling), errors="ignore")
 
         selected = self.optimizer.select_top_stocks(scores)
         selected_list = selected.tolist()

@@ -1,21 +1,15 @@
-name: Paper Trade Rebalance (Trend)
+name: Paper Trade Rebalance (Trend, retired)
 
 on:
-  schedule:
-    # The slots of rebalance.yml, twenty minutes later (see the note there on
-    # scheduler delay); five attempts a day, each idempotent. Every weekday,
-    # because the trend strategy has daily exits and de-risking.
-    - cron: '57 9 * * 1-5'
-    - cron: '57 10 * * 1-5'
-    - cron: '57 11 * * 1-5'
-    - cron: '57 12 * * 1-5'
-    - cron: '57 14 * * 1-5'
+  # Retired 2026-10-22: the owner moved its paper account to the earnings
+  # book (rebalance-earnings.yml), so there is no schedule and a live run is
+  # refused below; a manual dry run would read the earnings book's account.
   workflow_dispatch:
     inputs:
       mode:
         description: 'Run mode'
         required: true
-        default: 'live'
+        default: 'dry-run'
         type: choice
         options:
           - live
@@ -70,6 +64,10 @@ jobs:
             MODE="${{ github.event.inputs.mode }}"
           else
             MODE="live"
+          fi
+          if [ "$MODE" = "live" ]; then
+            echo "The trend book is retired (2026-10-22); its account now belongs to the earnings book" >&2
+            exit 2
           fi
           if [ "$MODE" = "live" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "Live paper trading is allowed only from main; got $GITHUB_REF" >&2

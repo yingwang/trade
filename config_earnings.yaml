@@ -1,4 +1,7 @@
-# Fourth paper account: the earnings book (quant/earnings_strategy.py).
+# The earnings book (quant/earnings_strategy.py). It trades the paper account
+# the trend book had: on 2026-10-22 the owner retired the trend book as the
+# lowest actual paper return of the three, and this book takes the account
+# over from 2026-10-23 (rebalance-earnings.yml reads the trend account's keys).
 #
 # Universe: the S&P 500 by its membership history (data/universe/sp500_history.csv,
 # downloaded from the public fja05680/sp500 table when missing). The strategy
@@ -608,6 +611,13 @@ leverage:
     normal: 1.0
     high_vol: 0.6
   margin_annual_rate: 0.06
+
+dashboard:
+  # The account traded the trend book before this; the page and the
+  # attribution start at the takeover.
+  account_since: "2026-10-23"
+  split_cash_compensations:
+    earnings: {}
 
 attribution:
   lookback_days: 252
