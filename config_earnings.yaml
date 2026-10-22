@@ -6,11 +6,13 @@
 # was a member since its start, the live path with the latest snapshot.
 #
 # Signals and parameters were chosen on 2026-10-22 from research/factor_lab.py,
-# research/earnings_lab.py and research/composite_lab.py: the composite of the
-# consensus earnings surprise, year-on-year EPS growth, distance to the next
-# announcement and 12-6 month momentum was the one ranking with a positive
-# 21-day IC in every sub-period since 2010 on that universe. The portfolio
-# rules are the trend book's.
+# research/earnings_lab.py, research/composite_lab.py and the variants in
+# research/earnings_book.py (docs/research/2026-10-22-alpha-audit.md): the
+# consensus earnings surprise, year-on-year EPS growth and 12-6 month momentum,
+# equal weights, every five sessions, no stops, no lights, no leverage. The
+# distance to the next announcement was part of the research composite but is
+# off here: its backtest contribution needed the realized date earlier than a
+# company confirms it, and with a realistic reading it cost return.
 
 universe:
   # The S&P 500 as of the membership table's latest snapshot (503 names, the
@@ -547,7 +549,7 @@ earnings:
   weights:                      # averaged after z-scoring; a missing part counts as zero
     sue: 1.0                    # consensus earnings surprise, standardized by the last 8 errors
     eps_growth: 1.0             # reported EPS against the same quarter a year earlier
-    days_to_next: 1.0           # names about to report rank first
+    days_to_next: 0.0           # off: its backtest gain came from reading the realized date early (see the audit memo)
     momentum: 1.0               # 12-6 month return
   momentum_lookback: 252
   momentum_skip: 126

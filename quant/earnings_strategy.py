@@ -12,12 +12,12 @@ This book trades exactly that composite.  The trend book's machinery
 (inverse-volatility sizing, volatility targeting, regime lights, trailing
 stop and cooldown) is available through the same parameters, but the
 variants run on 2026-10-22 (research/earnings_book.py, runs 39745666138 to
-39750748713) showed every one of those pieces costing return on this
-ranking: equal weights, no stops, no lights and a fixed gross exposure,
-rebalanced every five sessions, was the configuration that kept the
-research simulation's result (2010-2026 CAGR 16.1% against SPY's 14.7%,
-five years to 2026-10-22 22.0% against 12.8%, unlevered), so that is what
-config_earnings.yaml runs.
+39756596377, docs/research/2026-10-22-alpha-audit.md) showed every one of
+those pieces costing return on this ranking: equal weights, no stops, no
+lights and a fixed gross exposure, rebalanced every five sessions, on the
+three signals above, is what config_earnings.yaml runs (2010-2026 CAGR
+15.6% against SPY's 14.7%, five years to 2026-10-22 20.0% against 12.8%,
+unlevered).
 
 Universe.  The membership history of the S&P 500 (quant/data/earnings.py), so
 a backtest ranks each day's members and not today's list.  Delisted names
@@ -30,7 +30,11 @@ Signals (all read at the decision close, nothing from the future):
     deviation of the last eight such errors, from the latest announcement.
 2.  ``eps_growth``: reported EPS against the same quarter a year earlier.
 3.  ``days_to_next``: minus the days to the next scheduled announcement, so
-    names about to report rank first (the announcement premium).
+    names about to report rank first (the announcement premium).  Weighted
+    zero in config_earnings.yaml: in the backtest its gain came from reading
+    the realized date before a company would have confirmed it, and with the
+    date expected a quarter after the last one until it is near
+    (``next_known_within_days``) it cost return.
 4.  ``momentum``: the return from twelve to six months ago (skipping the
     most recent six), the horizon that kept a positive IC when 12-1 did not.
 
