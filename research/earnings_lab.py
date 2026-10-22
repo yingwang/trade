@@ -16,9 +16,7 @@ conservative reading for a daily-close pipeline.
 import argparse
 import logging
 import sys
-import time
 
-import numpy as np
 import pandas as pd
 
 from quant.utils.config import load_config

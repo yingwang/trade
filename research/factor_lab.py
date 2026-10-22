@@ -412,7 +412,6 @@ def main():
     strong = table[table["raw_t"].abs() > 1.5].index.tolist()
     strong = [s for s in strong if s in factors]
     if len(strong) > 1:
-        last = px.index[-1]
         frames = {s: factors[s].reindex(index=px.index, columns=symbols).where(mask) for s in strong}
         stack = pd.concat({s: frames[s].loc["2016":].stack() for s in strong}, axis=1)
         print("\nCross-sectional correlation of the stronger factors (2016 on, pooled):\n")

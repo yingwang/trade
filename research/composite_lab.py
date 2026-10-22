@@ -28,7 +28,6 @@ from research.factor_lab import (
     forward_returns,
     plain_momentum,
     short_term_reversal_factor,
-    summarize,
     summarize_h,
     zscore,
 )
