@@ -15,9 +15,10 @@ variants run on 2026-10-22 (research/earnings_book.py, runs 39745666138 to
 39756596377, docs/research/2026-10-22-alpha-audit.md) showed every one of
 those pieces costing return on this ranking: equal weights, no stops, no
 lights and a fixed gross exposure, rebalanced every five sessions, on the
-three signals above, is what config_earnings.yaml runs (2010-2026 CAGR
-15.6% against SPY's 14.7%, five years to 2026-10-22 20.0% against 12.8%,
-unlevered).
+three signals above, is what config_earnings.yaml runs (run 39757846026:
+2010-2026 CAGR 16.7% against SPY's 14.7%, five years to 2026-10-22 23.1%
+against 12.8%, unlevered; about a point of CAGR moves between runs with
+Yahoo's coverage of the calendar).
 
 Universe.  The membership history of the S&P 500 (quant/data/earnings.py), so
 a backtest ranks each day's members and not today's list.  Delisted names

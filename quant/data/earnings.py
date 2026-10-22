@@ -102,20 +102,32 @@ def fetch_earnings(symbols: list[str], limit: int = 100, pause: float = 0.0) -> 
 
     out: dict[str, pd.DataFrame] = {}
     t0 = time.time()
-    for i, sym in enumerate(symbols):
-        try:
-            ed = yf.Ticker(sym).get_earnings_dates(limit=limit)
-        except Exception as exc:
-            logger.warning("%s: earnings dates failed: %s", sym, exc)
-            continue
-        if ed is None or ed.empty:
-            continue
-        out[sym] = normalize_earnings_frame(ed)
-        if pause:
-            time.sleep(pause)
-        if (i + 1) % 100 == 0:
-            logger.info("earnings dates: %d/%d in %.0fs", i + 1, len(symbols), time.time() - t0)
-    logger.info("earnings dates for %d/%d symbols in %.0fs", len(out), len(symbols), time.time() - t0)
+    failed: list[str] = []
+    # Two passes: Yahoo drops a few requests in a run of hundreds, and a
+    # name without its history would be ranked on momentum alone or left out,
+    # which made otherwise identical backtests differ by about a point a year.
+    for attempt in range(2):
+        todo = list(symbols) if attempt == 0 else failed
+        failed = []
+        if attempt and todo:
+            time.sleep(5.0)
+            logger.info("earnings dates: retrying %d symbols", len(todo))
+        for i, sym in enumerate(todo):
+            try:
+                ed = yf.Ticker(sym).get_earnings_dates(limit=limit)
+            except Exception as exc:
+                logger.warning("%s: earnings dates failed: %s", sym, exc)
+                failed.append(sym)
+                continue
+            if ed is None or ed.empty:
+                continue
+            out[sym] = normalize_earnings_frame(ed)
+            if pause:
+                time.sleep(pause)
+            if attempt == 0 and (i + 1) % 100 == 0:
+                logger.info("earnings dates: %d/%d in %.0fs", i + 1, len(todo), time.time() - t0)
+    logger.info("earnings dates for %d/%d symbols in %.0fs (%d still failed)",
+                len(out), len(symbols), time.time() - t0, len(failed))
     return out
 
 
