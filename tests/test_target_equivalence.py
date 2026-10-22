@@ -171,12 +171,13 @@ def test_multifactor_target_matches_backtest_for_an_empty_book(factor_run, monke
 def test_live_target_does_not_depend_on_the_fundamentals_snapshot_sectors(factor_run, monkeypatch):
     """The signal the live book trades should not change with the yfinance
     ``.info`` snapshot: the backtest never has one, and the static sector
-    table in config is documented as the one classification for both paths.
+    table in config is the one classification for both paths.
 
-    ``SignalGenerator.generate`` reads its neutralization sector map from
-    the snapshot's ``sector`` column, so a live run with a snapshot
-    industry-neutralizes the factors and a backtest, or a live run whose
-    fundamentals fetch failed, does not.
+    ``SignalGenerator.generate`` used to read its neutralization sector map
+    from the snapshot's ``sector`` column, so a live run with a snapshot
+    industry-neutralized the factors while a backtest, or a live run whose
+    fundamentals fetch had failed, did not; now only the explicit
+    ``sector_map`` neutralizes, on both paths.
     """
     cfg, prices, result, seen, scheduled = factor_run
     assert cfg["signals"]["industry_neutral"] is True

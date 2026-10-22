@@ -326,12 +326,10 @@ class LGBMStrategy:
             "configured"
         )
 
-        # The configured static sector table is the classification for both
-        # the backtest and the live path; the yfinance snapshot is only a
-        # fallback for configs without one (the ETF control universe).
+        # The configured static sector table is the one classification for
+        # both the backtest and the live path (a config without one, the ETF
+        # control universe, neutralizes nothing on either path).
         sector_map = static_sector_map(self.config)
-        if sector_map is None and not fundamentals.empty and "sector" in fundamentals.columns:
-            sector_map = fundamentals["sector"]
 
         # 2. Generate factor signals (used as input features for LightGBM)
         logger.info("Generating factor signals for ML features...")
@@ -351,6 +349,7 @@ class LGBMStrategy:
             returns,
             fundamentals,
             eligibility_mask=eligibility,
+            sector_map=sector_map,
         )
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
@@ -588,11 +587,13 @@ class LGBMStrategy:
             fundamentals = pd.DataFrame()
         self.last_fundamentals_ = fundamentals
 
+        sector_map = static_sector_map(self.config)
         self.signal_gen.generate(
             prices,
             returns,
             fundamentals,
             eligibility_mask=eligibility,
+            sector_map=sector_map,
         )
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
@@ -677,18 +678,17 @@ class LGBMStrategy:
             fundamentals = pd.DataFrame()
         self.last_fundamentals_ = fundamentals
 
-        # The configured static sector table is the classification for both
-        # the backtest and the live path; the yfinance snapshot is only a
-        # fallback for configs without one (the ETF control universe).
+        # The configured static sector table is the one classification for
+        # both the backtest and the live path (a config without one, the ETF
+        # control universe, neutralizes nothing on either path).
         sector_map = static_sector_map(self.config)
-        if sector_map is None and not fundamentals.empty and "sector" in fundamentals.columns:
-            sector_map = fundamentals["sector"]
 
         self.signal_gen.generate(
             prices,
             returns,
             fundamentals,
             eligibility_mask=eligibility,
+            sector_map=sector_map,
         )
         factor_scores = getattr(self.signal_gen, "last_factors_", None)
 
