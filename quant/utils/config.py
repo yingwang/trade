@@ -154,6 +154,18 @@ def validate_config(config: dict) -> dict:
             if not math.isfinite(float(cap)) or float(cap) < 0 or float(cap) > max_leverage:
                 raise ValueError(f"Leverage cap {name} is outside [0, max_leverage]")
 
+    trend = config.get("trend") or {}
+    if "reentry_cooldown_sessions" in trend:
+        # The trend book's other keys have defaults in TrendStrategy; this one
+        # is checked because a cooldown that is not a whole number of sessions,
+        # or a negative one, would quietly change what a scheduled rebalance
+        # may buy.
+        cooldown = trend["reentry_cooldown_sessions"]
+        if isinstance(cooldown, bool) or not isinstance(cooldown, int) or cooldown < 0:
+            raise ValueError(
+                "trend.reentry_cooldown_sessions must be a whole number of sessions, zero or more"
+            )
+
     backtest = config["backtest"]
     if _number(backtest, "initial_capital", minimum=0) <= 0:
         raise ValueError("backtest.initial_capital must be positive")

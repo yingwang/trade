@@ -26,6 +26,8 @@ matplotlib.use("Agg")
 
 from quant.utils.config import load_config
 from quant.trend_strategy import TrendStrategy
+from paper_trade_common import load_state
+from paper_trade_trend import STATE_FILE, _portfolio_context
 from site_common import fetch_trade_history, generate_actual_attribution
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -138,7 +140,12 @@ def main():
     )
 
     logger.info("Computing current target book...")
-    current_portfolio = strategy.get_current_portfolio(capital=capital, prev_weights=prev_weights)
+    # The runner's records (entry dates, recent stop exits) go with the
+    # request, so the published target is the one the runner would trade.
+    current_portfolio = strategy.get_current_portfolio(
+        capital=capital, prev_weights=prev_weights,
+        **_portfolio_context(load_state(STATE_FILE)),
+    )
     portfolio = generate_portfolio_data(strategy, current_portfolio, account_equity=capital)
 
     logger.info("Generating actual alpha attribution...")

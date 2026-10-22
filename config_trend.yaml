@@ -11,6 +11,11 @@
 # The universe is the same 100 liquid names the factor books use, plus five ETFs
 # that carry trends of their own (semiconductors, gold, energy, financials,
 # utilities). Same survivorship caveat as config.yaml: the list is today's.
+# 2026-10-22: reentry_cooldown_sessions added, with the scheduled rebalance now
+# applying the trailing stop itself (a name under its stop is neither kept nor
+# bought on a scheduled day, and a name sold on a stop is not bought back for
+# five sessions). A new rule after the 10/13 and 10/19 round trips, not a
+# retune: the frozen values are untouched.
 
 universe:
   symbols:
@@ -258,6 +263,7 @@ trend:
   sma_short: 50
   trailing_stop: 0.20      # exit when 20% below the 60-day high
   trailing_window: 60
+  reentry_cooldown_sessions: 5   # a name sold on a stop is not bought back for 5 sessions
   benchmark_vol_window: 21
   benchmark_vol_high: 0.30 # SPY 21-day realized vol above 30%: a warning light
   breadth_min: 0.30        # under 30% of the universe above its 50-day average: a light
