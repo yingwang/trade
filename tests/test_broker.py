@@ -229,6 +229,34 @@ class TestAlpacaBroker:
         assert result.quantity == 40.0
         assert broker.api.cancelled == ["abc"]
 
+    def test_portfolio_history_drops_nulls_and_uses_eastern_dates(self):
+        broker = self._make_broker()
+
+        class HistoryAPI:
+            def __init__(self):
+                self.requests = []
+
+            def get_portfolio_history(self, request):
+                self.requests.append(request)
+                # The bar at 22:00 Eastern is 02:00 UTC the next day and must
+                # still be dated the Eastern day; the null bar is dropped.
+                stamps = [
+                    int(datetime(2026, 6, 22, 0, 0, tzinfo=NY_TZ).timestamp()),
+                    int(datetime(2026, 6, 23, 22, 0, tzinfo=NY_TZ).timestamp()),
+                    int(datetime(2026, 6, 24, 0, 0, tzinfo=NY_TZ).timestamp()),
+                ]
+                return SimpleNamespace(
+                    timestamp=stamps,
+                    equity=[130_804.0, 129_000.25, None],
+                    profit_loss=[0.0, 0.0, None],
+                )
+
+        broker.api = HistoryAPI()
+        points = broker.get_portfolio_history()
+        assert points == [("2026-06-22", 130_804.0), ("2026-06-23", 129_000.25)]
+        request = broker.api.requests[0]
+        assert request.period == "1A" and request.timeframe == "1D"
+
     def test_fill_during_cancel_uses_final_broker_quantity(self):
         broker = self._make_broker()
 

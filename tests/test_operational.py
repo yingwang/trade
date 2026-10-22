@@ -922,6 +922,128 @@ class TestBatchThreeHardening:
 
 
 
+class _HistoryBroker:
+    """Fake broker exposing only the portfolio-history call the seed uses."""
+
+    def __init__(self, points=None, error=None):
+        self.points = list(points or [])
+        self.error = error
+        self.calls = 0
+
+    def get_portfolio_history(self):
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return list(self.points)
+
+
+class TestEquityHistorySeed:
+    """The drawdown gate's peak must be the account's real peak, not the
+    highest value since the state file began recording (2026-09-18)."""
+
+    ACCOUNT = [
+        ("2026-06-01", 118_000.0),
+        ("2026-06-22", 130_804.0),   # the real high
+        ("2026-07-15", 127_000.0),
+        ("2026-09-18", 126_500.0),   # already in the state, must not change
+    ]
+
+    def _state(self):
+        return {
+            "equity_history": {"2026-09-18": 126_980.89, "2026-09-21": 125_000.0},
+            "peak_equity": 126_980.89,
+        }
+
+    def _config(self, config):
+        return {**config, "risk": {**config["risk"], "max_drawdown_limit": 0.25}}
+
+    def test_seed_fills_history_and_peak_reflects_earlier_high(self, config):
+        import copy
+        from paper_trade_common import check_portfolio_drawdown
+
+        state = self._state()
+        before = copy.deepcopy(state["equity_history"])
+        broker = _HistoryBroker(self.ACCOUNT)
+
+        breached, current_dd, limit = check_portfolio_drawdown(
+            state, self._config(config), 120_000.0, broker=broker
+        )
+
+        assert broker.calls == 1
+        history = state["equity_history"]
+        assert history["2026-06-22"] == 130_804.0
+        assert history["2026-06-01"] == 118_000.0
+        # Existing entries are kept as they were, including the overlap day.
+        for day, value in before.items():
+            assert history[day] == value
+        assert state["peak_equity"] == 130_804.0
+        assert state["equity_history_seeded_at"]
+        # Drawdown is now measured from the June high, not the September one.
+        assert current_dd == pytest.approx((120_000.0 - 130_804.0) / 130_804.0)
+        assert breached is False and limit == 0.25
+
+    def test_empty_history_is_seeded(self):
+        from paper_trade_common import seed_equity_history
+
+        state = {}
+        assert seed_equity_history(state, _HistoryBroker(self.ACCOUNT)) == 4
+        assert sorted(state["equity_history"]) == [d for d, _ in self.ACCOUNT]
+        assert state["peak_equity"] == 130_804.0
+
+    def test_second_run_does_not_reseed(self, config):
+        from paper_trade_common import check_portfolio_drawdown, seed_equity_history
+
+        state = self._state()
+        broker = _HistoryBroker(self.ACCOUNT)
+        check_portfolio_drawdown(state, self._config(config), 120_000.0, broker=broker)
+        seeded_at = state["equity_history_seeded_at"]
+
+        # A later run, and a later account history with an even higher point,
+        # must not touch the seed again.
+        later = _HistoryBroker(self.ACCOUNT + [("2026-05-01", 140_000.0)])
+        check_portfolio_drawdown(state, self._config(config), 120_000.0, broker=later)
+        assert seed_equity_history(state, later) == 0
+        assert later.calls == 0
+        assert broker.calls == 1
+        assert state["equity_history_seeded_at"] == seeded_at
+        assert "2026-05-01" not in state["equity_history"]
+
+    def test_state_already_reaching_back_is_marked_without_changes(self):
+        from paper_trade_common import seed_equity_history
+
+        state = self._state()
+        before = dict(state["equity_history"])
+        broker = _HistoryBroker([("2026-09-18", 126_000.0), ("2026-09-21", 1.0)])
+        assert seed_equity_history(state, broker) == 0
+        assert state["equity_history"] == before
+        assert state["peak_equity"] == 126_980.89
+        assert state["equity_history_seeded_at"]
+
+    def test_broker_failure_leaves_state_unchanged_and_gate_runs(self, config):
+        import copy
+        from paper_trade_common import check_portfolio_drawdown, seed_equity_history
+
+        state = self._state()
+        snapshot = copy.deepcopy(state)
+        broker = _HistoryBroker(error=RuntimeError("portfolio history 503"))
+
+        assert seed_equity_history(state, broker) == 0
+        assert state == snapshot
+        assert "equity_history_seeded_at" not in state
+
+        # The gate still runs on the history it has and only adds today.
+        breached, current_dd, limit = check_portfolio_drawdown(
+            state, self._config(config), 120_000.0, broker=broker
+        )
+        assert breached is False
+        assert current_dd == pytest.approx((120_000.0 - 126_980.89) / 126_980.89)
+        added = set(state["equity_history"]) - set(snapshot["equity_history"])
+        assert added == {datetime.now().strftime("%Y-%m-%d")}
+        assert "equity_history_seeded_at" not in state
+        # A broker without the call at all is simply ignored.
+        assert seed_equity_history(self._state(), object()) == 0
+
+
 class TestRunTimeSplitGuard:
     def test_extra_splits_extend_the_static_table(self):
         from datetime import date

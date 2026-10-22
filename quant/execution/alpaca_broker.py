@@ -716,6 +716,48 @@ class AlpacaBroker(BaseBroker):
             logger.warning("Could not compute daily PnL: %s", exc)
             return None
 
+    def get_portfolio_history(
+        self, period: str = "1A", timeframe: str = "1D"
+    ) -> list[tuple[str, float]]:
+        """The account's daily equity as ``[(YYYY-MM-DD, equity), ...]``.
+
+        Wraps ``GET /v2/account/portfolio/history`` (alpaca-py
+        ``TradingClient.get_portfolio_history``): ``timestamp`` holds one
+        epoch-seconds value per bar, left-labelled, and ``equity`` the
+        account value at the end of that bar; bars without a value come back
+        as null and are dropped here. Dates are the Eastern trading date,
+        the same convention as the dashboard. Errors propagate: the caller
+        decides whether missing history is fatal.
+        """
+        client = self._client()
+        try:
+            from alpaca.trading.requests import GetPortfolioHistoryRequest
+
+            request = GetPortfolioHistoryRequest(period=period, timeframe=timeframe)
+            history = client.get_portfolio_history(request)
+        except ImportError:
+            # Legacy / injected clients take the parameters directly.
+            history = client.get_portfolio_history(period=period, timeframe=timeframe)
+
+        timestamps = list(_attr(history, "timestamp", None) or [])
+        equities = list(_attr(history, "equity", None) or [])
+        by_day: dict[str, float] = {}
+        for stamp, equity in zip(timestamps, equities):
+            if stamp is None or equity is None:
+                continue
+            try:
+                seconds = float(stamp)
+                value = float(equity)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(seconds) or not math.isfinite(value):
+                continue
+            if seconds > 1e11:  # milliseconds, should the API ever switch
+                seconds /= 1000.0
+            day = datetime.fromtimestamp(seconds, tz=NY_TZ).date().isoformat()
+            by_day[day] = value
+        return sorted(by_day.items())
+
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         return {
             symbol: price

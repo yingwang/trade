@@ -32,6 +32,7 @@ are deliberate fixes):
 import argparse
 import json
 import logging
+import math
 import os
 import sys
 from dataclasses import dataclass, field
@@ -141,14 +142,84 @@ def record_equity_snapshot(state: dict, equity: float, *, max_points: int = 756)
     return pd.Series(history, dtype=float).sort_index()
 
 
-def check_portfolio_drawdown(state: dict, config: dict, equity: float) -> tuple[bool, float, float]:
+def seed_equity_history(state: dict, broker) -> int:
+    """Backfill ``equity_history`` from the broker's own daily equity, once.
+
+    The state file only started recording equity the day the drawdown gate
+    went live (2026-09-18), so the gate's peak ignored every earlier high:
+    the multi-factor book really peaked at 130,804 on 2026-06-22, and the
+    gate saw a 4.7% drawdown where the account was 8.1% down. The broker
+    keeps the account's daily equity, so when the state has no history, or
+    its first entry is later than the account's first, the days the state
+    does not have are copied in. Existing entries are never changed or
+    dropped. ``equity_history_seeded_at`` records that the seed ran so it
+    runs once; a failed broker call is logged and the gate carries on with
+    what it has, so the seed can never block a run. Returns the number of
+    days added.
+    """
+    if state.get("equity_history_seeded_at"):
+        return 0
+    fetch = getattr(broker, "get_portfolio_history", None)
+    if fetch is None:
+        return 0
+    try:
+        points = list(fetch() or [])
+    except Exception as exc:
+        logger.warning(
+            "Equity history not seeded; broker portfolio history unavailable: %s",
+            exc,
+        )
+        return 0
+
+    account: dict[str, float] = {}
+    for day, equity in points:
+        try:
+            value = float(equity)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(value) or value <= 0:
+            continue
+        account[str(day)[:10]] = value
+    if not account:
+        logger.info("Equity history not seeded: broker returned no daily equity")
+        return 0
+
+    history = dict(state.get("equity_history") or {})
+    first_known = min(history) if history else None
+    if first_known is not None and min(account) >= first_known:
+        # The state already reaches back as far as the account does.
+        state["equity_history_seeded_at"] = datetime.now().isoformat()
+        return 0
+
+    added = {day: value for day, value in account.items() if day not in history}
+    history.update(added)
+    state["equity_history"] = history
+    peak = max(history.values())
+    state["peak_equity"] = max(float(state.get("peak_equity") or 0.0), peak)
+    state["equity_history_seeded_at"] = datetime.now().isoformat()
+    logger.info(
+        "Seeded equity history with %d day(s) from the broker (%s to %s); "
+        "peak equity is now %.2f",
+        len(added), min(account), max(account), peak,
+    )
+    return len(added)
+
+
+def check_portfolio_drawdown(
+    state: dict, config: dict, equity: float, broker=None
+) -> tuple[bool, float, float]:
     """Wire config risk.max_drawdown_limit into the paper path.
 
     Returns (breached, current_drawdown, limit). Uses RiskMonitor.check_drawdown
-    so paper and backtest share one definition of the breach.
+    so paper and backtest share one definition of the breach. With a broker
+    the equity history is first seeded from the account's own history (see
+    seed_equity_history), so the peak is the account's real peak and not the
+    highest value since the state file began.
     """
     from quant.portfolio.optimizer import RiskMonitor
 
+    if broker is not None:
+        seed_equity_history(state, broker)
     curve = record_equity_snapshot(state, equity)
     monitor = RiskMonitor(config)
     limit = float(monitor.max_drawdown)
@@ -926,7 +997,7 @@ def run_main(profile: TradeProfile):
             try:
                 equity_now = float(broker.get_portfolio_value())
                 drawdown_breached, current_dd, dd_limit = check_portfolio_drawdown(
-                    state, config, equity_now
+                    state, config, equity_now, broker=broker
                 )
                 drawdown_info = (current_dd, dd_limit, equity_now)
                 save_state(profile.state_file, state)
