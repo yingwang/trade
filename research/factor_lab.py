@@ -253,6 +253,17 @@ def main():
     print(f"prices {px.shape} {px.index[0].date()} -> {px.index[-1].date()} fetched in {time.time()-t0:.0f}s")
 
     fwd = forward_returns(op, px, HORIZON)
+
+    # Context: how the universe itself did against the benchmark, equal-weighted
+    # and rebalanced every session, so a factor's top-12 excess can be read
+    # against the pool it picks from.
+    ew = returns.mean(axis=1)
+    print("\nEqual-weighted universe vs benchmark, annualized (daily rebalanced, no costs):")
+    for label, (a, b) in {**PERIODS, "5y": ("2021-10-22", "2026-10-22"), "3y": ("2023-10-22", "2026-10-22"), "1y": ("2025-10-22", "2026-10-22")}.items():
+        e = ew.loc[a:b]; m = market.loc[a:b]
+        if len(e) > 50:
+            print(f"  {label}: universe EW {((1+e).prod()**(252/len(e))-1)*100:+.1f}%/yr   {bench} {((1+m).prod()**(252/len(m))-1)*100:+.1f}%/yr   "
+                  f"names {int(returns.loc[a:b].notna().any().sum())}")
     # Non-overlapping evaluation dates every 21 sessions.
     eval_dates = px.index[::HORIZON]
 
