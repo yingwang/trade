@@ -221,11 +221,15 @@ class TestSignalGenerator:
 
     def test_industry_neutral_reduces_sector_bias(self, config, synthetic_prices,
                                                    synthetic_returns, synthetic_fundamentals):
-        """With industry_neutral=True, tech stocks shouldn't dominate top scores."""
-        # Run with neutralization
+        """With industry_neutral=True and a sector map, the scores change."""
+        # Run with neutralization: the sector map is passed explicitly, the
+        # snapshot's sector column is never read for it.
         config_neutral = {**config, "signals": {**config["signals"], "industry_neutral": True}}
         gen_neutral = SignalGenerator(config_neutral)
-        result_neutral = gen_neutral.generate(synthetic_prices, synthetic_returns, synthetic_fundamentals)
+        result_neutral = gen_neutral.generate(
+            synthetic_prices, synthetic_returns, synthetic_fundamentals,
+            sector_map=synthetic_fundamentals["sector"],
+        )
 
         # Run without neutralization
         config_raw = {**config, "signals": {**config["signals"], "industry_neutral": False}}

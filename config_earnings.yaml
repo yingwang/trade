@@ -1,0 +1,635 @@
+# Fourth paper account: the earnings book (quant/earnings_strategy.py).
+#
+# Universe: the S&P 500 by its membership history (data/universe/sp500_history.csv,
+# downloaded from the public fja05680/sp500 table when missing). The strategy
+# replaces universe.symbols below at runtime: the backtest with every name that
+# was a member since its start, the live path with the latest snapshot.
+#
+# Signals and parameters were chosen on 2026-10-22 from research/factor_lab.py,
+# research/earnings_lab.py, research/composite_lab.py and the variants in
+# research/earnings_book.py (docs/research/2026-10-22-alpha-audit.md): the
+# consensus earnings surprise, year-on-year EPS growth and 12-6 month momentum,
+# equal weights, every five sessions, no stops, no lights, no leverage. The
+# distance to the next announcement was part of the research composite but is
+# off here: its backtest contribution needed the realized date earlier than a
+# company confirms it, and with a realistic reading it cost return.
+
+universe:
+  # The S&P 500 as of the membership table's latest snapshot (503 names, the
+  # last row of data/universe/sp500_history.csv).
+  # The strategy re-reads the table at runtime; this list is here for the shared
+  # validator (max_positions must fit the universe) and for anyone reading the file.
+  symbols:
+    - "A"
+    - "AAPL"
+    - "ABBV"
+    - "ABNB"
+    - "ABT"
+    - "ACGL"
+    - "ACN"
+    - "ADBE"
+    - "ADI"
+    - "ADM"
+    - "ADP"
+    - "ADSK"
+    - "AEE"
+    - "AEP"
+    - "AES"
+    - "AFL"
+    - "AIG"
+    - "AIZ"
+    - "AJG"
+    - "AKAM"
+    - "ALB"
+    - "ALGN"
+    - "ALL"
+    - "ALLE"
+    - "AMAT"
+    - "AMCR"
+    - "AMD"
+    - "AME"
+    - "AMGN"
+    - "AMP"
+    - "AMT"
+    - "AMZN"
+    - "ANET"
+    - "AON"
+    - "AOS"
+    - "APA"
+    - "APD"
+    - "APH"
+    - "APO"
+    - "APP"
+    - "APTV"
+    - "ARE"
+    - "ARES"
+    - "ATO"
+    - "AVGO"
+    - "AVY"
+    - "AWK"
+    - "AXON"
+    - "AXP"
+    - "AZO"
+    - "BA"
+    - "BAC"
+    - "BALL"
+    - "BAX"
+    - "BBY"
+    - "BDX"
+    - "BEN"
+    - "BF-B"
+    - "BG"
+    - "BIIB"
+    - "BKNG"
+    - "BKR"
+    - "BLDR"
+    - "BLK"
+    - "BMY"
+    - "BNY"
+    - "BR"
+    - "BRK-B"
+    - "BRO"
+    - "BSX"
+    - "BX"
+    - "BXP"
+    - "C"
+    - "CAH"
+    - "CARR"
+    - "CASY"
+    - "CAT"
+    - "CB"
+    - "CBOE"
+    - "CBRE"
+    - "CCI"
+    - "CCL"
+    - "CDNS"
+    - "CDW"
+    - "CEG"
+    - "CF"
+    - "CFG"
+    - "CHD"
+    - "CHRW"
+    - "CHTR"
+    - "CI"
+    - "CIEN"
+    - "CINF"
+    - "CL"
+    - "CLX"
+    - "CMCSA"
+    - "CME"
+    - "CMG"
+    - "CMI"
+    - "CMS"
+    - "CNC"
+    - "CNP"
+    - "COF"
+    - "COHR"
+    - "COIN"
+    - "COO"
+    - "COP"
+    - "COR"
+    - "COST"
+    - "CPAY"
+    - "CPRT"
+    - "CPT"
+    - "CRH"
+    - "CRL"
+    - "CRM"
+    - "CRWD"
+    - "CSCO"
+    - "CSGP"
+    - "CSX"
+    - "CTAS"
+    - "CTSH"
+    - "CTVA"
+    - "CVNA"
+    - "CVS"
+    - "CVX"
+    - "D"
+    - "DAL"
+    - "DASH"
+    - "DD"
+    - "DDOG"
+    - "DE"
+    - "DECK"
+    - "DELL"
+    - "DG"
+    - "DGX"
+    - "DHI"
+    - "DHR"
+    - "DIS"
+    - "DLR"
+    - "DLTR"
+    - "DOC"
+    - "DOV"
+    - "DOW"
+    - "DPZ"
+    - "DRI"
+    - "DTE"
+    - "DUK"
+    - "DVA"
+    - "DVN"
+    - "DXCM"
+    - "EBAY"
+    - "ECHO"
+    - "ECL"
+    - "ED"
+    - "EFX"
+    - "EG"
+    - "EIX"
+    - "EL"
+    - "ELV"
+    - "EME"
+    - "EMR"
+    - "EOG"
+    - "EQIX"
+    - "EQT"
+    - "ERIE"
+    - "ES"
+    - "ESS"
+    - "ETN"
+    - "ETR"
+    - "EVRG"
+    - "EW"
+    - "EXC"
+    - "EXE"
+    - "EXPD"
+    - "EXPE"
+    - "EXR"
+    - "F"
+    - "FANG"
+    - "FAST"
+    - "FCX"
+    - "FDS"
+    - "FDX"
+    - "FDXF"
+    - "FE"
+    - "FERG"
+    - "FFIV"
+    - "FICO"
+    - "FIS"
+    - "FISV"
+    - "FITB"
+    - "FIX"
+    - "FLEX"
+    - "FOX"
+    - "FOXA"
+    - "FRT"
+    - "FSLR"
+    - "FTNT"
+    - "FTV"
+    - "GD"
+    - "GDDY"
+    - "GE"
+    - "GEHC"
+    - "GEN"
+    - "GEV"
+    - "GILD"
+    - "GIS"
+    - "GL"
+    - "GLW"
+    - "GM"
+    - "GNRC"
+    - "GOOG"
+    - "GOOGL"
+    - "GPC"
+    - "GPN"
+    - "GRMN"
+    - "GS"
+    - "GWW"
+    - "HAL"
+    - "HAS"
+    - "HBAN"
+    - "HCA"
+    - "HD"
+    - "HIG"
+    - "HII"
+    - "HLT"
+    - "HON"
+    - "HONA"
+    - "HOOD"
+    - "HPE"
+    - "HPQ"
+    - "HRL"
+    - "HSIC"
+    - "HST"
+    - "HSY"
+    - "HUBB"
+    - "HUM"
+    - "HWM"
+    - "IBKR"
+    - "IBM"
+    - "ICE"
+    - "IDXX"
+    - "IEX"
+    - "IFF"
+    - "INCY"
+    - "INTC"
+    - "INTU"
+    - "INVH"
+    - "IP"
+    - "IQV"
+    - "IR"
+    - "IRM"
+    - "ISRG"
+    - "IT"
+    - "ITW"
+    - "IVZ"
+    - "J"
+    - "JBHT"
+    - "JBL"
+    - "JCI"
+    - "JKHY"
+    - "JNJ"
+    - "JPM"
+    - "KDP"
+    - "KEY"
+    - "KEYS"
+    - "KHC"
+    - "KIM"
+    - "KKR"
+    - "KLAC"
+    - "KMB"
+    - "KMI"
+    - "KO"
+    - "KR"
+    - "KVUE"
+    - "L"
+    - "LDOS"
+    - "LEN"
+    - "LH"
+    - "LHX"
+    - "LII"
+    - "LIN"
+    - "LITE"
+    - "LLY"
+    - "LMT"
+    - "LNT"
+    - "LOW"
+    - "LRCX"
+    - "LULU"
+    - "LUV"
+    - "LVS"
+    - "LYB"
+    - "LYV"
+    - "MA"
+    - "MAA"
+    - "MAR"
+    - "MAS"
+    - "MCD"
+    - "MCHP"
+    - "MCK"
+    - "MCO"
+    - "MDLZ"
+    - "MDT"
+    - "MET"
+    - "META"
+    - "MGM"
+    - "MKC"
+    - "MLM"
+    - "MMM"
+    - "MNST"
+    - "MO"
+    - "MOS"
+    - "MPC"
+    - "MPWR"
+    - "MRK"
+    - "MRNA"
+    - "MRSH"
+    - "MRVL"
+    - "MS"
+    - "MSCI"
+    - "MSFT"
+    - "MSI"
+    - "MTB"
+    - "MTD"
+    - "MU"
+    - "NCLH"
+    - "NDAQ"
+    - "NDSN"
+    - "NEE"
+    - "NEM"
+    - "NFLX"
+    - "NI"
+    - "NKE"
+    - "NOC"
+    - "NOW"
+    - "NRG"
+    - "NSC"
+    - "NTAP"
+    - "NTRS"
+    - "NUE"
+    - "NVDA"
+    - "NVR"
+    - "NWS"
+    - "NWSA"
+    - "NXPI"
+    - "O"
+    - "ODFL"
+    - "OKE"
+    - "OMC"
+    - "ON"
+    - "ORCL"
+    - "ORLY"
+    - "OTIS"
+    - "OXY"
+    - "PANW"
+    - "PAYX"
+    - "PCAR"
+    - "PCG"
+    - "PEG"
+    - "PEP"
+    - "PFE"
+    - "PFG"
+    - "PG"
+    - "PGR"
+    - "PH"
+    - "PHM"
+    - "PKG"
+    - "PLD"
+    - "PLTR"
+    - "PM"
+    - "PNC"
+    - "PNR"
+    - "PNW"
+    - "PODD"
+    - "PPG"
+    - "PPL"
+    - "PRU"
+    - "PSA"
+    - "PSKY"
+    - "PSX"
+    - "PTC"
+    - "PWR"
+    - "PYPL"
+    - "Q"
+    - "QCOM"
+    - "RCL"
+    - "RDDT"
+    - "REG"
+    - "REGN"
+    - "RF"
+    - "RJF"
+    - "RL"
+    - "RMD"
+    - "ROK"
+    - "ROL"
+    - "ROP"
+    - "ROST"
+    - "RSG"
+    - "RTX"
+    - "RVTY"
+    - "SBAC"
+    - "SBUX"
+    - "SCHW"
+    - "SHW"
+    - "SJM"
+    - "SLB"
+    - "SMCI"
+    - "SNA"
+    - "SNDK"
+    - "SNPS"
+    - "SO"
+    - "SOLV"
+    - "SPG"
+    - "SPGI"
+    - "SRE"
+    - "STE"
+    - "STLD"
+    - "STT"
+    - "STX"
+    - "STZ"
+    - "SW"
+    - "SWK"
+    - "SWKS"
+    - "SYF"
+    - "SYK"
+    - "SYY"
+    - "T"
+    - "TAP"
+    - "TDG"
+    - "TDY"
+    - "TECH"
+    - "TEL"
+    - "TER"
+    - "TFC"
+    - "TGT"
+    - "TJX"
+    - "TKO"
+    - "TMO"
+    - "TMUS"
+    - "TPL"
+    - "TPR"
+    - "TRGP"
+    - "TRMB"
+    - "TROW"
+    - "TRV"
+    - "TSCO"
+    - "TSLA"
+    - "TSN"
+    - "TT"
+    - "TTD"
+    - "TTWO"
+    - "TXN"
+    - "TXT"
+    - "TYL"
+    - "UAL"
+    - "UBER"
+    - "UDR"
+    - "UHS"
+    - "ULTA"
+    - "UNH"
+    - "UNP"
+    - "UPS"
+    - "URI"
+    - "USB"
+    - "V"
+    - "VEEV"
+    - "VICI"
+    - "VLO"
+    - "VLTO"
+    - "VMC"
+    - "VMRK"
+    - "VRSK"
+    - "VRSN"
+    - "VRT"
+    - "VRTX"
+    - "VST"
+    - "VTR"
+    - "VTRS"
+    - "VZ"
+    - "WAB"
+    - "WAT"
+    - "WBD"
+    - "WDAY"
+    - "WDC"
+    - "WEC"
+    - "WELL"
+    - "WFC"
+    - "WM"
+    - "WMB"
+    - "WMT"
+    - "WRB"
+    - "WSM"
+    - "WST"
+    - "WTW"
+    - "WY"
+    - "WYNN"
+    - "XEL"
+    - "XOM"
+    - "XYL"
+    - "XYZ"
+    - "YUM"
+    - "ZBH"
+    - "ZBRA"
+    - "ZTS"
+  benchmark: SPY
+
+data:
+  lookback_years: 5
+  frequency: 1d
+
+# The signals block exists to satisfy the shared config validator and the
+# warm-up arithmetic; EarningsStrategy computes its own series.
+signals:
+  momentum_windows: [126, 252]
+  mean_reversion_window: 20
+  mean_reversion_zscore_threshold: 4.0
+  sma_short: 50
+  sma_long: 200
+  volatility_window: 63
+  industry_neutral: false
+  winsorize_clip: 3.0
+  factor_weights:
+    momentum: 1.0
+
+earnings:
+  universe_file: data/universe/sp500_history.csv
+  universe_lead_days: 400      # a backtest also loads names that left the index up to this long before its start
+  weights:                      # averaged after z-scoring; a missing part counts as zero
+    sue: 1.0                    # consensus earnings surprise, standardized by the last 8 errors
+    eps_growth: 1.0             # reported EPS against the same quarter a year earlier
+    days_to_next: 0.0           # off: its backtest gain came from reading the realized date early (see the audit memo)
+    momentum: 1.0               # 12-6 month return
+  momentum_lookback: 252
+  momentum_skip: 126
+  sue_lookback: 8
+  min_parts: 2                  # a name needs at least two of the four parts
+  sizing: equal                 # equal (the research book) or inverse_vol (the trend book's)
+  fixed_gross: 1.0              # hold this times equity (capped by the regime and leverage caps); null = volatility target
+  require_uptrend: false        # true: only names above their 200-day average are ranked
+  earnings_limit: 100           # announcements per name requested from Yahoo
+  positions: 25
+  rank_buffer: 40               # a holding stays while still inside the top 40
+  # Stops and regime lights are off: on this ranking each of them cost return
+  # in the 2026-10-22 variants (see quant/earnings_strategy.py). The engine
+  # and the live runner read 0 as "no fixed stop".
+  vol_window: 60
+  sma_long: 200
+  sma_short: 50
+  trailing_stop: 0.0            # 0 = no trailing stop
+  trailing_window: 60
+  reentry_cooldown_sessions: 5
+  benchmark_vol_window: 21
+  benchmark_vol_high: 0.30
+  breadth_min: 0.30
+  regime_caps:                  # gross exposure by number of lights on; null = no cap
+    0: null
+    1: null
+    2: null
+  deleverage_tolerance: 0.10
+
+portfolio:
+  max_positions: 25
+  max_position_weight: 0.08     # of the unlevered sleeve (25 equal weights of 4%)
+  min_position_weight: 0.01
+  target_volatility: 0.25       # only used when earnings.fixed_gross is null
+  rebalance_frequency_days: 5   # every five sessions on the shared anchored calendar
+  transaction_cost_bps: 10
+  max_turnover_per_rebalance: 1.0
+  exit_turnover_share: 1.0
+  allocation: proportional
+  alpha_scale: 0.05
+  risk_aversion: 1.0
+
+risk:
+  max_drawdown_limit: 0.30
+  max_sector_weight: 1.0
+  stop_loss_pct: 0.0            # no fixed stop (engine and runner treat 0 as off)
+
+leverage:
+  max_leverage: 1.0             # 1.3x gave 2010-2026 CAGR 17.2% with a 47% drawdown, 1.5x 18.4% / 53%
+  regime_spy_vol_window: 21
+  regime_thresholds:
+    low: 0.12
+    high: 0.30
+  regime_leverage_caps:
+    low_vol: 1.0
+    normal: 1.0
+    high_vol: 0.6
+  margin_annual_rate: 0.06
+
+attribution:
+  lookback_days: 252
+  min_observations: 60
+  annual_cash_return: 0.0
+
+safety:
+  max_single_order_value: 60000
+  max_single_order_shares: 10000
+  max_daily_trade_value: 600000
+  max_daily_loss: 25000
+  max_adv_fraction: 0.01
+  min_price: 1.0
+  max_position_pct_of_portfolio: 0.15   # 25 names at 1.0x gross: 0.08 with room for drift
+  require_paper_mode: true
+
+backtest:
+  rebalance_anchor_date: "2000-01-03"
+  start_date: "2010-01-01"
+  end_date: null
+  initial_capital: 100000
+  slippage_bps: 5
+  market_impact_coeff: 2.5
+  market_impact_sigma_coeff: 1.0
+  risk_free_rate: 0.04

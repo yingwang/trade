@@ -149,9 +149,12 @@ def validate_config(config: dict) -> dict:
             raise ValueError("portfolio.turnover_penalty_epsilon must be positive")
 
     risk = config["risk"]
-    for key in ("max_drawdown_limit", "max_sector_weight", "stop_loss_pct"):
+    for key in ("max_drawdown_limit", "max_sector_weight"):
         if _number(risk, key, minimum=0, maximum=1) <= 0:
             raise ValueError(f"risk.{key} must be positive")
+    # A fixed stop of 0 means "no fixed stop": the backtest engine and the
+    # live runner both skip the check then (the earnings book runs that way).
+    _number(risk, "stop_loss_pct", minimum=0, maximum=1)
 
     leverage = config.get("leverage", {})
     if leverage:

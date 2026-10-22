@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      earnings:
+        description: 'Also run the earnings book tables (config_earnings.yaml; pulls the Yahoo earnings calendar, about ten minutes)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -26,7 +31,7 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -49,8 +54,12 @@ jobs:
           if [ "${{ github.event.inputs.trend }}" = "true" ]; then
             TREND_ARG="--trend"
           fi
+          EARNINGS_ARG=""
+          if [ "${{ github.event.inputs.earnings }}" = "true" ]; then
+            EARNINGS_ARG="--earnings"
+          fi
           set -o pipefail
-          python refresh_backtest_tables.py $LGBM_ARG $TREND_ARG | tee tables_output.txt
+          python refresh_backtest_tables.py $LGBM_ARG $TREND_ARG $EARNINGS_ARG | tee tables_output.txt
 
       - name: Render 5-year chart
         env:

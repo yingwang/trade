@@ -99,13 +99,10 @@ class MultiFactorStrategy:
             "will not use today's snapshot"
         )
 
-        # Extract sector map for sector constraints (if available)
-        # The configured static sector table is the classification for both
-        # the backtest and the live path; the yfinance snapshot is only a
-        # fallback for configs without one (the ETF control universe).
+        # The configured static sector table is the one classification for
+        # both the backtest and the live path (a config without one, the ETF
+        # control universe, neutralizes nothing on either path).
         sector_map = static_sector_map(self.config)
-        if sector_map is None and not fundamentals.empty and "sector" in fundamentals.columns:
-            sector_map = fundamentals["sector"]
 
         # 2. Generate signals
         logger.info("Generating signals...")
@@ -120,6 +117,7 @@ class MultiFactorStrategy:
             returns,
             fundamentals,
             eligibility_mask=eligibility,
+            sector_map=sector_map,
         )
 
         # 3. Build target weights on rebalance dates
@@ -252,11 +250,13 @@ class MultiFactorStrategy:
                 prices.index,
                 [column for column in prices.columns if column != self.data.benchmark],
             )
+        sector_map = static_sector_map(self.config)
         signals = self.signal_gen.generate(
             prices,
             returns,
             fundamentals,
             eligibility_mask=eligibility,
+            sector_map=sector_map,
         )
         return signals.iloc[-1].sort_values(ascending=False)
 
@@ -282,6 +282,11 @@ class MultiFactorStrategy:
         -------
         DataFrame with columns: score, weight, dollars, shares, price
         """
+        # The backtest provider hands the optimizer None for an empty book; an
+        # empty Series from the broker must mean the same, or the turnover
+        # anchor differs between the two paths on the very first rebalance.
+        if prev_weights is not None and len(prev_weights) == 0:
+            prev_weights = None
         if capital is None:
             capital = self.config["backtest"]["initial_capital"]
 
@@ -298,13 +303,10 @@ class MultiFactorStrategy:
             fundamentals = pd.DataFrame()
         self.last_fundamentals_ = fundamentals
 
-        # Extract sector map
-        # The configured static sector table is the classification for both
-        # the backtest and the live path; the yfinance snapshot is only a
-        # fallback for configs without one (the ETF control universe).
+        # The configured static sector table is the one classification for
+        # both the backtest and the live path (a config without one, the ETF
+        # control universe, neutralizes nothing on either path).
         sector_map = static_sector_map(self.config)
-        if sector_map is None and not fundamentals.empty and "sector" in fundamentals.columns:
-            sector_map = fundamentals["sector"]
 
         eligibility = None
         if self.pit_universe is not None:
@@ -317,6 +319,7 @@ class MultiFactorStrategy:
             returns,
             fundamentals,
             eligibility_mask=eligibility,
+            sector_map=sector_map,
         )
         day_scores = signals.iloc[-1].dropna()
 

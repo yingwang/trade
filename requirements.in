@@ -11,3 +11,5 @@ scikit-learn
 scipy
 seaborn
 yfinance
+
+lxml

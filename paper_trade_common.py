@@ -437,6 +437,10 @@ def check_stop_losses(
     entry_prices = state.get("entry_prices", {})
     if not entry_prices:
         return []
+    # A book configured without a fixed stop (risk.stop_loss_pct 0): nothing
+    # to check, rather than every losing position being sold.
+    if float(getattr(optimizer, "stop_loss_pct", 0.0) or 0.0) <= 0.0:
+        return []
 
     positions = broker.get_positions()
     if positions.empty:

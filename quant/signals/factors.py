@@ -371,8 +371,16 @@ class SignalGenerator:
         returns: pd.DataFrame,
         fundamentals: pd.DataFrame = None,
         eligibility_mask: pd.DataFrame = None,
+        sector_map: pd.Series = None,
     ) -> pd.DataFrame:
         """Produce a composite alpha score for each symbol on each date.
+
+        ``sector_map`` (symbol -> sector) is what industry neutralization
+        groups by; the strategies pass the static ``universe.sectors`` table
+        so the backtest and the live path neutralize alike. Without one the
+        factors are not neutralized on either path: the fundamentals
+        snapshot's ``sector`` column is never used for it, since the backtest
+        has no snapshot and the live signal must not depend on one.
 
         Pipeline:
           1. Compute scored factors (momentum, volatility, value, quality, etc.)
@@ -429,10 +437,15 @@ class SignalGenerator:
                 factors[name] = df
 
         # --- Industry neutralization + winsorization ---
-        sector_map = None
-        if self.industry_neutral and fundamentals is not None and "sector" in fundamentals.columns:
-            sector_map = fundamentals["sector"]
+        if not self.industry_neutral:
+            sector_map = None
+        if sector_map is not None:
             logger.info("Applying industry-neutral z-scoring")
+        elif self.industry_neutral:
+            logger.warning(
+                "industry_neutral is on but no sector_map was given; factors "
+                "are z-scored across the whole universe"
+            )
 
         eligible = None
         if eligibility_mask is not None:

@@ -82,6 +82,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--lgbm", action="store_true", help="also run the LightGBM strategy")
     ap.add_argument("--trend", action="store_true", help="also run the trend strategy (config_trend.yaml)")
+    ap.add_argument("--earnings", action="store_true", help="also run the earnings book (config_earnings.yaml)")
     ap.add_argument("--end", default=date.today().isoformat(), help="end date YYYY-MM-DD (default: today)")
     args = ap.parse_args()
 
@@ -135,6 +136,11 @@ def main():
         from quant.trend_strategy import TrendStrategy
         trend_config = load_config("config_trend.yaml")
         run_all(lambda: TrendStrategy(trend_config), "Trend Strategy")
+
+    if args.earnings:
+        from quant.earnings_strategy import EarningsStrategy
+        earnings_config = load_config("config_earnings.yaml")
+        run_all(lambda: EarningsStrategy(earnings_config), "Earnings Book")
 
     print("\nDone. Paste the tables above back to Claude to update README.md.")
 
