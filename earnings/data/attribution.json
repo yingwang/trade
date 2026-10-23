@@ -1,0 +1,13 @@
+{
+  "status": "insufficient_data",
+  "summary": {
+    "trading_days": 0
+  },
+  "diagnostics": {
+    "reason": "Need at least two actual equity values"
+  },
+  "components": {},
+  "style_breakdown": {},
+  "industry_breakdown": {},
+  "daily": []
+}

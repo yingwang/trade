@@ -1,0 +1,153 @@
+{
+  "updated_at": "2026-10-23 19:47 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 113.2,
+  "cash_pct": 0,
+  "account_equity_basis": 119510.31,
+  "positions": [
+    {
+      "symbol": "MU",
+      "weight_pct": 10.85,
+      "dollars": 12973.0,
+      "shares": 14,
+      "price": 877.55,
+      "score": 1.2076
+    },
+    {
+      "symbol": "TGT",
+      "weight_pct": 10.6,
+      "dollars": 12666.0,
+      "shares": 82,
+      "price": 152.76,
+      "score": 1.072
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 9.83,
+      "dollars": 11750.0,
+      "shares": 18,
+      "price": 646.15,
+      "score": 1.3617
+    },
+    {
+      "symbol": "MA",
+      "weight_pct": 9.39,
+      "dollars": 11228.0,
+      "shares": 18,
+      "price": 623.6,
+      "score": 1.1073
+    },
+    {
+      "symbol": "V",
+      "weight_pct": 9.29,
+      "dollars": 11106.0,
+      "shares": 27,
+      "price": 407.92,
+      "score": 1.1942
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 9.19,
+      "dollars": 10985.0,
+      "shares": 44,
+      "price": 248.0,
+      "score": 1.1399
+    },
+    {
+      "symbol": "TMO",
+      "weight_pct": 7.7,
+      "dollars": 9204.0,
+      "shares": 13,
+      "price": 673.82,
+      "score": 1.2204
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 6.91,
+      "dollars": 8256.0,
+      "shares": 15,
+      "price": 516.79,
+      "score": 0.9368
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 6.3,
+      "dollars": 7532.0,
+      "shares": 86,
+      "price": 86.96,
+      "score": 0.9726
+    },
+    {
+      "symbol": "COP",
+      "weight_pct": 5.85,
+      "dollars": 6986.0,
+      "shares": 46,
+      "price": 150.8,
+      "score": 1.0358
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 4.4,
+      "dollars": 5253.0,
+      "shares": 22,
+      "price": 228.51,
+      "score": 0.7883
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.62,
+      "dollars": 4331.0,
+      "shares": 16,
+      "price": 257.57,
+      "score": 0.8106
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 3.44,
+      "dollars": 4105.0,
+      "shares": 18,
+      "price": 224.46,
+      "score": -0.7094
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 3.38,
+      "dollars": 4045.0,
+      "shares": 21,
+      "price": 191.01,
+      "score": -0.6573
+    },
+    {
+      "symbol": "META",
+      "weight_pct": 3.33,
+      "dollars": 3977.0,
+      "shares": 6,
+      "price": 642.62,
+      "score": 0.9287
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 3.16,
+      "dollars": 3779.0,
+      "shares": 26,
+      "price": 145.27,
+      "score": 0.809
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 3.02,
+      "dollars": 3609.0,
+      "shares": 22,
+      "price": 163.03,
+      "score": -0.4091
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 2.9,
+      "dollars": 3461.0,
+      "shares": 53,
+      "price": 65.18,
+      "score": 0.7084
+    }
+  ]
+}

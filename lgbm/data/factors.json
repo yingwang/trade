@@ -1,0 +1,102 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "trend_persistence"
+  ],
+  "stocks": {
+    "ZS": {
+      "momentum": 0.258,
+      "high_proximity": 0.03,
+      "short_term_reversal": -2.735,
+      "vol_contraction": -0.932,
+      "trend_persistence": 0.337
+    },
+    "MU": {
+      "momentum": 2.684,
+      "high_proximity": -0.206,
+      "short_term_reversal": 0.29,
+      "vol_contraction": 0.584,
+      "trend_persistence": -1.806
+    },
+    "SNOW": {
+      "momentum": 0.433,
+      "high_proximity": 0.852,
+      "short_term_reversal": -0.55,
+      "vol_contraction": -1.173,
+      "trend_persistence": 0.277
+    },
+    "INTC": {
+      "momentum": 2.182,
+      "high_proximity": -0.914,
+      "short_term_reversal": 0.722,
+      "vol_contraction": 0.418,
+      "trend_persistence": -0.496
+    },
+    "NET": {
+      "momentum": 0.437,
+      "high_proximity": 0.987,
+      "short_term_reversal": -1.1,
+      "vol_contraction": -1.247,
+      "trend_persistence": 0.342
+    },
+    "KLAC": {
+      "momentum": -0.612,
+      "high_proximity": -1.805,
+      "short_term_reversal": 2.082,
+      "vol_contraction": 0.403,
+      "trend_persistence": 1.226
+    },
+    "MCHP": {
+      "momentum": -0.772,
+      "high_proximity": -0.193,
+      "short_term_reversal": 0.259,
+      "vol_contraction": 0.661,
+      "trend_persistence": 0.202
+    },
+    "CRWD": {
+      "momentum": 1.483,
+      "high_proximity": 1.128,
+      "short_term_reversal": -1.533,
+      "vol_contraction": -0.482,
+      "trend_persistence": 0.451
+    },
+    "MRVL": {
+      "momentum": 1.786,
+      "high_proximity": -0.211,
+      "short_term_reversal": 0.193,
+      "vol_contraction": -0.323,
+      "trend_persistence": -0.493
+    },
+    "INTU": {
+      "momentum": -1.483,
+      "high_proximity": -1.629,
+      "short_term_reversal": -0.504,
+      "vol_contraction": -1.044,
+      "trend_persistence": -0.48
+    },
+    "ADBE": {
+      "momentum": -0.982,
+      "high_proximity": -0.141,
+      "short_term_reversal": -0.774,
+      "vol_contraction": -0.998,
+      "trend_persistence": -0.802
+    },
+    "CRM": {
+      "momentum": 0.044,
+      "high_proximity": 1.237,
+      "short_term_reversal": -0.157,
+      "vol_contraction": 1.951,
+      "trend_persistence": 0.579
+    },
+    "LLY": {
+      "momentum": 0.029,
+      "high_proximity": 0.581,
+      "short_term_reversal": 0.134,
+      "vol_contraction": -0.096,
+      "trend_persistence": -0.452
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "updated_at": "2026-10-23 19:48 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 50.0,
+  "cash_pct": 50.0,
+  "account_equity_basis": 134600.13,
+  "positions": [
+    {
+      "symbol": "ZS",
+      "weight_pct": 7.21,
+      "dollars": 9702.0,
+      "shares": 38,
+      "price": 255.15,
+      "score": 0.9317
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 5.54,
+      "dollars": 7460.0,
+      "shares": 8,
+      "price": 877.55,
+      "score": 0.9885
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 5.39,
+      "dollars": 7256.0,
+      "shares": 22,
+      "price": 325.43,
+      "score": 0.9802
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 4.69,
+      "dollars": 6317.0,
+      "shares": 72,
+      "price": 86.96,
+      "score": 0.8701
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 4.38,
+      "dollars": 5902.0,
+      "shares": 18,
+      "price": 325.73,
+      "score": 0.8973
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 4.21,
+      "dollars": 5670.0,
+      "shares": 38,
+      "price": 145.61,
+      "score": 0.9061
+    },
+    {
+      "symbol": "MCHP",
+      "weight_pct": 4.17,
+      "dollars": 5610.0,
+      "shares": 75,
+      "price": 74.05,
+      "score": 0.9359
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.25,
+      "dollars": 4381.0,
+      "shares": 17,
+      "price": 257.57,
+      "score": 0.8582
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 3.23,
+      "dollars": 4345.0,
+      "shares": 19,
+      "price": 228.51,
+      "score": 0.9125
+    },
+    {
+      "symbol": "INTU",
+      "weight_pct": 2.28,
+      "dollars": 3074.0,
+      "shares": 8,
+      "price": 343.39,
+      "score": 0.9012
+    },
+    {
+      "symbol": "ADBE",
+      "weight_pct": 2.07,
+      "dollars": 2789.0,
+      "shares": 10,
+      "price": 263.82,
+      "score": 0.8661
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 2.07,
+      "dollars": 2789.0,
+      "shares": 11,
+      "price": 248.57,
+      "score": 0.8586
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 1.49,
+      "dollars": 2004.0,
+      "shares": 1,
+      "price": 1273.46,
+      "score": 0.7489
+    }
+  ]
+}

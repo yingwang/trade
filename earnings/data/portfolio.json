@@ -1,0 +1,211 @@
+{
+  "updated_at": "2026-10-23 19:55 EDT",
+  "gross_pct": 100.0,
+  "total_invested_pct": 100.0,
+  "cash_pct": 0.0,
+  "account_equity_basis": 93755.93,
+  "candidates": 490,
+  "universe_size": 503,
+  "positions": [
+    {
+      "symbol": "MU",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 4,
+      "price": 877.55,
+      "score": 1.9146
+    },
+    {
+      "symbol": "LYB",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 56,
+      "price": 66.45,
+      "score": 1.7444
+    },
+    {
+      "symbol": "LITE",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 4,
+      "price": 756.17,
+      "score": 1.7321
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 43,
+      "price": 86.96,
+      "score": 1.6807
+    },
+    {
+      "symbol": "WDC",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 10,
+      "price": 343.67,
+      "score": 1.6731
+    },
+    {
+      "symbol": "ALB",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 40,
+      "price": 93.67,
+      "score": 1.6698
+    },
+    {
+      "symbol": "TER",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 12,
+      "price": 308.85,
+      "score": 1.6636
+    },
+    {
+      "symbol": "GOOGL",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 11,
+      "price": 320.21,
+      "score": 1.6238
+    },
+    {
+      "symbol": "MPC",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 8,
+      "price": 457.22,
+      "score": 1.6157
+    },
+    {
+      "symbol": "VLO",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 8,
+      "price": 419.28,
+      "score": 1.5667
+    },
+    {
+      "symbol": "STX",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 5,
+      "price": 630.49,
+      "score": 1.5268
+    },
+    {
+      "symbol": "CIEN",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 11,
+      "price": 320.26,
+      "score": 1.5221
+    },
+    {
+      "symbol": "OXY",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 58,
+      "price": 64.17,
+      "score": 1.492
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 3,
+      "price": 1140.12,
+      "score": 1.4638
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 15,
+      "price": 248.0,
+      "score": 1.4391
+    },
+    {
+      "symbol": "CNC",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 53,
+      "price": 70.17,
+      "score": 1.2905
+    },
+    {
+      "symbol": "ROST",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 16,
+      "price": 229.3,
+      "score": 1.2793
+    },
+    {
+      "symbol": "PSX",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 13,
+      "price": 283.18,
+      "score": 1.2489
+    },
+    {
+      "symbol": "DLTR",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 29,
+      "price": 125.31,
+      "score": 1.2385
+    },
+    {
+      "symbol": "KEYS",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 11,
+      "price": 314.77,
+      "score": 1.2118
+    },
+    {
+      "symbol": "DOW",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 115,
+      "price": 32.61,
+      "score": 1.205
+    },
+    {
+      "symbol": "BKR",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 67,
+      "price": 55.86,
+      "score": 1.0904
+    },
+    {
+      "symbol": "ANET",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 21,
+      "price": 172.37,
+      "score": 1.0794
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 5,
+      "price": 687.0,
+      "score": 1.0469
+    },
+    {
+      "symbol": "TGT",
+      "weight_pct": 4.0,
+      "dollars": 3750.0,
+      "shares": 24,
+      "price": 152.76,
+      "score": 1.0342
+    }
+  ]
+}
