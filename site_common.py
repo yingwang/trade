@@ -367,6 +367,8 @@ def fetch_trade_history(
     ``since`` (YYYY-MM-DD) keeps only the fills and the daily equity from that
     date on, for a book that took over an account another book had traded:
     the earnings book's page must not show the trend book's history as its own.
+    The last close before ``since`` stays as the starting equity (see
+    ``since_history``).
 
     Falls back to local log files if API keys are not available.
     """
@@ -569,6 +571,18 @@ def _attribution_rebalances(rebalances: list[dict]) -> list[dict]:
     ]
 
 
+def since_history(history: list[dict], since: str) -> list[dict]:
+    """Daily equity rows for a book that started on ``since``, from its starting point.
+
+    The last row before ``since`` is kept as the equity the book took over: it
+    is the book's starting capital, and without it a book with one session of
+    its own has a single point, which the page cannot draw (nor compare with
+    SPY). Before Alpaca has posted the first session's bar it is the only row.
+    """
+    before = [row for row in history if row["date"] < since]
+    return before[-1:] + [row for row in history if row["date"] >= since]
+
+
 def _fetch_trades_from_alpaca(
     api_key,
     secret_key,
@@ -616,7 +630,7 @@ def _fetch_trades_from_alpaca(
         except Exception as e:
             logger.warning("Could not fetch portfolio history: %s", e)
         if since:
-            portfolio_history = [row for row in portfolio_history if row["date"] >= since]
+            portfolio_history = since_history(portfolio_history, since)
 
         # Current positions (split-corrected where needed)
         raw_positions = api.get_all_positions()

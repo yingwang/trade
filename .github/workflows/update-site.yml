@@ -8,6 +8,9 @@
       paths:
         - 'generate_site.py'
         - 'generate_site_lgbm.py'
+        - 'generate_site_earnings.py'
+        - 'site_common.py'
+        - 'config_earnings.yaml'
         - 'site/**'
         - 'quant/**'
         - 'config.yaml'
