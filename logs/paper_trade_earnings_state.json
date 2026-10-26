@@ -478,5 +478,8 @@
     "processed_fill_values": {
       "qts-reba-c19b358a9363402de2b27480": 325.61
     }
+  },
+  "market_closed_attempts": {
+    "2026-10-26": 1
   }
 }
