@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "last_rebalance": "2026-10-23T15:07:39.018807",
+  "last_rebalance": "2026-10-26T16:52:56.137448",
   "trade_history": [
     {
       "date": "2026-10-23T15:07:39.018820",
@@ -385,15 +385,36 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-10-26T16:52:56.137458",
+      "completed": true,
+      "outcome": "all orders filled",
+      "trades": [
+        {
+          "time": "2026-10-26T16:52:55.415410",
+          "symbol": "KEYS",
+          "side": "sell",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 325.61,
+          "signal_price": 325.3,
+          "order_id": "b407894d-394b-4aa4-8888-9fd42af670ab",
+          "client_order_id": "qts-reba-c19b358a9363402de2b27480",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "equity_history_seeded_at": "2026-10-22T00:00:00",
   "account_inherited_from": "trend",
   "book_started": "2026-10-23",
   "equity_history": {
-    "2026-10-23": 94001.05
+    "2026-10-23": 94001.05,
+    "2026-10-26": 95569.53
   },
-  "peak_equity": 94690.55,
+  "peak_equity": 95569.53,
   "entry_prices": {
     "ALB": 93.2,
     "AMZN": 249.060666,
@@ -445,73 +466,17 @@
     "WDC": "2026-10-23"
   },
   "daily_tracker": {
-    "trade_date": "2026-10-23",
-    "total_value_traded": 138645.609987,
+    "trade_date": "2026-10-26",
+    "total_value_traded": 325.61,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 29,
-    "orders_filled": 29,
+    "orders_submitted": 1,
+    "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-09a894bb2eb7c1317a3d412f",
-      "qts-reba-0c3e35b21b873251b4d20405",
-      "qts-reba-1f893b47834cab005522bc0a",
-      "qts-reba-346401d8ad63d1d068589322",
-      "qts-reba-3785a9eb75060ff7f5a23e0f",
-      "qts-reba-477f2597cd2069fdbbfbd208",
-      "qts-reba-519891b38f9dfbd8ad4c2756",
-      "qts-reba-5a3e3e6c91b9276df8470905",
-      "qts-reba-660cb4f7e20746d5fa961841",
-      "qts-reba-7441121d7e9bf50667ba8b46",
-      "qts-reba-745e9950501dfcc5e74b738b",
-      "qts-reba-8008024644c3888edcbf5a94",
-      "qts-reba-8371ee060ca47a773aa126eb",
-      "qts-reba-868952398946aad6c2095216",
-      "qts-reba-8c6eaca845e7fceab40709ba",
-      "qts-reba-8cad94c140c78240d50abf75",
-      "qts-reba-a2ae753b112c03ed50044ae7",
-      "qts-reba-a6f339f292e5e284245a8681",
-      "qts-reba-a8129d47a1163a69e909101f",
-      "qts-reba-ac7f04b55aa86586e3515541",
-      "qts-reba-b9e744fb73e0506e507fb683",
-      "qts-reba-be0ae6b3cfddb62d0d631906",
-      "qts-reba-d126a32dd63a37823a409f8c",
-      "qts-reba-d5c0452a2d993f1278cc10df",
-      "qts-reba-d5d56a4adc30e8365e7971f8",
-      "qts-reba-e74c657f20ed167014cd80e2",
-      "qts-reba-ec5546db1d65a73a061dd849",
-      "qts-reba-f48a727b31a6fa55878f99f0",
-      "qts-reba-fceea6210817f6dffd5956f4"
+      "qts-reba-c19b358a9363402de2b27480"
     ],
     "processed_fill_values": {
-      "qts-reba-09a894bb2eb7c1317a3d412f": 3113.96,
-      "qts-reba-0c3e35b21b873251b4d20405": 12483.900000000001,
-      "qts-reba-1f893b47834cab005522bc0a": 3749.40999,
-      "qts-reba-346401d8ad63d1d068589322": 3674.88,
-      "qts-reba-3785a9eb75060ff7f5a23e0f": 3682.2999990000003,
-      "qts-reba-477f2597cd2069fdbbfbd208": 3560.169998,
-      "qts-reba-519891b38f9dfbd8ad4c2756": 5312.34,
-      "qts-reba-5a3e3e6c91b9276df8470905": 3708.25,
-      "qts-reba-660cb4f7e20746d5fa961841": 3773.0699999999997,
-      "qts-reba-7441121d7e9bf50667ba8b46": 11310.33,
-      "qts-reba-745e9950501dfcc5e74b738b": 3388.4,
-      "qts-reba-8008024644c3888edcbf5a94": 3759.7200000000003,
-      "qts-reba-8371ee060ca47a773aa126eb": 3558.5,
-      "qts-reba-868952398946aad6c2095216": 3474.93,
-      "qts-reba-8c6eaca845e7fceab40709ba": 3248.4500000000003,
-      "qts-reba-8cad94c140c78240d50abf75": 5544.780032,
-      "qts-reba-a2ae753b112c03ed50044ae7": 3688.7999999999997,
-      "qts-reba-a6f339f292e5e284245a8681": 3735.90999,
-      "qts-reba-a8129d47a1163a69e909101f": 3435.4500000000003,
-      "qts-reba-ac7f04b55aa86586e3515541": 3765.06,
-      "qts-reba-b9e744fb73e0506e507fb683": 3526.5,
-      "qts-reba-be0ae6b3cfddb62d0d631906": 10390.21,
-      "qts-reba-d126a32dd63a37823a409f8c": 3728.0,
-      "qts-reba-d5c0452a2d993f1278cc10df": 3752.88,
-      "qts-reba-d5d56a4adc30e8365e7971f8": 3675.65,
-      "qts-reba-e74c657f20ed167014cd80e2": 3788.98,
-      "qts-reba-ec5546db1d65a73a061dd849": 3785.5199999999995,
-      "qts-reba-f48a727b31a6fa55878f99f0": 10258.420006,
-      "qts-reba-fceea6210817f6dffd5956f4": 3770.839972
+      "qts-reba-c19b358a9363402de2b27480": 325.61
     }
   }
 }

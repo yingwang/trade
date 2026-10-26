@@ -59,3 +59,8 @@
 {"event": "order_filled", "symbol": "WDC", "side": "buy", "quantity": 10.0, "requested_quantity": 10.0, "filled_price": 352.65, "signal_price": 353.025, "slippage_bps": -10.62, "order_id": "62ef55aa-f1cf-4346-8f21-bbeb264ef74d", "client_order_id": "qts-reba-b9e744fb73e0506e507fb683", "timestamp": "2026-10-23T15:07:37.267115Z"}
 {"event": "rebalance_complete", "n_filled": 29, "n_rejected": 0, "total_value_traded": 138645.609987, "timestamp": "2026-10-23T15:07:37.268206Z"}
 {"event": "reconciliation", "portfolio_value": 94424.84, "n_positions": 25, "total_abs_drift_pct": 4.11, "max_drift_symbol": "LITE", "max_drift_pct": 0.7, "timestamp": "2026-10-23T15:07:40.672703Z"}
+{"event": "rebalance_start", "portfolio_value": 95569.53, "n_orders": 1, "timestamp": "2026-10-26T16:52:53.978785Z"}
+{"event": "order_submitted", "symbol": "KEYS", "side": "sell", "quantity": 1.0, "requested_quantity": 1.0, "order_type": "market", "limit_price": null, "signal_price": 325.3, "client_order_id": "qts-reba-c19b358a9363402de2b27480", "timestamp": "2026-10-26T16:52:54.372187Z"}
+{"event": "order_filled", "symbol": "KEYS", "side": "sell", "quantity": 1.0, "requested_quantity": 1.0, "filled_price": 325.61, "signal_price": 325.3, "slippage_bps": -9.53, "order_id": "b407894d-394b-4aa4-8888-9fd42af670ab", "client_order_id": "qts-reba-c19b358a9363402de2b27480", "timestamp": "2026-10-26T16:52:55.415197Z"}
+{"event": "rebalance_complete", "n_filled": 1, "n_rejected": 0, "total_value_traded": 325.61, "timestamp": "2026-10-26T16:52:55.428885Z"}
+{"event": "reconciliation", "portfolio_value": 95648.52, "n_positions": 25, "total_abs_drift_pct": 4.91, "max_drift_symbol": "STX", "max_drift_pct": 0.56, "timestamp": "2026-10-26T16:52:56.463980Z"}
