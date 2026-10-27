@@ -2281,6 +2281,26 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-10-27T15:34:18.697652",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-10-27T15:34:18.680054",
+          "symbol": "BA",
+          "side": "sell",
+          "qty": 41.0,
+          "requested_qty": 41.0,
+          "status": "filled",
+          "price": 170.06,
+          "signal_price": 169.995,
+          "order_id": "549a2bdf-76f4-4236-b168-6a5e8c150eb4",
+          "client_order_id": "qts-stop-a0734008fdad94565d8ffd4d",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2290,7 +2310,6 @@
     "MCHP": 75.23,
     "NET": 282.11,
     "TSLA": 305.359333,
-    "BA": 206.23,
     "KLAC": 168.86,
     "DDOG": 254.75,
     "MRVL": 260.01,
@@ -2301,45 +2320,17 @@
     "SNOW": 316.38
   },
   "daily_tracker": {
-    "trade_date": "2026-10-23",
-    "total_value_traded": 46311.39,
+    "trade_date": "2026-10-27",
+    "total_value_traded": 6972.46,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 15,
-    "orders_filled": 15,
+    "orders_submitted": 1,
+    "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-0f93829accf0315cda93f0a4",
-      "qts-reba-203d9539ffac4814cd572c2c",
-      "qts-reba-30796353d48cda9640131a0e",
-      "qts-reba-36ec5a161de1252afb690a7e",
-      "qts-reba-3b104bce82a2153f21beb703",
-      "qts-reba-3bbef33215432def601669a9",
-      "qts-reba-4ac63f1cd1c0ca993fa2d651",
-      "qts-reba-4b2f710f730adee1202eb6da",
-      "qts-reba-5914202170c1b2c15928c4cd",
-      "qts-reba-82893e70da2d48c2da205a73",
-      "qts-reba-956c23f3167a1fbfb8d5bceb",
-      "qts-reba-afdf617474a016ce372d86b2",
-      "qts-reba-dfcf52b81838782ed0eb3d42",
-      "qts-reba-ead8b0ced7de9ae819d57b14",
-      "qts-reba-f17b7cd03c84cbe2edaa35ff"
+      "qts-stop-a0734008fdad94565d8ffd4d"
     ],
     "processed_fill_values": {
-      "qts-reba-0f93829accf0315cda93f0a4": 8953.42,
-      "qts-reba-203d9539ffac4814cd572c2c": 6325.399995,
-      "qts-reba-30796353d48cda9640131a0e": 2214.66,
-      "qts-reba-36ec5a161de1252afb690a7e": 1819.12,
-      "qts-reba-3b104bce82a2153f21beb703": 1367.2399999999998,
-      "qts-reba-3bbef33215432def601669a9": 369.96,
-      "qts-reba-4ac63f1cd1c0ca993fa2d651": 1583.1000000000001,
-      "qts-reba-4b2f710f730adee1202eb6da": 4018.56,
-      "qts-reba-5914202170c1b2c15928c4cd": 1255.52,
-      "qts-reba-82893e70da2d48c2da205a73": 2304.38,
-      "qts-reba-956c23f3167a1fbfb8d5bceb": 1763.6,
-      "qts-reba-afdf617474a016ce372d86b2": 3654.27,
-      "qts-reba-dfcf52b81838782ed0eb3d42": 3817.3500040000004,
-      "qts-reba-ead8b0ced7de9ae819d57b14": 2072.84,
-      "qts-reba-f17b7cd03c84cbe2edaa35ff": 4791.970001
+      "qts-stop-a0734008fdad94565d8ffd4d": 6972.46
     }
   },
   "stop_loss_attempts": {},
@@ -2591,7 +2582,8 @@
     "2026-10-12": 123051.09,
     "2026-10-22": 120879.94,
     "2026-10-23": 121846.05,
-    "2026-10-26": 123848.69
+    "2026-10-26": 123848.69,
+    "2026-10-27": 123765.0
   },
   "peak_equity": 125155.3,
   "entry_dates": {
@@ -2613,6 +2605,7 @@
   "stop_exits": {
     "AMAT": "2026-10-22",
     "AMD": "2026-10-22",
-    "LRCX": "2026-10-22"
+    "LRCX": "2026-10-22",
+    "BA": "2026-10-27"
   }
 }
