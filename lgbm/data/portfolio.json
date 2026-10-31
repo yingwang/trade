@@ -1,0 +1,122 @@
+{
+  "updated_at": "2026-10-30 20:36 EDT",
+  "regime": "low_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 62.0,
+  "cash_pct": 38.0,
+  "account_equity_basis": 132135.34,
+  "positions": [
+    {
+      "symbol": "EOG",
+      "weight_pct": 8.51,
+      "dollars": 11249.0,
+      "shares": 69,
+      "price": 162.22,
+      "score": 0.8768
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 5.6,
+      "dollars": 7404.0,
+      "shares": 28,
+      "price": 261.15,
+      "score": 0.9788
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 5.39,
+      "dollars": 7117.0,
+      "shares": 18,
+      "price": 380.57,
+      "score": 0.9681
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 5.37,
+      "dollars": 7102.0,
+      "shares": 26,
+      "price": 265.84,
+      "score": 0.9867
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 5.37,
+      "dollars": 7091.0,
+      "shares": 5,
+      "price": 1373.7,
+      "score": 0.6444
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 5.1,
+      "dollars": 6743.0,
+      "shares": 21,
+      "price": 310.3,
+      "score": 0.9567
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 4.9,
+      "dollars": 6474.0,
+      "shares": 26,
+      "price": 247.82,
+      "score": 0.8237
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 4.68,
+      "dollars": 6187.0,
+      "shares": 36,
+      "price": 167.43,
+      "score": 0.8401
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 4.08,
+      "dollars": 5392.0,
+      "shares": 16,
+      "price": 330.27,
+      "score": 0.9442
+    },
+    {
+      "symbol": "MCHP",
+      "weight_pct": 3.56,
+      "dollars": 4701.0,
+      "shares": 57,
+      "price": 81.12,
+      "score": 0.9179
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 2.72,
+      "dollars": 3588.0,
+      "shares": 32,
+      "price": 109.67,
+      "score": 0.9149
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 2.5,
+      "dollars": 3303.0,
+      "shares": 3,
+      "price": 934.27,
+      "score": 0.8575
+    },
+    {
+      "symbol": "INTU",
+      "weight_pct": 2.11,
+      "dollars": 2787.0,
+      "shares": 8,
+      "price": 331.19,
+      "score": 0.8742
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 2.11,
+      "dollars": 2787.0,
+      "shares": 12,
+      "price": 230.9,
+      "score": 0.8946
+    }
+  ]
+}

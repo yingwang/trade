@@ -1,0 +1,129 @@
+{
+  "updated_at": "2026-10-30 20:35 EDT",
+  "regime": "low_vol",
+  "total_invested_pct": 93.5,
+  "cash_pct": 6.5,
+  "account_equity_basis": 117897.82,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 11.12,
+      "dollars": 13111.0,
+      "shares": 86,
+      "price": 151.82,
+      "score": 1.2099
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 10.63,
+      "dollars": 12532.0,
+      "shares": 13,
+      "price": 934.27,
+      "score": 1.2805
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 9.89,
+      "dollars": 11657.0,
+      "shares": 17,
+      "price": 660.0,
+      "score": 1.2762
+    },
+    {
+      "symbol": "V",
+      "weight_pct": 9.42,
+      "dollars": 11103.0,
+      "shares": 27,
+      "price": 410.54,
+      "score": 1.263
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 7.59,
+      "dollars": 8953.0,
+      "shares": 15,
+      "price": 566.42,
+      "score": 0.9598
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 6.3,
+      "dollars": 7431.0,
+      "shares": 28,
+      "price": 261.15,
+      "score": 0.9597
+    },
+    {
+      "symbol": "TMO",
+      "weight_pct": 5.85,
+      "dollars": 6892.0,
+      "shares": 9,
+      "price": 709.18,
+      "score": 0.9669
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 5.8,
+      "dollars": 6841.0,
+      "shares": 16,
+      "price": 403.3,
+      "score": 0.9642
+    },
+    {
+      "symbol": "MA",
+      "weight_pct": 4.79,
+      "dollars": 5645.0,
+      "shares": 8,
+      "price": 635.7,
+      "score": 0.5267
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 4.18,
+      "dollars": 4926.0,
+      "shares": 22,
+      "price": 218.34,
+      "score": 0.6957
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 4.01,
+      "dollars": 4733.0,
+      "shares": 32,
+      "price": 146.33,
+      "score": 0.7591
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 3.88,
+      "dollars": 4574.0,
+      "shares": 69,
+      "price": 66.14,
+      "score": 0.7309
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 3.61,
+      "dollars": 4261.0,
+      "shares": 17,
+      "price": 243.79,
+      "score": 0.5808
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 3.29,
+      "dollars": 3879.0,
+      "shares": 19,
+      "price": 199.4,
+      "score": -0.4224
+    },
+    {
+      "symbol": "SBUX",
+      "weight_pct": 3.09,
+      "dollars": 3642.0,
+      "shares": 34,
+      "price": 105.51,
+      "score": 0.7286
+    }
+  ]
+}

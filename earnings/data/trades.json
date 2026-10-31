@@ -1,0 +1,679 @@
+{
+  "source": "alpaca",
+  "account": {
+    "equity": 92709.34,
+    "cash": 4163.32,
+    "buying_power": 264582.13
+  },
+  "positions": [
+    {
+      "symbol": "ALB",
+      "qty": 40.0,
+      "side": "long",
+      "current_price": 91.0,
+      "market_value": 3640.0,
+      "avg_entry_price": 93.2,
+      "cost_basis": 3728.0,
+      "today_pl_pct": -2.434,
+      "today_pl": -90.8,
+      "total_pl_pct": -2.361,
+      "total_pl": -88.0
+    },
+    {
+      "symbol": "AMZN",
+      "qty": 15.0,
+      "side": "long",
+      "current_price": 240.8,
+      "market_value": 3612.0,
+      "avg_entry_price": 249.06,
+      "cost_basis": 3735.91,
+      "today_pl_pct": -1.226,
+      "today_pl": -44.85,
+      "total_pl_pct": -3.317,
+      "total_pl": -123.91
+    },
+    {
+      "symbol": "ANET",
+      "qty": 21.0,
+      "side": "long",
+      "current_price": 169.8185,
+      "market_value": 3566.19,
+      "avg_entry_price": 175.35,
+      "cost_basis": 3682.3,
+      "today_pl_pct": -7.818,
+      "today_pl": -302.4315,
+      "total_pl_pct": -3.153,
+      "total_pl": -116.11
+    },
+    {
+      "symbol": "BKR",
+      "qty": 68.0,
+      "side": "long",
+      "current_price": 55.26,
+      "market_value": 3757.68,
+      "avg_entry_price": 55.45,
+      "cost_basis": 3770.84,
+      "today_pl_pct": 1.376,
+      "today_pl": 51.0,
+      "total_pl_pct": -0.349,
+      "total_pl": -13.16
+    },
+    {
+      "symbol": "CAT",
+      "qty": 5.0,
+      "side": "long",
+      "current_price": 624.8924,
+      "market_value": 3124.46,
+      "avg_entry_price": 687.09,
+      "cost_basis": 3435.45,
+      "today_pl_pct": -3.4750000000000005,
+      "today_pl": -112.488,
+      "total_pl_pct": -9.052,
+      "total_pl": -310.99
+    },
+    {
+      "symbol": "CIEN",
+      "qty": 11.0,
+      "side": "long",
+      "current_price": 323.8647,
+      "market_value": 3562.51,
+      "avg_entry_price": 323.5,
+      "cost_basis": 3558.5,
+      "today_pl_pct": -7.321999999999999,
+      "today_pl": -281.4383,
+      "total_pl_pct": 0.113,
+      "total_pl": 4.01
+    },
+    {
+      "symbol": "CNC",
+      "qty": 53.0,
+      "side": "long",
+      "current_price": 68.89,
+      "market_value": 3651.17,
+      "avg_entry_price": 71.19,
+      "cost_basis": 3773.07,
+      "today_pl_pct": 0.393,
+      "today_pl": 14.31,
+      "total_pl_pct": -3.231,
+      "total_pl": -121.9
+    },
+    {
+      "symbol": "DLTR",
+      "qty": 30.0,
+      "side": "long",
+      "current_price": 133.71,
+      "market_value": 4011.3,
+      "avg_entry_price": 124.98,
+      "cost_basis": 3749.41,
+      "today_pl_pct": 1.272,
+      "today_pl": 50.4,
+      "total_pl_pct": 6.985,
+      "total_pl": 261.89
+    },
+    {
+      "symbol": "DOW",
+      "qty": 117.0,
+      "side": "long",
+      "current_price": 34.7,
+      "market_value": 4059.9,
+      "avg_entry_price": 32.18,
+      "cost_basis": 3765.06,
+      "today_pl_pct": 3.212,
+      "today_pl": 126.36,
+      "total_pl_pct": 7.831,
+      "total_pl": 294.84
+    },
+    {
+      "symbol": "GOOGL",
+      "qty": 11.0,
+      "side": "long",
+      "current_price": 281.46,
+      "market_value": 3096.06,
+      "avg_entry_price": 323.65,
+      "cost_basis": 3560.17,
+      "today_pl_pct": -0.832,
+      "today_pl": -25.96,
+      "total_pl_pct": -13.036,
+      "total_pl": -464.11
+    },
+    {
+      "symbol": "INTC",
+      "qty": 43.0,
+      "side": "long",
+      "current_price": 64.89,
+      "market_value": 2790.27,
+      "avg_entry_price": 92.16,
+      "cost_basis": 3962.88,
+      "today_pl_pct": -29.520999999999997,
+      "today_pl": -1168.74,
+      "total_pl_pct": -29.59,
+      "total_pl": -1172.61
+    },
+    {
+      "symbol": "KEYS",
+      "qty": 11.0,
+      "side": "long",
+      "current_price": 310.0,
+      "market_value": 3410.0,
+      "avg_entry_price": 315.46,
+      "cost_basis": 3470.06,
+      "today_pl_pct": -6.015000000000001,
+      "today_pl": -218.24,
+      "total_pl_pct": -1.731,
+      "total_pl": -60.06
+    },
+    {
+      "symbol": "LITE",
+      "qty": 4.0,
+      "side": "long",
+      "current_price": 845.0,
+      "market_value": 3380.0,
+      "avg_entry_price": 778.49,
+      "cost_basis": 3113.96,
+      "today_pl_pct": -8.105,
+      "today_pl": -298.12,
+      "total_pl_pct": 8.543,
+      "total_pl": 266.04
+    },
+    {
+      "symbol": "LYB",
+      "qty": 57.0,
+      "side": "long",
+      "current_price": 68.3,
+      "market_value": 3893.1,
+      "avg_entry_price": 65.84,
+      "cost_basis": 3752.88,
+      "today_pl_pct": 4.482,
+      "today_pl": 167.01,
+      "total_pl_pct": 3.736,
+      "total_pl": 140.22
+    },
+    {
+      "symbol": "MPC",
+      "qty": 8.0,
+      "side": "long",
+      "current_price": 444.7,
+      "market_value": 3557.6,
+      "avg_entry_price": 459.46,
+      "cost_basis": 3675.65,
+      "today_pl_pct": 2.818,
+      "today_pl": 97.52,
+      "total_pl_pct": -3.212,
+      "total_pl": -118.05
+    },
+    {
+      "symbol": "MPWR",
+      "qty": 3.0,
+      "side": "long",
+      "current_price": 1214.0834,
+      "market_value": 3642.25,
+      "avg_entry_price": 1158.31,
+      "cost_basis": 3474.93,
+      "today_pl_pct": 1.274,
+      "today_pl": 45.8202,
+      "total_pl_pct": 4.815,
+      "total_pl": 167.32
+    },
+    {
+      "symbol": "MU",
+      "qty": 4.0,
+      "side": "long",
+      "current_price": 889.2,
+      "market_value": 3556.8,
+      "avg_entry_price": 979.44,
+      "cost_basis": 3917.75,
+      "today_pl_pct": -4.824,
+      "today_pl": -180.28,
+      "total_pl_pct": -9.213,
+      "total_pl": -360.95
+    },
+    {
+      "symbol": "OXY",
+      "qty": 59.0,
+      "side": "long",
+      "current_price": 63.93,
+      "market_value": 3771.87,
+      "avg_entry_price": 64.22,
+      "cost_basis": 3788.98,
+      "today_pl_pct": 1.46,
+      "today_pl": 54.28,
+      "total_pl_pct": -0.452,
+      "total_pl": -17.11
+    },
+    {
+      "symbol": "PSX",
+      "qty": 13.0,
+      "side": "long",
+      "current_price": 282.83,
+      "market_value": 3676.79,
+      "avg_entry_price": 285.25,
+      "cost_basis": 3708.25,
+      "today_pl_pct": 3.37,
+      "today_pl": 119.86,
+      "total_pl_pct": -0.848,
+      "total_pl": -31.46
+    },
+    {
+      "symbol": "ROST",
+      "qty": 16.0,
+      "side": "long",
+      "current_price": 228.28,
+      "market_value": 3652.48,
+      "avg_entry_price": 229.68,
+      "cost_basis": 3674.88,
+      "today_pl_pct": -1.7309999999999999,
+      "today_pl": -64.32,
+      "total_pl_pct": -0.61,
+      "total_pl": -22.4
+    },
+    {
+      "symbol": "STX",
+      "qty": 5.0,
+      "side": "long",
+      "current_price": 649.178,
+      "market_value": 3245.89,
+      "avg_entry_price": 649.69,
+      "cost_basis": 3248.45,
+      "today_pl_pct": -7.323,
+      "today_pl": -256.46,
+      "total_pl_pct": -0.079,
+      "total_pl": -2.56
+    },
+    {
+      "symbol": "TER",
+      "qty": 12.0,
+      "side": "long",
+      "current_price": 275.5,
+      "market_value": 3306.0,
+      "avg_entry_price": 313.31,
+      "cost_basis": 3759.72,
+      "today_pl_pct": -6.998,
+      "today_pl": -248.76,
+      "total_pl_pct": -12.068,
+      "total_pl": -453.72
+    },
+    {
+      "symbol": "TGT",
+      "qty": 24.0,
+      "side": "long",
+      "current_price": 154.38,
+      "market_value": 3705.12,
+      "avg_entry_price": 153.7,
+      "cost_basis": 3688.8,
+      "today_pl_pct": 1.686,
+      "today_pl": 61.44,
+      "total_pl_pct": 0.442,
+      "total_pl": 16.32
+    },
+    {
+      "symbol": "VLO",
+      "qty": 8.0,
+      "side": "long",
+      "current_price": 399.572,
+      "market_value": 3196.58,
+      "avg_entry_price": 423.55,
+      "cost_basis": 3388.4,
+      "today_pl_pct": 3.9010000000000002,
+      "today_pl": 120.016,
+      "total_pl_pct": -5.661,
+      "total_pl": -191.82
+    },
+    {
+      "symbol": "WDC",
+      "qty": 10.0,
+      "side": "long",
+      "current_price": 368.0,
+      "market_value": 3680.0,
+      "avg_entry_price": 352.65,
+      "cost_basis": 3526.5,
+      "today_pl_pct": -6.932,
+      "today_pl": -274.1,
+      "total_pl_pct": 4.353,
+      "total_pl": 153.5
+    }
+  ],
+  "portfolio_history": [
+    {
+      "date": "2026-10-22",
+      "equity": 92399.74,
+      "profit_loss": -2436.22
+    },
+    {
+      "date": "2026-10-23",
+      "equity": 93862.5,
+      "profit_loss": 1462.76
+    },
+    {
+      "date": "2026-10-26",
+      "equity": 95354.41,
+      "profit_loss": 1491.91
+    },
+    {
+      "date": "2026-10-27",
+      "equity": 96544.16,
+      "profit_loss": 1189.75
+    },
+    {
+      "date": "2026-10-28",
+      "equity": 97178.03,
+      "profit_loss": 633.87
+    },
+    {
+      "date": "2026-10-29",
+      "equity": 95368.31,
+      "profit_loss": -1809.72
+    }
+  ],
+  "spy_history": [
+    {
+      "date": "2026-10-22",
+      "equity": 92399.74
+    },
+    {
+      "date": "2026-10-23",
+      "equity": 91917.15
+    },
+    {
+      "date": "2026-10-26",
+      "equity": 92570.27
+    },
+    {
+      "date": "2026-10-27",
+      "equity": 93089.14
+    },
+    {
+      "date": "2026-10-28",
+      "equity": 93409.66
+    },
+    {
+      "date": "2026-10-29",
+      "equity": 93052.86
+    }
+  ],
+  "rebalances": [
+    {
+      "date": "2026-10-26",
+      "portfolio_value": 95354.41,
+      "trades": [
+        {
+          "symbol": "KEYS",
+          "side": "sell",
+          "quantity": 1.0,
+          "price": 325.61,
+          "filled_at": "2026-10-26T16:52:55.325452+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-23",
+      "portfolio_value": 93862.5,
+      "trades": [
+        {
+          "symbol": "WDC",
+          "side": "buy",
+          "quantity": 10.0,
+          "price": 352.65,
+          "filled_at": "2026-10-23T15:07:36.634259+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "VLO",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 423.55,
+          "filled_at": "2026-10-23T15:07:33.328093+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TGT",
+          "side": "buy",
+          "quantity": 24.0,
+          "price": 153.7,
+          "filled_at": "2026-10-23T15:07:30.171043+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "TER",
+          "side": "buy",
+          "quantity": 12.0,
+          "price": 313.31,
+          "filled_at": "2026-10-23T15:07:25.763161+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "STX",
+          "side": "buy",
+          "quantity": 5.0,
+          "price": 649.69,
+          "filled_at": "2026-10-23T15:07:22.167945+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ROST",
+          "side": "buy",
+          "quantity": 16.0,
+          "price": 229.68,
+          "filled_at": "2026-10-23T15:07:18.793493+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PSX",
+          "side": "buy",
+          "quantity": 13.0,
+          "price": 285.25,
+          "filled_at": "2026-10-23T15:07:14.369864+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "OXY",
+          "side": "buy",
+          "quantity": 59.0,
+          "price": 64.22,
+          "filled_at": "2026-10-23T15:07:11.812063+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MPWR",
+          "side": "buy",
+          "quantity": 3.0,
+          "price": 1158.31,
+          "filled_at": "2026-10-23T15:07:08.669093+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MPC",
+          "side": "buy",
+          "quantity": 8.0,
+          "price": 459.45625,
+          "filled_at": "2026-10-23T15:07:04.234932+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "LYB",
+          "side": "buy",
+          "quantity": 57.0,
+          "price": 65.84,
+          "filled_at": "2026-10-23T15:06:59.461888+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "LITE",
+          "side": "buy",
+          "quantity": 4.0,
+          "price": 778.49,
+          "filled_at": "2026-10-23T15:06:57.042085+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "KEYS",
+          "side": "buy",
+          "quantity": 12.0,
+          "price": 315.46,
+          "filled_at": "2026-10-23T15:06:55.357092+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "buy",
+          "quantity": 11.0,
+          "price": 323.651818,
+          "filled_at": "2026-10-23T15:06:52.985673+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DOW",
+          "side": "buy",
+          "quantity": 117.0,
+          "price": 32.18,
+          "filled_at": "2026-10-23T15:06:49.711342+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "DLTR",
+          "side": "buy",
+          "quantity": 30.0,
+          "price": 124.980333,
+          "filled_at": "2026-10-23T15:06:48.035183+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CNC",
+          "side": "buy",
+          "quantity": 53.0,
+          "price": 71.19,
+          "filled_at": "2026-10-23T15:06:44.388753+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CIEN",
+          "side": "buy",
+          "quantity": 11.0,
+          "price": 323.5,
+          "filled_at": "2026-10-23T15:06:40.496757+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CAT",
+          "side": "buy",
+          "quantity": 5.0,
+          "price": 687.09,
+          "filled_at": "2026-10-23T15:06:38.359713+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "BKR",
+          "side": "buy",
+          "quantity": 68.0,
+          "price": 55.453529,
+          "filled_at": "2026-10-23T15:06:37.280793+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ANET",
+          "side": "buy",
+          "quantity": 21.0,
+          "price": 175.347619,
+          "filled_at": "2026-10-23T15:06:35.205291+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AMZN",
+          "side": "buy",
+          "quantity": 15.0,
+          "price": 249.060666,
+          "filled_at": "2026-10-23T15:06:32.819300+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "ALB",
+          "side": "buy",
+          "quantity": 40.0,
+          "price": 93.2,
+          "filled_at": "2026-10-23T15:06:29.820905+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "SNOW",
+          "side": "sell",
+          "quantity": 39.0,
+          "price": 320.1,
+          "filled_at": "2026-10-23T15:06:27.813562+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "PANW",
+          "side": "sell",
+          "quantity": 30.0,
+          "price": 377.011,
+          "filled_at": "2026-10-23T15:06:25.825334+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "MU",
+          "side": "sell",
+          "quantity": 6.0,
+          "price": 885.39,
+          "filled_at": "2026-10-23T15:06:21.842446+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "INTC",
+          "side": "sell",
+          "quantity": 64.0,
+          "price": 86.637188,
+          "filled_at": "2026-10-23T15:06:18.963061+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "CRWD",
+          "side": "sell",
+          "quantity": 41.0,
+          "price": 250.205366,
+          "filled_at": "2026-10-23T15:06:15.011498+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        },
+        {
+          "symbol": "AMD",
+          "side": "sell",
+          "quantity": 20.0,
+          "price": 519.5105,
+          "filled_at": "2026-10-23T15:06:10.918692+00:00",
+          "slippage_bps": 0,
+          "status": "filled"
+        }
+      ]
+    }
+  ],
+  "corporate_action_adjustments": {},
+  "annual_risk_free_rate": 0.04
+}
