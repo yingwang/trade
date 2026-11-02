@@ -2500,6 +2500,26 @@
           "purpose": "stop_loss"
         }
       ]
+    },
+    {
+      "date": "2026-11-02T19:45:06.682685",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-11-02T19:45:06.594170",
+          "symbol": "MRVL",
+          "side": "sell",
+          "qty": 24.0,
+          "requested_qty": 24.0,
+          "status": "filled",
+          "price": 171.432083,
+          "signal_price": 171.55,
+          "order_id": "b12b07ae-2e98-4383-866c-0640bbad8099",
+          "client_order_id": "qts-stop-e012c61400e7cb4151fb0418",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2510,7 +2530,6 @@
     "MU": 861.915,
     "PNC": 248.8,
     "AMZN": 254.423846,
-    "MRVL": 208.63,
     "RTX": 205.446923,
     "MA": 560.62,
     "V": 362.99,
@@ -2519,17 +2538,17 @@
     "MRK": 152.81
   },
   "daily_tracker": {
-    "trade_date": "2026-10-30",
-    "total_value_traded": 4824.150000000001,
+    "trade_date": "2026-11-02",
+    "total_value_traded": 4114.369992,
     "total_realised_pnl": 0.0,
     "orders_submitted": 1,
     "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-stop-9f40d1ad3a389433c9bd4476"
+      "qts-stop-e012c61400e7cb4151fb0418"
     ],
     "processed_fill_values": {
-      "qts-stop-9f40d1ad3a389433c9bd4476": 4824.150000000001
+      "qts-stop-e012c61400e7cb4151fb0418": 4114.369992
     }
   },
   "stop_loss_attempts": {},
@@ -2698,7 +2717,8 @@
     "2026-10-27": 121429.27,
     "2026-10-28": 122700.63,
     "2026-10-29": 121682.12,
-    "2026-10-30": 117220.58
+    "2026-10-30": 117220.58,
+    "2026-11-02": 116630.13
   },
   "peak_equity": 130803.52,
   "market_closed_attempts": {
@@ -2715,6 +2735,7 @@
   "stop_exits": {
     "BAC": "2026-10-14",
     "CAT": "2026-10-15",
-    "INTC": "2026-10-30"
+    "INTC": "2026-10-30",
+    "MRVL": "2026-11-02"
   }
 }
