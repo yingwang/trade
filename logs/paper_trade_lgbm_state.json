@@ -2341,6 +2341,26 @@
           "purpose": "stop_loss"
         }
       ]
+    },
+    {
+      "date": "2026-11-04T17:34:00.477015",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-11-04T17:34:00.422028",
+          "symbol": "DDOG",
+          "side": "sell",
+          "qty": 9.0,
+          "requested_qty": 9.0,
+          "status": "filled",
+          "price": 192.55,
+          "signal_price": 192.22,
+          "order_id": "30f6fcaa-43f9-421d-8d35-e44a188b6a10",
+          "client_order_id": "qts-stop-64b01370e71441ef2ed9aa28",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2351,24 +2371,23 @@
     "NET": 282.11,
     "TSLA": 305.359333,
     "KLAC": 168.86,
-    "DDOG": 254.75,
     "LLY": 1279.06,
     "MU": 881.8,
     "PANW": 368.613077,
     "SNOW": 316.38
   },
   "daily_tracker": {
-    "trade_date": "2026-10-30",
-    "total_value_traded": 4710.659997,
+    "trade_date": "2026-11-04",
+    "total_value_traded": 1732.95,
     "total_realised_pnl": 0.0,
     "orders_submitted": 1,
     "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-stop-d86abc29972dbdb08ebbab3a"
+      "qts-stop-64b01370e71441ef2ed9aa28"
     ],
     "processed_fill_values": {
-      "qts-stop-d86abc29972dbdb08ebbab3a": 4710.659997
+      "qts-stop-64b01370e71441ef2ed9aa28": 1732.95
     }
   },
   "stop_loss_attempts": {},
@@ -2626,7 +2645,8 @@
     "2026-10-29": 123381.15,
     "2026-10-30": 119233.97,
     "2026-11-02": 117945.44,
-    "2026-11-03": 118539.19
+    "2026-11-03": 118539.19,
+    "2026-11-04": 117522.79
   },
   "peak_equity": 125155.3,
   "entry_dates": {
@@ -2651,6 +2671,7 @@
     "LRCX": "2026-10-22",
     "BA": "2026-10-27",
     "MRVL": "2026-10-29",
-    "INTC": "2026-10-30"
+    "INTC": "2026-10-30",
+    "DDOG": "2026-11-04"
   }
 }
