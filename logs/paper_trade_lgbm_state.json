@@ -2361,6 +2361,52 @@
           "purpose": "stop_loss"
         }
       ]
+    },
+    {
+      "date": "2026-11-05T17:40:34.608721",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-11-05T17:40:27.701384",
+          "symbol": "KLAC",
+          "side": "sell",
+          "qty": 39.0,
+          "requested_qty": 39.0,
+          "status": "filled",
+          "price": 133.110769,
+          "signal_price": 133.32,
+          "order_id": "d978d226-23a2-4523-a62e-74e548cb49ee",
+          "client_order_id": "qts-stop-1c0868ef1ef9becd478faeb8",
+          "purpose": "stop_loss"
+        },
+        {
+          "time": "2026-11-05T17:40:31.175393",
+          "symbol": "MU",
+          "side": "sell",
+          "qty": 2.0,
+          "requested_qty": 2.0,
+          "status": "filled",
+          "price": 682.62,
+          "signal_price": 682.685,
+          "order_id": "290b5a38-193b-4d89-8839-943301d23c9c",
+          "client_order_id": "qts-stop-5d8c14ac8f16425c66693b9d",
+          "purpose": "stop_loss"
+        },
+        {
+          "time": "2026-11-05T17:40:34.503383",
+          "symbol": "NET",
+          "side": "sell",
+          "qty": 18.0,
+          "requested_qty": 18.0,
+          "status": "filled",
+          "price": 237.6,
+          "signal_price": 238.12,
+          "order_id": "d7ba6282-8c23-4cb2-9474-9586df6d5f86",
+          "client_order_id": "qts-stop-61e40d9596c25879c79dde38",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2368,26 +2414,27 @@
     "MPWR": 1329.46,
     "CRWD": 182.58,
     "MCHP": 75.23,
-    "NET": 282.11,
     "TSLA": 305.359333,
-    "KLAC": 168.86,
     "LLY": 1279.06,
-    "MU": 881.8,
     "PANW": 368.613077,
     "SNOW": 316.38
   },
   "daily_tracker": {
-    "trade_date": "2026-11-04",
-    "total_value_traded": 1732.95,
+    "trade_date": "2026-11-05",
+    "total_value_traded": 10833.359991000001,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 1,
-    "orders_filled": 1,
+    "orders_submitted": 3,
+    "orders_filled": 3,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-stop-64b01370e71441ef2ed9aa28"
+      "qts-stop-1c0868ef1ef9becd478faeb8",
+      "qts-stop-5d8c14ac8f16425c66693b9d",
+      "qts-stop-61e40d9596c25879c79dde38"
     ],
     "processed_fill_values": {
-      "qts-stop-64b01370e71441ef2ed9aa28": 1732.95
+      "qts-stop-1c0868ef1ef9becd478faeb8": 5191.319991,
+      "qts-stop-5d8c14ac8f16425c66693b9d": 1365.24,
+      "qts-stop-61e40d9596c25879c79dde38": 4276.8
     }
   },
   "stop_loss_attempts": {},
@@ -2646,7 +2693,8 @@
     "2026-10-30": 119233.97,
     "2026-11-02": 117945.44,
     "2026-11-03": 118539.19,
-    "2026-11-04": 117082.8
+    "2026-11-04": 117082.8,
+    "2026-11-05": 112695.69
   },
   "peak_equity": 125155.3,
   "entry_dates": {
@@ -2672,6 +2720,9 @@
     "BA": "2026-10-27",
     "MRVL": "2026-10-29",
     "INTC": "2026-10-30",
-    "DDOG": "2026-11-04"
+    "DDOG": "2026-11-04",
+    "KLAC": "2026-11-05",
+    "MU": "2026-11-05",
+    "NET": "2026-11-05"
   }
 }
