@@ -2407,34 +2407,49 @@
           "purpose": "stop_loss"
         }
       ]
+    },
+    {
+      "date": "2026-11-06T16:57:39.156146",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-11-06T16:57:39.085832",
+          "symbol": "MCHP",
+          "side": "sell",
+          "qty": 44.0,
+          "requested_qty": 44.0,
+          "status": "filled",
+          "price": 56.869773,
+          "signal_price": 56.955,
+          "order_id": "ed4714e4-15bc-4136-8698-fc5337c59a58",
+          "client_order_id": "qts-stop-c4164c4f9e7e5641e56e53c5",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
     "ZS": 137.38,
     "MPWR": 1329.46,
     "CRWD": 182.58,
-    "MCHP": 75.23,
     "TSLA": 305.359333,
     "LLY": 1279.06,
     "PANW": 368.613077,
     "SNOW": 316.38
   },
   "daily_tracker": {
-    "trade_date": "2026-11-05",
-    "total_value_traded": 10833.359991000001,
+    "trade_date": "2026-11-06",
+    "total_value_traded": 2502.270012,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 3,
-    "orders_filled": 3,
+    "orders_submitted": 1,
+    "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-stop-1c0868ef1ef9becd478faeb8",
-      "qts-stop-5d8c14ac8f16425c66693b9d",
-      "qts-stop-61e40d9596c25879c79dde38"
+      "qts-stop-c4164c4f9e7e5641e56e53c5"
     ],
     "processed_fill_values": {
-      "qts-stop-1c0868ef1ef9becd478faeb8": 5191.319991,
-      "qts-stop-5d8c14ac8f16425c66693b9d": 1365.24,
-      "qts-stop-61e40d9596c25879c79dde38": 4276.8
+      "qts-stop-c4164c4f9e7e5641e56e53c5": 2502.270012
     }
   },
   "stop_loss_attempts": {},
@@ -2694,7 +2709,8 @@
     "2026-11-02": 117945.44,
     "2026-11-03": 118539.19,
     "2026-11-04": 117082.8,
-    "2026-11-05": 112493.27
+    "2026-11-05": 112493.27,
+    "2026-11-06": 112455.03
   },
   "peak_equity": 125155.3,
   "entry_dates": {
@@ -2723,6 +2739,7 @@
     "DDOG": "2026-11-04",
     "KLAC": "2026-11-05",
     "MU": "2026-11-05",
-    "NET": "2026-11-05"
+    "NET": "2026-11-05",
+    "MCHP": "2026-11-06"
   }
 }
