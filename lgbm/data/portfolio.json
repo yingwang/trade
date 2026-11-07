@@ -1,0 +1,122 @@
+{
+  "updated_at": "2026-11-06 19:47 EST",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 56.3,
+  "cash_pct": 43.7,
+  "account_equity_basis": 124671.74,
+  "positions": [
+    {
+      "symbol": "DE",
+      "weight_pct": 7.88,
+      "dollars": 9826.0,
+      "shares": 14,
+      "price": 671.65,
+      "score": 0.8273
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 7.31,
+      "dollars": 9108.0,
+      "shares": 6,
+      "price": 1354.0,
+      "score": 0.3089
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 5.78,
+      "dollars": 7203.0,
+      "shares": 36,
+      "price": 197.66,
+      "score": 0.6693
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 4.6,
+      "dollars": 5735.0,
+      "shares": 28,
+      "price": 200.44,
+      "score": 0.9895
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 4.11,
+      "dollars": 5130.0,
+      "shares": 23,
+      "price": 216.9,
+      "score": 0.9338
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 4.06,
+      "dollars": 5060.0,
+      "shares": 35,
+      "price": 141.2,
+      "score": 0.9665
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 3.63,
+      "dollars": 4528.0,
+      "shares": 13,
+      "price": 332.71,
+      "score": 0.9483
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 3.53,
+      "dollars": 4397.0,
+      "shares": 3,
+      "price": 1190.44,
+      "score": 0.91
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 3.48,
+      "dollars": 4342.0,
+      "shares": 42,
+      "price": 101.97,
+      "score": 0.9419
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 3.28,
+      "dollars": 4093.0,
+      "shares": 13,
+      "price": 313.84,
+      "score": 0.8949
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 2.8,
+      "dollars": 3496.0,
+      "shares": 7,
+      "price": 449.04,
+      "score": 0.913
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 1.95,
+      "dollars": 2436.0,
+      "shares": 11,
+      "price": 213.65,
+      "score": 0.8676
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 1.95,
+      "dollars": 2436.0,
+      "shares": 20,
+      "price": 116.1,
+      "score": 0.8605
+    },
+    {
+      "symbol": "ON",
+      "weight_pct": 1.95,
+      "dollars": 2436.0,
+      "shares": 38,
+      "price": 63.31,
+      "score": 0.8088
+    }
+  ]
+}
