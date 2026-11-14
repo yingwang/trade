@@ -1,0 +1,114 @@
+{
+  "updated_at": "2026-11-13 20:22 EST",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 49.6,
+  "cash_pct": 50.4,
+  "account_equity_basis": 126523.76,
+  "positions": [
+    {
+      "symbol": "TSLA",
+      "weight_pct": 7.38,
+      "dollars": 9331.0,
+      "shares": 23,
+      "price": 397.45,
+      "score": 0.8645
+    },
+    {
+      "symbol": "CAT",
+      "weight_pct": 6.72,
+      "dollars": 8502.0,
+      "shares": 14,
+      "price": 605.28,
+      "score": 0.8573
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 4.47,
+      "dollars": 5653.0,
+      "shares": 18,
+      "price": 298.7,
+      "score": 0.9892
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 4.05,
+      "dollars": 5120.0,
+      "shares": 3,
+      "price": 1427.28,
+      "score": 0.3749
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 3.98,
+      "dollars": 5041.0,
+      "shares": 8,
+      "price": 585.3,
+      "score": 0.979
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 3.93,
+      "dollars": 4972.0,
+      "shares": 15,
+      "price": 322.66,
+      "score": 0.9591
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 3.68,
+      "dollars": 4654.0,
+      "shares": 76,
+      "price": 61.2,
+      "score": 0.9691
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 3.26,
+      "dollars": 4120.0,
+      "shares": 2,
+      "price": 1447.4,
+      "score": 0.899
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.11,
+      "dollars": 3931.0,
+      "shares": 17,
+      "price": 229.87,
+      "score": 0.9158
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 2.77,
+      "dollars": 3503.0,
+      "shares": 21,
+      "price": 164.45,
+      "score": 0.9395
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 2.62,
+      "dollars": 3310.0,
+      "shares": 14,
+      "price": 233.78,
+      "score": 0.9345
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 2.0,
+      "dollars": 2534.0,
+      "shares": 19,
+      "price": 127.11,
+      "score": 0.9145
+    },
+    {
+      "symbol": "NOW",
+      "weight_pct": 1.66,
+      "dollars": 2105.0,
+      "shares": 20,
+      "price": 100.66,
+      "score": 0.8609
+    }
+  ]
+}

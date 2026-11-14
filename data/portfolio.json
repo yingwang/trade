@@ -1,0 +1,145 @@
+{
+  "updated_at": "2026-11-13 20:21 EST",
+  "regime": "normal",
+  "total_invested_pct": 99.1,
+  "cash_pct": 0.9,
+  "account_equity_basis": 115989.29,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 11.55,
+      "dollars": 13400.0,
+      "shares": 83,
+      "price": 160.9,
+      "score": 0.3672
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 9.43,
+      "dollars": 10933.0,
+      "shares": 16,
+      "price": 678.79,
+      "score": 1.4906
+    },
+    {
+      "symbol": "MA",
+      "weight_pct": 9.11,
+      "dollars": 10567.0,
+      "shares": 16,
+      "price": 652.6,
+      "score": 1.3227
+    },
+    {
+      "symbol": "V",
+      "weight_pct": 8.68,
+      "dollars": 10071.0,
+      "shares": 23,
+      "price": 420.31,
+      "score": 1.4899
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 8.59,
+      "dollars": 9959.0,
+      "shares": 37,
+      "price": 267.44,
+      "score": 1.1962
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 7.41,
+      "dollars": 8595.0,
+      "shares": 37,
+      "price": 229.87,
+      "score": 1.2585
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 7.21,
+      "dollars": 8358.0,
+      "shares": 14,
+      "price": 585.3,
+      "score": 0.8215
+    },
+    {
+      "symbol": "MRK",
+      "weight_pct": 6.71,
+      "dollars": 7779.0,
+      "shares": 52,
+      "price": 146.95,
+      "score": 0.928
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 3.81,
+      "dollars": 4414.0,
+      "shares": 19,
+      "price": 231.03,
+      "score": -0.2275
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 3.76,
+      "dollars": 4366.0,
+      "shares": 22,
+      "price": 198.36,
+      "score": -0.1237
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 3.52,
+      "dollars": 4083.0,
+      "shares": 12,
+      "price": 322.66,
+      "score": 0.7877
+    },
+    {
+      "symbol": "ABBV",
+      "weight_pct": 3.35,
+      "dollars": 3883.0,
+      "shares": 13,
+      "price": 294.45,
+      "score": 0.6561
+    },
+    {
+      "symbol": "KO",
+      "weight_pct": 3.35,
+      "dollars": 3883.0,
+      "shares": 39,
+      "price": 97.44,
+      "score": 0.7516
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 3.35,
+      "dollars": 3883.0,
+      "shares": 12,
+      "price": 298.7,
+      "score": 0.6767
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 3.35,
+      "dollars": 3883.0,
+      "shares": 9,
+      "price": 397.45,
+      "score": 0.6437
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 3.14,
+      "dollars": 3641.0,
+      "shares": 23,
+      "price": 155.62,
+      "score": 0.048
+    },
+    {
+      "symbol": "FCX",
+      "weight_pct": 2.81,
+      "dollars": 3260.0,
+      "shares": 53,
+      "price": 60.45,
+      "score": -0.0754
+    }
+  ]
+}
