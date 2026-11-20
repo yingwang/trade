@@ -2447,6 +2447,26 @@
           "purpose": "stop_loss"
         }
       ]
+    },
+    {
+      "date": "2026-11-20T18:02:29.913152",
+      "completed": true,
+      "stop_loss": true,
+      "trades": [
+        {
+          "time": "2026-11-20T18:02:29.904055",
+          "symbol": "SNOW",
+          "side": "sell",
+          "qty": 7.0,
+          "requested_qty": 7.0,
+          "status": "filled",
+          "price": 257.87,
+          "signal_price": 258.4,
+          "order_id": "4b64f0ef-6b5c-42ee-835e-b14eadff83dc",
+          "client_order_id": "qts-stop-43133506e8eeb7becc8d7927",
+          "purpose": "stop_loss"
+        }
+      ]
     }
   ],
   "entry_prices": {
@@ -2454,21 +2474,20 @@
     "MPWR": 1329.46,
     "CRWD": 182.58,
     "TSLA": 305.359333,
-    "LLY": 1279.06,
-    "SNOW": 316.38
+    "LLY": 1279.06
   },
   "daily_tracker": {
-    "trade_date": "2026-11-17",
-    "total_value_traded": 3993.0800000000004,
+    "trade_date": "2026-11-20",
+    "total_value_traded": 1805.0900000000001,
     "total_realised_pnl": 0.0,
     "orders_submitted": 1,
     "orders_filled": 1,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-stop-e4b44165d8fcdbca76f5d43b"
+      "qts-stop-43133506e8eeb7becc8d7927"
     ],
     "processed_fill_values": {
-      "qts-stop-e4b44165d8fcdbca76f5d43b": 3993.0800000000004
+      "qts-stop-43133506e8eeb7becc8d7927": 1805.0900000000001
     }
   },
   "stop_loss_attempts": {},
@@ -2738,7 +2757,8 @@
     "2026-11-16": 113098.18,
     "2026-11-17": 112433.17,
     "2026-11-18": 113204.61,
-    "2026-11-19": 113279.17
+    "2026-11-19": 113279.17,
+    "2026-11-20": 111863.13
   },
   "peak_equity": 125155.3,
   "entry_dates": {
@@ -2769,6 +2789,7 @@
     "MU": "2026-11-05",
     "NET": "2026-11-05",
     "MCHP": "2026-11-06",
-    "PANW": "2026-11-17"
+    "PANW": "2026-11-17",
+    "SNOW": "2026-11-20"
   }
 }
