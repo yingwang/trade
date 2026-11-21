@@ -123,13 +123,20 @@ jobs:
       # A run that could not do its job is marked, not failed: the owner
       # asked for no failure mail (2026-10-22), so a stand-down shows as a
       # warning annotation and in the job summary.  A traceback (a held lock,
-      # a data error on a rebalance day, Yahoo's earnings calendar
-      # unavailable) still fails the step above, since that is a broken run.
-      # paper_trade_common.py prints one marker line at each stand-down site:
-      # FULL_DAY_MARKET_CLOSED when every attempt of the day found the market
-      # closed, STAND_DOWN:<reason> for a drawdown-gate breach, orders left
-      # open by an earlier run, the daily-loss kill-switch or missing broker
-      # quotes.  A single early or late arrival that finds the market closed
+      # no price data, a breadth collapse or stale bars on a rebalance day)
+      # still fails the step above, since that is a broken run.
+      # paper_trade_common.py prints one marker line at each stand-down
+      # site: FULL_DAY_MARKET_CLOSED when every attempt of the day found the
+      # market closed, STAND_DOWN:<reason> for a drawdown-gate breach, orders
+      # left open by an earlier run, the daily-loss kill-switch, missing
+      # broker quotes, Yahoo's earnings calendar covering under
+      # earnings.min_coverage of the members (earnings_coverage), a held name
+      # without usable price data (held_data_missing), a newest bar missing
+      # for too much of the universe (partial_bar), an empty target while
+      # positions are held, too little of the session left to send orders
+      # (near_close) or broker fills today that the state does not record
+      # (state_behind_broker); the grep below matches every reason.  A single
+      # early or late arrival that finds the market closed
       # only warns too, since the other slots retry, and a quiet in-session
       # run ("Not time to rebalance yet") stays silent.
       - name: Flag a run that stood down

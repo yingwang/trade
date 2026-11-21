@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from quant.earnings_strategy import EarningsStrategy
-from quant.utils.config import load_config
+from quant.utils.config import load_config, validate_config
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
@@ -60,6 +60,8 @@ def main():
     config = load_config(args.config)
     if args.override:
         deep_update(config, json.loads(args.override))
+        # The merged config is what runs: validate it like a loaded one.
+        validate_config(config)
         print("overrides:", args.override)
     t0 = time.time()
     strategy = EarningsStrategy(config)

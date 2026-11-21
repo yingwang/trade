@@ -841,6 +841,11 @@ class PortfolioOptimizer:
         over successive rebalances; small ones are sold in full, smallest
         first.  Transitional stubs below min_stub_weight are liquidated
         outright to avoid dust orders (the tiny cap overshoot is logged).
+        A sector the blend would push over its cap gives the excess back from
+        its own buy legs, and that budget goes to the other sectors' buy legs
+        within their bounds (_cap_blended_sectors), so no name trades against
+        its target, the cap still holds and gross keeps its floor where the
+        bounds allow.
         """
         weights = self.apply_hard_exposure_limits(
             weights,
@@ -984,6 +989,7 @@ class PortfolioOptimizer:
             if buy_full > 1e-12 else 0.0
         )
         blended.loc[buy_legs] = w_old.loc[buy_legs] + lam_buy * delta.loc[buy_legs]
+        blended = self._cap_blended_sectors(blended, w_old, w_new, buy_legs, sector_map)
 
         stubs = blended[(blended > 0) & (blended < min_stub_weight)].index
         if len(stubs) > 0:
@@ -1006,6 +1012,102 @@ class PortfolioOptimizer:
             gross_exposure_cap=gross_exposure_cap,
             sector_map=sector_map,
         )
+
+    def _cap_blended_sectors(
+        self,
+        blended: pd.Series,
+        w_old: pd.Series,
+        w_new: pd.Series,
+        buy_legs: pd.Index,
+        sector_map: Optional[pd.Series],
+    ) -> pd.Series:
+        """Bring each sector of a turnover-blended book back under its cap
+        without trading any name against its own target.
+
+        The buy legs move lam_buy of the way while the sells of the same
+        sector may wait (the smallest exits go first, and when the target
+        re-levers by the whole cap no sell runs at all), so a sector held at
+        its cap that rotates names can end the blend above it.  The excess is
+        taken back from that sector's buy legs only, pro rata to how far each
+        moved.  The budget that frees goes to the buy legs of the other
+        sectors, each at most the rest of its way to target, its sector's
+        room and the position cap, so turnover stays what the blend spent and
+        gross stays where the sell/buy split put it (min(current, target)
+        when the cap binds) as far as those bounds allow; whatever they
+        cannot take stays in cash.
+
+        The general sector projection in apply_hard_exposure_limits used to
+        fix the overshoot instead, scaling the whole sector down (selling
+        names whose target had not changed) and pouring the freed weight
+        into any name with room (past targets, and past the turnover cap).
+        A sector still over its cap once its buys are gone was over before
+        the rebalance; its holdings are scaled down pro rata and that weight
+        stays in cash.
+        """
+        if sector_map is None or blended.empty:
+            return blended
+        sectors = self._aligned_sectors(blended.index, sector_map)
+        cap = float(self.max_sector_weight)
+        out = blended.astype(float).copy()
+        over_sectors = set()
+        freed = 0.0
+        for sector in sectors.unique():
+            members = sectors.index[sectors == sector]
+            before = float(out.loc[members].sum())
+            excess = before - cap
+            if excess <= 1e-12:
+                continue
+            over_sectors.add(sector)
+            buys = members.intersection(buy_legs)
+            added = (out.loc[buys] - w_old.reindex(buys).fillna(0.0)).clip(lower=0.0)
+            added_total = float(added.sum())
+            taken = 0.0
+            if added_total > 1e-12:
+                taken = min(excess, added_total)
+                out.loc[buys] = out.loc[buys] - added * (taken / added_total)
+                excess -= taken
+                freed += taken
+            if excess > 1e-12:
+                held = float(out.loc[members].sum())
+                if held > 0:
+                    out.loc[members] = out.loc[members] * (cap / held)
+            logger.info(
+                "Turnover blend put %s at %.1f%% (cap %.1f%%): its buys scaled "
+                "back by %.1f%%%s",
+                sector, before * 100, cap * 100, taken * 100,
+                ", holdings scaled down pro rata" if excess > 1e-12 else "",
+            )
+
+        if freed <= 1e-12:
+            return out
+        # Re-spend on the other sectors' buy legs, within their bounds.
+        others = [
+            symbol for symbol in buy_legs
+            if sectors.get(symbol) not in over_sectors
+        ]
+        position_cap = self._effective_position_cap()
+        room = pd.Series(0.0, index=pd.Index(others, dtype=object), dtype=float)
+        for symbol in others:
+            room[symbol] = max(0.0, min(
+                float(w_new.get(symbol, 0.0)) - float(out[symbol]),
+                position_cap - float(out[symbol]),
+            ))
+        for sector in {sectors[symbol] for symbol in others}:
+            legs = [symbol for symbol in others if sectors[symbol] == sector]
+            members = sectors.index[sectors == sector]
+            sector_room = max(0.0, cap - float(out.loc[members].sum()))
+            wanted = float(room[legs].sum())
+            if wanted > sector_room and wanted > 0:
+                room[legs] = room[legs] * (sector_room / wanted)
+        capacity = float(room.sum())
+        if capacity > 1e-12:
+            spend = min(freed, capacity)
+            out.loc[room.index] = out.loc[room.index] + room * (spend / capacity)
+            logger.info(
+                "Re-spent %.1f%% of the %.1f%% freed on other sectors' buys; "
+                "%.1f%% stays in cash", spend * 100, freed * 100, (freed - spend) * 100,
+            )
+        return out
 
     def apply_hard_exposure_limits(
         self,

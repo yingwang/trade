@@ -203,6 +203,131 @@ def test_live_target_does_not_depend_on_the_fundamentals_snapshot_sectors(factor
 
 
 # ---------------------------------------------------------------------------
+# LightGBM
+# ---------------------------------------------------------------------------
+
+# Shorter windows than production so the synthetic three years leave room
+# for a dozen walk-forward rebalances; both paths read the same values.
+LGBM_WINDOWS = {"train_window": 252, "val_window": 42, "pred_horizon": 21}
+
+
+def _lgbm_backtest(cfg: dict, prices: pd.DataFrame, monkeypatch):
+    """A real LightGBM backtest; per provider call, the book, the score
+    memory the turnover penalty used, and the target."""
+    from quant.signals.lgbm_strategy import LGBMStrategy
+
+    strategy = LGBMStrategy(cfg, **LGBM_WINDOWS)
+    monkeypatch.setattr(strategy.data, "fetch_prices", lambda start=None, end=None: prices)
+    strategy.data.last_open_prices_ = None
+    strategy.data.last_volumes_ = None
+    seen = {}
+    real_run = strategy.backtest_engine.run
+
+    def run(*args, **kwargs):
+        provider = kwargs["target_provider"]
+
+        def recording(date, prev_weights):
+            memory = None if strategy._prev_scores is None else strategy._prev_scores.copy()
+            target = provider(date, prev_weights)
+            seen[pd.Timestamp(date)] = (
+                prev_weights.copy(), memory, None if target is None else target.copy(),
+            )
+            return target
+
+        return real_run(*args, **{**kwargs, "target_provider": recording})
+
+    monkeypatch.setattr(strategy.backtest_engine, "run", run)
+    result = strategy.run_backtest(start=str(prices.index[len(prices) // 2].date()))
+    return result, seen
+
+
+def _lgbm_live(cfg: dict, prices: pd.DataFrame, date, prev_weights, prev_scores, monkeypatch):
+    from quant.signals.lgbm_strategy import LGBMStrategy
+
+    live = LGBMStrategy(cfg, **LGBM_WINDOWS)
+    monkeypatch.setattr("quant.signals.lgbm_strategy.enforce_live_data_quality",
+                        lambda p, benchmark=None, as_of=None: p)
+    monkeypatch.setattr(live.data, "fetch_prices", lambda start=None, end=None: prices.loc[:date])
+    monkeypatch.setattr(live.data, "fetch_fundamentals", lambda **kwargs: pd.DataFrame())
+    table = live.get_current_portfolio(
+        capital=1_000_000.0, prev_weights=prev_weights, prev_scores=prev_scores,
+    )
+    return table["weight"]
+
+
+def test_lgbm_target_matches_backtest_for_the_same_drifted_book(config, synthetic_prices, monkeypatch):
+    """Review 2026-11-21, F11: the LightGBM book had no equivalence test, and
+    its two paths prepared the risk model differently."""
+    pytest.importorskip("lightgbm")
+    cfg = _factor_config(config)
+    result, seen = _lgbm_backtest(cfg, synthetic_prices, monkeypatch)
+    scheduled = [d for d in sorted(seen) if seen[d][2] is not None]
+    held = [d for d in scheduled if len(seen[d][0]) > 0 and seen[d][1] is not None]
+    assert len(held) >= 3, "the frame is too short for a drifted LightGBM book"
+    date = held[2]
+    prev, memory, expected = seen[date]
+    assert expected.equals(result.targets[date])
+
+    live = _lgbm_live(cfg, synthetic_prices, date, prev, memory, monkeypatch)
+    _assert_same_target(live, expected)
+
+
+def test_lgbm_target_matches_backtest_across_a_missing_bar(config, synthetic_prices, monkeypatch):
+    """One missing session inside the risk window: the backtest counted its
+    returns as zero, the live path dropped the rows, and a vol-scaled book
+    came out different."""
+    pytest.importorskip("lightgbm")
+    cfg = _factor_config(config)
+    cfg["portfolio"]["target_volatility"] = 0.05   # keep vol scaling below the leverage cap
+    prices = synthetic_prices.copy()
+    gap = len(prices) - 150
+    stocks = [c for c in prices.columns if c != "BENCH"]
+    prices.iloc[gap, [prices.columns.get_loc(c) for c in stocks]] = np.nan
+    result, seen = _lgbm_backtest(cfg, prices, monkeypatch)
+    after_gap = [
+        d for d in sorted(seen)
+        if seen[d][2] is not None and len(seen[d][0]) > 0 and seen[d][1] is not None
+        and gap + 5 < prices.index.get_loc(d) < gap + 100
+    ]
+    assert after_gap, "no held rebalance inside the gap's risk window"
+    date = after_gap[0]
+    prev, memory, expected = seen[date]
+    live = _lgbm_live(cfg, prices, date, prev, memory, monkeypatch)
+    _assert_same_target(live, expected)
+
+
+def test_lgbm_risk_model_rule_is_shared_and_live_refuses_without_two_names():
+    from quant.signals.lgbm_strategy import COV_MIN_OBSERVATIONS, risk_model_inputs
+
+    dates = pd.bdate_range("2024-01-01", periods=130)
+    rng = np.random.default_rng(3)
+    returns = pd.DataFrame(rng.normal(0, 0.01, size=(130, 3)), index=dates, columns=["A", "B", "C"])
+    returns.iloc[:-COV_MIN_OBSERVATIONS, returns.columns.get_loc("C")] = np.nan  # too new
+    returns.iloc[5, returns.columns.get_loc("B")] = np.nan                      # one gap
+    kept, cov = risk_model_inputs(returns, ["A", "B", "C"])
+    assert kept == ["A", "B"]
+    # The gap counts as a zero return; the row is not dropped.
+    expected = optimizer_ledoit_wolf(returns[["A", "B"]].tail(126).fillna(0))
+    pd.testing.assert_frame_equal(cov, expected)
+    assert risk_model_inputs(returns, ["A", "C"]) == ([], None)
+
+
+def optimizer_ledoit_wolf(frame):
+    from quant.portfolio.optimizer import _ledoit_wolf_shrinkage
+    return _ledoit_wolf_shrinkage(frame)
+
+
+def test_lgbm_live_path_refuses_a_target_the_backtest_would_skip(config, synthetic_prices, monkeypatch):
+    pytest.importorskip("lightgbm")
+    from quant.signals import lgbm_strategy
+
+    cfg = _factor_config(config)
+    monkeypatch.setattr(lgbm_strategy, "risk_model_inputs", lambda returns, selected: ([], None))
+    with pytest.raises(RuntimeError, match="Fewer than two selected names"):
+        _lgbm_live(cfg, synthetic_prices, synthetic_prices.index[-1], None, None, monkeypatch)
+
+
+# ---------------------------------------------------------------------------
 # Trend
 # ---------------------------------------------------------------------------
 

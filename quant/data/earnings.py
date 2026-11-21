@@ -34,6 +34,19 @@ SP500_HISTORY_URL = (
 DEFAULT_UNIVERSE_FILE = "data/universe/sp500_history.csv"
 
 
+class EarningsCoverageError(RuntimeError):
+    """The live earnings fetch covered too few of the members it was asked for.
+
+    Yahoo drops requests in a run of hundreds and reports a failure only in
+    the log; a name without its announcements cannot be ranked, so a thin
+    fetch would turn into exits of whatever it missed (all of the book when
+    the calendar is down).  The live runner stands down on it
+    (STAND_DOWN:earnings_coverage) and the next slot fetches again.  Defined
+    here, next to the fetch, so the runner can catch it without importing
+    the strategy stack.
+    """
+
+
 # ----------------------------------------------------------------------
 # Universe
 # ----------------------------------------------------------------------

@@ -306,6 +306,17 @@ dashboard:
   split_cash_compensations:
     multifactor: {}
     lgbm: {}
+  # Sales of shares Alpaca still carried in pre-split units, recorded so the
+  # dashboard's missing-proceeds credit (24 x 3 x $175.40 = $12,628.80 per
+  # book) does not vanish when the order ages out of the newest 500 closed
+  # orders. Orders of the symbol up to the last recorded date are then read
+  # from here, not from Alpaca. Source: logs/trade_events_multi.jsonl and
+  # logs/paper_trade_lgbm_state.json, both filled 2026-04-28.
+  split_presplit_sales:
+    multifactor:
+      BKNG: [{date: "2026-04-28", quantity: 3, price: 175.4}]
+    lgbm:
+      BKNG: [{date: "2026-04-28", quantity: 3, price: 175.4}]
 
 attribution:
   # Actual paper-account attribution. Factor loadings for day T use only the

@@ -41,6 +41,105 @@ def static_sector_map(config: dict):
     )
 
 
+# The parts EarningsStrategy can score (earnings.weights keys) and every key
+# the earnings: section may carry: EarningsStrategy's own and the trend
+# machinery's, which EarningsStrategy reads from this section.  A key not
+# listed here is a typo the strategy would ignore, so it is rejected.
+EARNINGS_PARTS = ("sue", "eps_growth", "days_to_next", "momentum")
+EARNINGS_KEYS = frozenset({
+    # EarningsStrategy
+    "weights", "momentum_lookback", "momentum_skip", "sue_lookback",
+    "next_known_within_days", "min_parts", "sizing", "require_uptrend",
+    "fixed_gross", "earnings_limit", "universe_file", "universe_lead_days",
+    "min_coverage",
+    # TrendStrategy, read from earnings: for this book
+    "positions", "rank_buffer", "skip_days", "lookback_long", "lookback_mid",
+    "lookback_short", "blend", "vol_window", "sma_long", "sma_short",
+    "trailing_stop", "trailing_window", "benchmark_vol_window",
+    "benchmark_vol_high", "breadth_min", "regime_caps", "deleverage_tolerance",
+    "reentry_cooldown_sessions",
+})
+
+
+def _whole(section: dict, key: str, default: int, *, minimum: int) -> int:
+    raw = section.get(key, default)
+    if isinstance(raw, bool) or not isinstance(raw, int) or raw < minimum:
+        raise ValueError(f"earnings.{key} must be a whole number >= {minimum}")
+    return raw
+
+
+def _validate_earnings(earnings, max_leverage: float) -> None:
+    """The earnings: section, checked like trend: plus what the book relies on.
+
+    Nothing here was validated before: a misspelt part was skipped, and a
+    min_parts above the number of parts left every name unrankable, which
+    the live path turned into an empty target.
+    """
+    if not isinstance(earnings, dict):
+        raise ValueError("earnings must be a mapping")
+    unknown = sorted(str(key) for key in set(earnings) - EARNINGS_KEYS)
+    if unknown:
+        raise ValueError(f"earnings has unknown key(s) {unknown}")
+
+    weights = earnings.get("weights", {part: 1.0 for part in EARNINGS_PARTS})
+    if not isinstance(weights, dict) or not weights:
+        raise ValueError("earnings.weights must be a non-empty mapping")
+    unknown_parts = sorted(str(name) for name in set(weights) - set(EARNINGS_PARTS))
+    if unknown_parts:
+        raise ValueError(
+            f"earnings.weights names unknown part(s) {unknown_parts}; "
+            f"known: {list(EARNINGS_PARTS)}"
+        )
+    positive = 0
+    for name in weights:
+        weight = _number(weights, name, minimum=0)
+        positive += weight > 0
+    if not positive:
+        raise ValueError("earnings.weights needs at least one positive weight")
+
+    min_parts = _whole(earnings, "min_parts", 2, minimum=1)
+    if min_parts > positive:
+        raise ValueError(
+            f"earnings.min_parts {min_parts} exceeds the {positive} part(s) with a "
+            "positive weight: no name could be ranked"
+        )
+    positions = _whole(earnings, "positions", 10, minimum=1)
+    rank_buffer = _whole(earnings, "rank_buffer", 15, minimum=1)
+    if rank_buffer < positions:
+        raise ValueError("earnings.rank_buffer must be at least earnings.positions")
+    _whole(earnings, "reentry_cooldown_sessions", 5, minimum=0)
+
+    fixed = earnings.get("fixed_gross")
+    if fixed not in (None, "", False):
+        gross = _number(earnings, "fixed_gross", minimum=0)
+        if gross <= 0 or gross > max_leverage:
+            raise ValueError(
+                f"earnings.fixed_gross must be in (0, leverage.max_leverage={max_leverage:g}]"
+            )
+    if "trailing_stop" in earnings:
+        stop = _number(earnings, "trailing_stop", minimum=0)
+        if stop >= 1:
+            raise ValueError("earnings.trailing_stop must be below 1 (0 turns it off)")
+    if "min_coverage" in earnings:
+        _number(earnings, "min_coverage", minimum=0, maximum=1)
+    sizing = earnings.get("sizing", "inverse_vol")
+    if sizing not in ("equal", "inverse_vol"):
+        raise ValueError("earnings.sizing must be 'equal' or 'inverse_vol'")
+    caps = earnings.get("regime_caps")
+    if caps is not None:
+        if not isinstance(caps, dict) or not caps:
+            raise ValueError("earnings.regime_caps must be a non-empty mapping")
+        for lights, cap in caps.items():
+            # YAML gives int keys, a JSON override string ones; the strategy int()s them.
+            if isinstance(lights, bool) or not str(lights).isdigit():
+                raise ValueError("earnings.regime_caps keys must be light counts 0, 1, 2")
+            if cap is not None and (
+                isinstance(cap, bool) or not isinstance(cap, (int, float))
+                or not math.isfinite(float(cap)) or float(cap) < 0
+            ):
+                raise ValueError(f"earnings.regime_caps[{lights}] must be null or >= 0")
+
+
 def validate_config(config: dict) -> dict:
     """Validate risk-critical configuration before any data or orders run."""
     if not isinstance(config, dict):
@@ -93,6 +192,16 @@ def validate_config(config: dict) -> dict:
     factor_weights = signals.get("factor_weights")
     if not isinstance(factor_weights, dict) or not factor_weights:
         raise ValueError("signals.factor_weights must be a non-empty mapping")
+    from quant.signals.factors import KNOWN_FACTORS, unknown_factor_names
+
+    unknown = unknown_factor_names(factor_weights)
+    if unknown:
+        # A misspelt factor used to be skipped silently and the others
+        # renormalized, so the book ran without it.
+        raise ValueError(
+            f"signals.factor_weights names unknown factor(s) {unknown}; "
+            f"known: {list(KNOWN_FACTORS)}"
+        )
     parsed_weights = []
     for name, raw in factor_weights.items():
         if not isinstance(name, str) or isinstance(raw, bool):
@@ -184,6 +293,10 @@ def validate_config(config: dict) -> dict:
             raise ValueError(
                 "trend.reentry_cooldown_sessions must be a whole number of sessions, zero or more"
             )
+
+    if config.get("earnings") is not None:
+        max_leverage = float(leverage.get("max_leverage", 1.0)) if leverage else 1.0
+        _validate_earnings(config["earnings"], max_leverage)
 
     backtest = config["backtest"]
     if _number(backtest, "initial_capital", minimum=0) <= 0:

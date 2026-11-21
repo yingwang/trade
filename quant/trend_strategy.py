@@ -62,6 +62,7 @@ from quant.data.market_data import MarketData
 from quant.data.quality import (
     DataQualityChecker,
     enforce_live_data_quality,
+    require_held_symbols_kept,
     warn_survivorship_bias,
 )
 from quant.portfolio.optimizer import PortfolioOptimizer
@@ -121,6 +122,9 @@ class TrendStrategy:
         # What the last decision saw, for the dashboard and the logs.
         self.last_decision_: dict = {}
         self._live_cache: Optional[tuple[datetime, pd.DataFrame]] = None
+        # What the last live fetch asked for (the universe and the columns
+        # that came back), for the held-name check against the gated frame.
+        self._live_expected: list = []
         self._pending_target: Optional[pd.Series] = None
 
     # ------------------------------------------------------------------
@@ -197,6 +201,18 @@ class TrendStrategy:
             if sym not in chosen:
                 chosen.append(sym)
         return chosen
+
+    def empty_target_intended(self, held_symbols) -> bool:
+        """Whether an empty target from the last decision is meant: the regime
+        cap went to zero (two lights send the book to cash), or every holding
+        was on its stop.  The live runner stands down on any other empty
+        target while positions are held, since that is a data failure."""
+        decision = self.last_decision_ or {}
+        cap = decision.get("regime_cap")
+        if cap is not None and float(cap) <= 0.0:
+            return True
+        held = set(held_symbols or [])
+        return bool(held) and held <= set(decision.get("exits") or [])
 
     def inverse_vol_weights(self, returns: pd.DataFrame, symbols: list[str]) -> pd.Series:
         window = returns[symbols].tail(self.vol_window)
@@ -456,6 +472,14 @@ class TrendStrategy:
                 target = self.scheduled_target(pre, date, held, entry_dates, stop_exits)
             else:
                 target = self.maintenance_target(pre, date, held, entry_dates)
+            if (
+                target is not None and len(target) == 0 and now_held
+                and not self.empty_target_intended(now_held)
+            ):
+                # The engine reads an empty target as "hold cash". One the
+                # rules did not mean (nothing ranked: a data gap) is a
+                # stand-down on the live path, so it is no decision here.
+                target = None
             if target is not None:
                 for sym in self.last_decision_.get("exits", []):
                     stop_exits[sym] = date
@@ -488,9 +512,11 @@ class TrendStrategy:
         now = datetime.now()
         if self._live_cache is not None and (now - self._live_cache[0]) < timedelta(minutes=10):
             return self._live_cache[1]
+        fetched = self.data.fetch_prices()
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark, as_of=pd.Timestamp.now(),
+            fetched, benchmark=self.data.benchmark, as_of=pd.Timestamp.now(),
         )
+        self._live_expected = list(self.data.symbols) + list(fetched.columns)
         self._live_cache = (now, prices)
         self.last_prices_ = prices
         return prices
@@ -504,6 +530,8 @@ class TrendStrategy:
         the day the position was opened) anchors each trailing stop at the peak
         since entry."""
         prices = self._live_prices()
+        # A holding the gate dropped would leave as an "exit": abort instead.
+        require_held_symbols_kept(prev_weights, prices, self._live_expected)
         pre = self.precompute(prices)
         date = prices.index[-1]
         target = self.maintenance_target(pre, date, prev_weights, entry_dates)
@@ -536,6 +564,7 @@ class TrendStrategy:
         if capital is None:
             capital = self.config["backtest"]["initial_capital"]
         prices = self._live_prices()
+        require_held_symbols_kept(prev_weights, prices, self._live_expected)
         pre = self.precompute(prices)
         date = prices.index[-1]
         held = prev_weights if prev_weights is not None and len(prev_weights) else None

@@ -105,8 +105,14 @@ jobs:
       # each stand-down site: FULL_DAY_MARKET_CLOSED when every attempt of
       # the day found the market closed, STAND_DOWN:<reason> for a
       # drawdown-gate breach, orders left open by an earlier run, the
-      # daily-loss kill-switch, missing broker quotes or a failed rebalance
-      # trigger.  A single early or late arrival that finds the market
+      # daily-loss kill-switch, missing broker quotes, a failed rebalance
+      # trigger, a held name without usable price data (held_data_missing),
+      # a newest bar missing for too much of the universe (partial_bar),
+      # an empty target while positions are held, too little of the session
+      # left to send orders (near_close) or broker fills today that the
+      # state does not record (state_behind_broker).  The grep below
+      # matches every reason (letters, digits, underscores).  A single early
+      # or late arrival that finds the market
       # closed only warns too, since the other slots retry, and a quiet
       # in-session run ("Not time to rebalance yet") stays silent.
       - name: Flag a run that stood down

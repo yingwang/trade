@@ -253,3 +253,93 @@ def test_fills_after_the_last_equity_date_reconcile_holdings():
     assert result.diagnostics["trades_after_window"] == 1
     # Holdings inside the window: 0 on day 0, 10 from day 1 on (the sale is after the window).
     assert result.daily.loc[dates[2], "stock_selection"] != 0.0 or result.daily.loc[dates[2], "market_beta"] != 0.0
+
+
+def _dividend_payer():
+    """AAAA pays $2 on dates[2]: its raw close drops from 100 to 98 and the
+    dividend-adjusted series sits 2% lower before that date."""
+    dates = pd.bdate_range("2026-02-02", periods=3)
+    raw = pd.DataFrame({"SPY": [100.0, 100.0, 100.0], "AAAA": [100.0, 100.0, 98.0]}, index=dates)
+    adjusted = raw.copy()
+    adjusted.loc[dates[:2], "AAAA"] *= 0.98
+    rebalances = [{
+        "date": dates[1].strftime("%Y-%m-%d"),
+        # Bought at the previous unadjusted close: no implementation shortfall.
+        "trades": [{"symbol": "AAAA", "side": "buy", "quantity": 1, "price": 100.0}],
+    }]
+    history = _history(dates, [1_000.0, 1_000.0, 1_000.0])
+    return dates, raw, adjusted, rebalances, history
+
+
+def test_shortfall_and_weights_use_the_fills_unadjusted_basis():
+    """Review 2026-11-21, F8: measured against the dividend-adjusted close, a
+    fill at the previous close booked every later dividend as trading cost."""
+    dates, raw, adjusted, rebalances, history = _dividend_payer()
+    kwargs = dict(
+        portfolio_history=history, rebalances=rebalances,
+        current_positions=[{"symbol": "AAAA", "qty": 1}],
+        asset_prices=adjusted, proxy_prices=adjusted[["SPY"]], sector_map={},
+        min_observations=1,
+    )
+    result = attribute_actual_performance(**kwargs, reference_prices=raw)
+    first = result.daily.loc[dates[1]]
+    assert first["trading_costs"] == pytest.approx(0.0)
+    assert first["reconciliation_residual"] == pytest.approx(0.0)
+    # The weight is the share count at the price it trades at.
+    second = result.daily.loc[dates[2]]
+    assert second["market_beta"] + second["stock_selection"] == pytest.approx(0.0)
+    assert result.diagnostics["reference_prices"] == "unadjusted"
+    assert result.diagnostics["reference_fallback_symbols"] == []
+
+    fallback = attribute_actual_performance(**kwargs)
+    assert fallback.daily.loc[dates[1], "trading_costs"] == pytest.approx(-0.002)
+    assert fallback.diagnostics["reference_prices"] == "adjusted_fallback"
+
+
+def test_dashboard_fetches_unadjusted_closes_and_falls_back_with_a_warning(monkeypatch, caplog):
+    dates, raw, adjusted, rebalances, history = _dividend_payer()
+
+    def download(symbols, *args, auto_adjust=True, **kwargs):
+        if auto_adjust:
+            return pd.concat({"Close": adjusted[["SPY"]]}, axis=1)
+        assert list(symbols) == ["AAAA"]
+        return pd.concat({"Close": raw[["AAAA"]]}, axis=1)
+
+    monkeypatch.setattr("yfinance.download", download)
+    trades = {"portfolio_history": history, "positions": [{"symbol": "AAAA", "qty": 1}],
+              "rebalances": rebalances}
+    config = {"attribution": {"lookback_days": 2, "min_observations": 1}}
+    payload = generate_actual_attribution(trades, adjusted, None, config)
+    assert payload["diagnostics"]["reference_prices"] == "unadjusted"
+    assert "unadjusted" in payload["methodology"]["trading_costs"]
+    assert payload["daily"][0]["trading_costs"] == pytest.approx(0.0)
+
+    def failing(symbols, *args, auto_adjust=True, **kwargs):
+        if auto_adjust:
+            return pd.concat({"Close": adjusted[["SPY"]]}, axis=1)
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr("yfinance.download", failing)
+    with caplog.at_level("WARNING", logger="site_common"):
+        payload = generate_actual_attribution(trades, adjusted, None, config)
+    assert "Unadjusted closes unavailable" in caplog.text
+    assert payload["diagnostics"]["reference_prices"] == "adjusted_fallback"
+
+
+def test_industry_is_left_out_when_the_book_has_no_sector_map():
+    """The earnings page has no sector table: its industry effect is not
+    measured and must not be published as a measured zero."""
+    dates, raw, adjusted, rebalances, history = _dividend_payer()
+    kwargs = dict(
+        portfolio_history=history, rebalances=rebalances,
+        current_positions=[{"symbol": "AAAA", "qty": 1}],
+        asset_prices=adjusted, proxy_prices=adjusted[["SPY"]],
+        min_observations=1, reference_prices=raw,
+    )
+    without = attribute_actual_performance(**kwargs, sector_map=None).to_dict()
+    assert "industry" not in without["components"]
+    assert without["diagnostics"]["industry_available"] is False
+    assert without["industry_breakdown"] == {}
+    with_map = attribute_actual_performance(**kwargs, sector_map={"AAAA": "Technology"}).to_dict()
+    assert "industry" in with_map["components"]
+    assert with_map["diagnostics"]["industry_available"] is True

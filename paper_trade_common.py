@@ -43,6 +43,9 @@ from typing import Callable, Optional
 import numpy as np
 import pandas as pd
 
+from quant.data.earnings import EarningsCoverageError
+from quant.data.quality import HeldDataMissingError, PartialBarError
+from quant.execution.alpaca_broker import client_id_intent
 from quant.execution.broker import (
     DEFAULT_MIN_TRADE_FRACTION,
     DEFAULT_MIN_TRADE_NOTIONAL_USD,
@@ -328,19 +331,32 @@ def classify_rebalance_outcome(filled: list, attempts: int,
     """Decide whether a rebalance attempt closes the cycle.
 
     Returns (completed, reason).  Every order filled: completed.  Every order
-    either filled or deterministically rejected (safety layer, broker reject),
-    with nothing left open, unknown or unsubmitted: completed as well; a reject
-    is final for the day and repeating the whole optimization tomorrow would
-    not change it.  Anything uncertain keeps the rebalance pending, but only
-    up to ``max_attempts``; after that it is settled with a warning so the
-    schedule is not hijacked by one stuck order.
+    either filled, deterministically rejected (safety layer, broker reject) or
+    left unfunded by such a rejected sell, with nothing left open, unknown or
+    unsubmitted: completed as well; a reject is final for the day and
+    repeating the whole optimization tomorrow would not change it.  A
+    cancelled order with no fill is not final: the broker took it and it
+    never traded (a DAY market order sent after the close is queued and then
+    cancelled at its fill timeout), so its leg is still owed.  Anything
+    uncertain keeps the rebalance pending, but only up to ``max_attempts``;
+    after that it is settled with a warning so the schedule is not hijacked
+    by one stuck order.
     """
     statuses = [str(t.get("status", "")) for t in filled]
     if statuses and all(s == "filled" for s in statuses):
         return True, "all orders filled"
-    uncertain = [s for s in statuses if s in {"unknown", "submitted", "partial_fill_open", "not_submitted"}]
+    uncertain = [
+        s for s in statuses
+        if s in {"unknown", "submitted", "partial_fill_open", "not_submitted", "cancelled"}
+    ]
     if not uncertain:
         rejected = sum(1 for s in statuses if s == "rejected")
+        unfunded = sum(1 for s in statuses if s == "unfunded")
+        if unfunded:
+            return True, (
+                f"settled with {rejected} rejected order(s) and {unfunded} unfunded "
+                "buy(s); nothing left open"
+            )
         return True, f"settled with {rejected} rejected order(s); nothing left open"
     if attempts + 1 >= max_attempts:
         return True, (
@@ -383,6 +399,162 @@ def min_trade_settings(config: dict) -> tuple[float, float]:
     usd = portfolio.get("min_trade_notional_usd", DEFAULT_MIN_TRADE_NOTIONAL_USD)
     fraction = portfolio.get("min_trade_fraction", DEFAULT_MIN_TRADE_FRACTION)
     return float(usd), float(fraction)
+
+
+DEFAULT_MIN_MINUTES_TO_CLOSE = 10.0
+
+
+def min_minutes_to_close(config: dict) -> float:
+    """``execution.min_minutes_to_close``: orders are not started with less
+    of the session left than this.  A missing key means the default, so no
+    book needs a config edit."""
+    execution = (config or {}).get("execution") or {}
+    return float(execution.get("min_minutes_to_close", DEFAULT_MIN_MINUTES_TO_CLOSE))
+
+
+def reconcile_entry_records(state: dict, broker) -> bool:
+    """Make the stop-loss records describe the positions the broker holds.
+
+    The records are built from the runner's own fills, so a fill it never saw
+    (an order of unknown fate that executed, a reject the broker had in fact
+    accepted, a job killed between submit and checkpoint) left a held
+    position with no stop base, and an exit it never saw left a stale base
+    that a later re-buy of the name inherited.  Records for names not held
+    are dropped; a held name with no entry price gets the broker's average
+    entry (dated today).  Existing entries are never changed.  Returns True
+    when anything changed, so a quiet day writes nothing.
+    """
+    details_fn = getattr(broker, "get_position_details", None)
+    if details_fn is not None:
+        held = {}
+        for d in details_fn() or []:
+            try:
+                qty = float(d.get("qty", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            if qty > 0:
+                held[str(d.get("symbol"))] = d
+    else:
+        positions = broker.get_positions()
+        held = {str(s): {"symbol": s} for s, q in positions.items() if q > 0}
+
+    changed = False
+    records = [k for k in ("entry_prices", "entry_dates", "stop_loss_attempts") if state.get(k)]
+    if not held and records:
+        # Every position gone at once is either a liquidation the runner did
+        # not make or a broker answer to distrust; keep the records and say so.
+        logger.warning(
+            "Broker reports no positions while the state keeps stop records; "
+            "leaving them for the next run"
+        )
+    else:
+        for key in records:
+            for sym in [s for s in state[key] if s not in held]:
+                state[key].pop(sym, None)
+                logger.warning("Dropping %s[%s]: the account no longer holds it", key, sym)
+                changed = True
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    for sym, detail in held.items():
+        if sym in (state.get("entry_prices") or {}):
+            continue
+        try:
+            avg = float(detail.get("avg_entry_price") or 0)
+        except (TypeError, ValueError):
+            avg = 0.0
+        if not math.isfinite(avg) or avg <= 0:
+            continue
+        state.setdefault("entry_prices", {})[sym] = avg
+        state.setdefault("entry_dates", {}).setdefault(sym, today)
+        logger.warning(
+            "Held %s had no stop-loss base; taking the broker's average entry %.2f", sym, avg
+        )
+        changed = True
+    return changed
+
+
+def apply_split_rescales(state: dict, rescale: dict) -> bool:
+    """Put the stop-loss base of a position the broker adjusted for a split
+    on the new scale, once per split (``split_reconciled`` records it).
+
+    Without this the first run after a split compared the post-split quote
+    with the pre-split entry and sold the position on its stop."""
+    changed = False
+    entry_prices = state.setdefault("entry_prices", {})
+    done = state.setdefault("split_reconciled", {})
+    for sym, split in (rescale or {}).items():
+        day = split.first_adjusted_session.isoformat()
+        if done.get(sym) == day:
+            continue
+        if sym in entry_prices and float(split.ratio) > 0:
+            old = float(entry_prices[sym])
+            entry_prices[sym] = old / float(split.ratio)
+            logger.warning(
+                "%s split %g-for-1 (first adjusted session %s): stop-loss base %.2f -> %.2f",
+                sym, split.ratio, day, old, entry_prices[sym],
+            )
+        done[sym] = day
+        changed = True
+    return changed
+
+
+def unknown_broker_fills(state: dict, broker, prefix: str = "qts-reba-") -> list[str]:
+    """Today's filled rebalance orders at the broker that the state has no
+    record of: the trace of a run whose state commit never landed.  A query
+    failure is logged and treated as nothing found."""
+    try:
+        ids = list(broker.todays_filled_client_ids(prefix))
+    except Exception as exc:
+        logger.warning("Could not list today's broker orders; state not checked against them: %s", exc)
+        return []
+    today = datetime.now().strftime("%Y-%m-%d")
+    known = {
+        client_id_intent(t.get("client_order_id"))
+        for t in (state.get("pending_rebalance") or {}).get("trades", [])
+    }
+    for entry in state.get("trade_history", []):
+        if str(entry.get("date", ""))[:10] != today:
+            continue
+        known.update(client_id_intent(t.get("client_order_id")) for t in entry.get("trades", []))
+    known.discard("")
+    return [cid for cid in ids if client_id_intent(cid) not in known]
+
+
+# A resumed attempt executes the target its first attempt computed, for this
+# many sessions; an older one is recomputed.
+PENDING_TARGET_MAX_SESSIONS = 3
+
+
+def resumable_target(pending: dict, state: dict, today: Optional[datetime] = None):
+    """``(target, scores)`` a resumed attempt should execute, or (None, None)
+    to recompute: no stored target (an older state), or one more than
+    PENDING_TARGET_MAX_SESSIONS weekdays old.  Names sold on a stop since
+    the target was computed are taken out of it, so a resume cannot buy back
+    what the cooldown blocks."""
+    if not pending or not isinstance(pending.get("target"), dict):
+        return None, None
+    try:
+        computed = datetime.fromisoformat(str(pending.get("target_date"))[:10]).date()
+    except (TypeError, ValueError):
+        return None, None
+    now = (today or datetime.now()).date()
+    age = int(np.busday_count(computed, now))
+    if age > PENDING_TARGET_MAX_SESSIONS:
+        logger.warning(
+            "Pending target from %s is %d sessions old; recomputing it", computed, age,
+        )
+        return None, None
+    target = pd.Series(pending["target"], dtype=float)
+    stopped = [
+        sym for sym, day in stop_exit_record(state).items()
+        if str(day)[:10] >= computed.isoformat() and sym in target.index
+    ]
+    if stopped:
+        logger.info("Resumed target drops %s, sold on a stop since it was computed", sorted(stopped))
+        target = target.drop(labels=stopped)
+    scores = pending.get("scores")
+    scores = pd.Series(scores, dtype=float) if isinstance(scores, dict) else None
+    return target, scores
 
 
 def current_broker_weights(broker) -> Optional[pd.Series]:
@@ -594,6 +766,7 @@ def check_stop_losses(
                 fully_exited = True
         if fully_exited:
             entry_prices.pop(sym, None)
+            (state.get("entry_dates") or {}).pop(sym, None)
             attempts.pop(sym, None)
 
         state["entry_prices"] = entry_prices
@@ -661,12 +834,16 @@ def run_rebalance(strategy, broker, config, dry_run=False,
                   events_log: str = "logs/trade_events_multi.jsonl",
                   drawdown_breached: bool = False,
                   drawdown_info: Optional[tuple] = None,
-                  portfolio_context: Optional[dict] = None):
+                  portfolio_context: Optional[dict] = None,
+                  pending_target: Optional[pd.Series] = None,
+                  target_callback: Optional[Callable[[pd.Series], None]] = None):
     """Compute target portfolio and execute rebalance trades.
 
     Returns (filled, target_weights) where filled is:
-      - None if nothing was attempted (dry run, market closed, or daily
-        loss kill-switch)
+      - None if nothing was attempted (dry run, market closed, daily loss
+        kill-switch, missing quotes, a target declined on incomplete data,
+        an empty target while positions are held, or too little of the
+        session left to send orders)
       - [] if the portfolio is already at target (counts as a completed
         rebalance)
       - a list of trade records otherwise
@@ -674,7 +851,10 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     When drawdown_breached is True, new opens (buys) are blocked and only
     de-risking sells are submitted; an alert is written to the event log.
     ``portfolio_context`` is passed on to get_current_portfolio as keyword
-    arguments (see TradeProfile.portfolio_context).
+    arguments (see TradeProfile.portfolio_context).  ``pending_target`` is
+    the target of the attempt being resumed: it is executed as it is, without
+    asking the strategy again.  ``target_callback`` receives the target
+    before any order is sent, so the runner can keep it for a resume.
     """
     exec_log = exec_logger_cls(events_log)
     capital = broker.get_portfolio_value()
@@ -710,27 +890,83 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     # constraint, and total turnover cap inside the strategy.
     prev_weights = current_broker_weights(broker)
 
-    # Get optimized portfolio
-    portfolio_kwargs = {"capital": capital, "prev_weights": prev_weights}
-    if prev_scores is not None:
-        portfolio_kwargs["prev_scores"] = prev_scores
-    if portfolio_context:
-        portfolio_kwargs.update(portfolio_context)
-    portfolio = strategy.get_current_portfolio(**portfolio_kwargs)
-    target_weights = portfolio["weight"]
+    if pending_target is not None:
+        # A resumed attempt finishes the target its first attempt computed:
+        # re-optimizing against the half-traded book granted a fresh turnover
+        # budget each time and could turn over several times the cap.
+        target_weights = pd.Series(pending_target, dtype=float)
+        target_weights = target_weights[target_weights > 0]
+        print(f"\n{'='*65}")
+        print(f"  {banner} (resumed)  |  Capital: ${capital:,.0f}")
+        print(f"{'='*65}")
+        for sym, weight in target_weights.sort_values(ascending=False).items():
+            print(f"  {sym:<8} {weight * 100:>7.1f}% ${weight * capital:>9,.0f}")
+        print(f"  {'TOTAL':<8} {target_weights.sum() * 100:>7.1f}% "
+              f"${target_weights.sum() * capital:>9,.0f}")
+        print(f"{'='*65}")
+    else:
+        # Get optimized portfolio
+        portfolio_kwargs = {"capital": capital, "prev_weights": prev_weights}
+        if prev_scores is not None:
+            portfolio_kwargs["prev_scores"] = prev_scores
+        if portfolio_context:
+            portfolio_kwargs.update(portfolio_context)
+        try:
+            portfolio = strategy.get_current_portfolio(**portfolio_kwargs)
+        except (EarningsCoverageError, HeldDataMissingError, PartialBarError) as exc:
+            # The target was declined because today's data is incomplete
+            # (the earnings calendar came back thin, a holding has no usable
+            # price, or the newest bar is only half written): nothing is
+            # recorded, the rebalance stays due and the next slot fetches
+            # again.  A stand-down, not a broken run.  Every other data-gate
+            # error (no data, breadth collapse, stale bars) still fails the
+            # step.
+            if isinstance(exc, EarningsCoverageError):
+                marker = "earnings_coverage"
+            elif isinstance(exc, HeldDataMissingError):
+                marker = "held_data_missing"
+            else:
+                marker = "partial_bar"
+            logger.warning("Rebalance declined, data incomplete: %s", exc)
+            if not dry_run:
+                print(f"STAND_DOWN:{marker}")
+            else:
+                print(f"\n  ** DATA INCOMPLETE ({marker}) — live run would stand down: {exc} **")
+            return None, None
+        target_weights = portfolio["weight"]
 
-    print(f"\n{'='*65}")
-    print(f"  {banner}  |  Capital: ${capital:,.0f}")
-    print(f"{'='*65}")
-    print(f"  {'Stock':<8} {'Weight':>8} {'Dollars':>10} {'Shares':>8} {'Price':>10}")
-    print(f"  {'-'*55}")
-    for sym, row in portfolio.iterrows():
-        print(f"  {sym:<8} {row['weight_pct']:>7.1f}% ${row['dollars']:>9,.0f} "
-              f"{row['shares']:>7.0f}  ${row['price']:>8.2f}")
-    print(f"  {'-'*55}")
-    print(f"  {'TOTAL':<8} {portfolio['weight_pct'].sum():>7.1f}% "
-          f"${portfolio['dollars'].sum():>9,.0f}")
-    print(f"{'='*65}")
+        print(f"\n{'='*65}")
+        print(f"  {banner}  |  Capital: ${capital:,.0f}")
+        print(f"{'='*65}")
+        print(f"  {'Stock':<8} {'Weight':>8} {'Dollars':>10} {'Shares':>8} {'Price':>10}")
+        print(f"  {'-'*55}")
+        for sym, row in portfolio.iterrows():
+            print(f"  {sym:<8} {row['weight_pct']:>7.1f}% ${row['dollars']:>9,.0f} "
+                  f"{row['shares']:>7.0f}  ${row['price']:>8.2f}")
+        print(f"  {'-'*55}")
+        print(f"  {'TOTAL':<8} {portfolio['weight_pct'].sum():>7.1f}% "
+              f"${portfolio['dollars'].sum():>9,.0f}")
+        print(f"{'='*65}")
+
+        # An empty target while the account holds positions sells everything.
+        # Unless the strategy says that is its decision (the trend book's
+        # regime cap at zero, every holding on its stop), it is a data failure
+        # upstream: stand down and let the next slot try again.
+        held = [] if prev_weights is None else list(prev_weights.index[prev_weights > 0])
+        if held and float(target_weights.clip(lower=0).sum()) <= 0:
+            intended = getattr(strategy, "empty_target_intended", None)
+            if not (callable(intended) and intended(held)):
+                logger.error(
+                    "Empty target while the account holds %d position(s); refusing "
+                    "to liquidate on what looks like a data failure", len(held),
+                )
+                if not dry_run:
+                    print("STAND_DOWN:empty_target")
+                    return None, None
+                print("\n  ** EMPTY TARGET with positions held — live run would stand down **")
+
+    if target_callback is not None:
+        target_callback(target_weights)
 
     # Get current positions and prices
     current_positions = broker.get_positions()
@@ -821,6 +1057,24 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     else:
         logger.warning("No ADV data available — liquidity checks skipped")
 
+    # The target took minutes to compute and the clock was read before it.
+    # A DAY market order sent after the close is queued for the next open
+    # and cancelled at its fill timeout, so with the session over (or about
+    # to be) nothing is sent and the rebalance stays due for the next run.
+    close_reason = ""
+    if hasattr(broker, "is_market_open") and not broker.is_market_open():
+        close_reason = "the market closed while the target was computed"
+    elif hasattr(broker, "minutes_to_close"):
+        left = broker.minutes_to_close()
+        floor = min_minutes_to_close(config)
+        # Anything but a finite number means the close is unknown.
+        if isinstance(left, (int, float)) and math.isfinite(left) and left < floor:
+            close_reason = f"{left:.1f} minute(s) of the session left (minimum {floor:g})"
+    if close_reason:
+        logger.error("Rebalance not started: %s", close_reason)
+        print("STAND_DOWN:near_close")
+        return None, None
+
     # Execute trades
     exec_log.log_rebalance_start(capital, len(orders))
     print("\n  Executing trades...")
@@ -829,22 +1083,29 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     n_filled = 0
     n_rejected = 0
     n_not_submitted = 0
+    n_unfunded = 0
     total_value_traded = 0.0
     buy_block_reason = ""
+    # What the sells the broker or the safety layer refused outright would
+    # have raised; that much of the buy phase is left unfunded.
+    rejected_sell_notional = 0.0
+    rejected_sells: list[str] = []
+    unfunded: set[int] = set()
+    buy_phase_planned = False
 
     def checkpoint(record: dict):
         filled.append(record)
         if order_result_callback is not None:
             order_result_callback(record)
 
-    def skipped_record(order: Order, reason: str) -> dict:
+    def skipped_record(order: Order, reason: str, status: str = "not_submitted") -> dict:
         return {
             "time": datetime.now().isoformat(),
             "symbol": order.symbol,
             "side": order.side,
             "qty": 0.0,
             "requested_qty": float(order.requested_quantity or order.quantity),
-            "status": "not_submitted",
+            "status": status,
             "price": None,
             "signal_price": order.signal_price,
             "order_id": "",
@@ -864,6 +1125,33 @@ def run_rebalance(strategy, broker, config, dry_run=False,
                 buy_block_reason,
             )
             break
+
+        if o.side == "buy" and not buy_phase_planned:
+            buy_phase_planned = True
+            if rejected_sell_notional > 0:
+                # Skip the smallest buys until what they would cost covers
+                # what the refused sells would have raised; the rest go out.
+                buys = sorted(
+                    (i for i in range(index, len(orders)) if orders[i].side == "buy"),
+                    key=lambda i: (orders[i].quantity * float(prices.get(orders[i].symbol) or 0), i),
+                )
+                covered = 0.0
+                for i in buys:
+                    if covered >= rejected_sell_notional:
+                        break
+                    unfunded.add(i)
+                    covered += orders[i].quantity * float(prices.get(orders[i].symbol) or 0)
+                logger.error(
+                    "Sell(s) %s refused; leaving %d buy(s) worth $%.0f unfunded to cover $%.0f",
+                    rejected_sells, len(unfunded), covered, rejected_sell_notional,
+                )
+
+        if index in unfunded:
+            checkpoint(skipped_record(
+                o, f"unfunded: refused sell(s) {', '.join(rejected_sells)}", status="unfunded",
+            ))
+            n_unfunded += 1
+            continue
 
         result = broker.submit_order(o, avg_daily_volume=adv_map.get(o.symbol))
         record = {
@@ -902,12 +1190,20 @@ def run_rebalance(strategy, broker, config, dry_run=False,
             logger.error("%s; skipped %d remaining order(s)", reason, len(remaining))
             break
 
-        # Sells fund and de-risk the subsequent buy phase. A rejected,
-        # cancelled, unfilled, or only partially-filled sell must not be
-        # followed by fresh buys based on the assumption that the exit worked.
-        # Other sells remain risk-reducing and are still allowed to proceed.
+        # Sells fund and de-risk the subsequent buy phase. A cancelled,
+        # unfilled, or only partially-filled sell must not be followed by
+        # fresh buys based on the assumption that the exit worked: its fate
+        # may still change.  A sell refused outright with nothing filled is
+        # final, so only the part of the buy phase it would have paid for is
+        # left out (see above).  Other sells remain risk-reducing and are
+        # still allowed to proceed.
         requested_qty = float(o.requested_quantity or o.quantity)
-        if (
+        if o.side == "sell" and result.status == "rejected" and actual_qty <= 0:
+            rejected_sell_notional += requested_qty * float(
+                prices.get(o.symbol) or o.signal_price or 0
+            )
+            rejected_sells.append(o.symbol)
+        elif (
             o.side == "sell"
             and (
                 result.status != "filled"
@@ -923,7 +1219,8 @@ def run_rebalance(strategy, broker, config, dry_run=False,
     exec_log.log_rebalance_complete(n_filled, n_rejected, total_value_traded)
 
     print(f"\n  Results: {n_filled} filled, {n_rejected} rejected, "
-          f"{n_not_submitted} not submitted, ${total_value_traded:,.0f} traded")
+          f"{n_not_submitted} not submitted, ${total_value_traded:,.0f} traded"
+          + (f", {n_unfunded} unfunded" if n_unfunded else ""))
 
     return filled, target_weights
 
@@ -1027,12 +1324,25 @@ def run_main(profile: TradeProfile):
                 current["daily_tracker"] = daily.to_dict()
             save_state(profile.state_file, current)
 
+        # The split guard reads the runner's own record of each position: for
+        # a small split the price scale alone cannot tell a position the
+        # broker adjusted from one it did not.
+        broker.entry_record_lookup = lambda: {
+            "entry_prices": state.get("entry_prices") or {},
+            "entry_dates": state.get("entry_dates") or {},
+            "split_reconciled": state.get("split_reconciled") or {},
+        }
+
         # A known but unreconciled split can make order quantities wrong by the
         # split ratio.  Status-only runs remain available, but every trading
         # path fails closed before stop-loss or rebalance orders are built.
+        # A split the broker did apply moves this book's stop-loss base to the
+        # new scale, once.
         if (not args.dry_run
                 and hasattr(broker, "assert_corporate_actions_reconciled")):
-            broker.assert_corporate_actions_reconciled()
+            rescale = broker.assert_corporate_actions_reconciled()
+            if rescale and apply_split_rescales(state, rescale):
+                save_state(profile.state_file, state)
 
         # Market-closed gate for the whole live run: neither stop-loss sells
         # nor rebalance orders should queue overnight on a holiday.
@@ -1094,6 +1404,11 @@ def run_main(profile: TradeProfile):
                 print("STAND_DOWN:open_orders")
                 _persist_daily_tracker(profile, broker, state)
                 return
+
+        # The stop records follow the broker's positions, not only this
+        # runner's own fills (see reconcile_entry_records).
+        if not args.dry_run and reconcile_entry_records(state, broker):
+            save_state(profile.state_file, state)
 
         # Stop-losses run on EVERY daily run, not just rebalance days
         stopped = check_stop_losses(
@@ -1170,6 +1485,50 @@ def run_main(profile: TradeProfile):
         pending_attempts = int(pending.get("attempts", 0) or 0)
         batch_id = pending.get("started_at") or datetime.now().isoformat()
 
+        # A fresh attempt on a day the broker already shows rebalance fills
+        # this state has never heard of means the state commit of an earlier
+        # run was lost: trading again would take a second turnover step.
+        if (not args.dry_run and not pending
+                and hasattr(broker, "todays_filled_client_ids")):
+            unknown = unknown_broker_fills(state, broker)
+            if unknown:
+                logger.error(
+                    "The broker shows %d rebalance fill(s) today that the state does "
+                    "not record (%s); standing down instead of rebalancing again",
+                    len(unknown), ", ".join(sorted(unknown)[:5]),
+                )
+                print("STAND_DOWN:state_behind_broker")
+                _persist_daily_tracker(profile, broker, state)
+                show_status(broker, profile.status_banner)
+                return
+
+        # A resumed attempt executes the target its first attempt computed
+        # (and, for a book that keeps them, that attempt's scores); a fresh
+        # one computes a target and keeps it in the pending record.
+        resumed_target, resumed_scores = resumable_target(pending, state)
+        target_record: dict = {}
+        if resumed_target is not None:
+            target_record = {
+                "target": dict(pending["target"]),
+                "target_date": pending.get("target_date"),
+            }
+            if isinstance(pending.get("scores"), dict):
+                target_record["scores"] = dict(pending["scores"])
+
+        def remember_target(weights: pd.Series):
+            if resumed_target is not None:
+                return
+            target_record.clear()
+            target_record["target"] = {
+                str(sym): round(float(w), 8) for sym, w in weights.items() if float(w) > 0
+            }
+            target_record["target_date"] = datetime.now().strftime("%Y-%m-%d")
+            scores = getattr(strategy, "last_scores_", None)
+            if profile.persist_scores and scores is not None:
+                target_record["scores"] = {
+                    sym: round(float(v), 6) for sym, v in scores.items() if pd.notna(v)
+                }
+
         def persist_order_result(record: dict):
             pending_records.append(record)
             if (
@@ -1187,6 +1546,7 @@ def run_main(profile: TradeProfile):
                 "attempts": pending_attempts,
                 "status": "in_progress",
                 "trades": pending_records,
+                **target_record,
             }
             persist_runtime_state(state)
 
@@ -1209,6 +1569,8 @@ def run_main(profile: TradeProfile):
             drawdown_breached=drawdown_breached,
             drawdown_info=drawdown_info,
             portfolio_context=portfolio_context,
+            pending_target=resumed_target,
+            target_callback=remember_target if not args.dry_run else None,
         )
 
         rebalance_completed = False
@@ -1252,7 +1614,8 @@ def run_main(profile: TradeProfile):
             else:
                 logger.warning(
                     "Rebalance incomplete (%s); last_rebalance not updated, the "
-                    "next run recomputes and repairs the remaining drift",
+                    "next run resumes this attempt's target and repairs the "
+                    "remaining drift",
                     outcome,
                 )
                 state["pending_rebalance"] = {
@@ -1261,6 +1624,7 @@ def run_main(profile: TradeProfile):
                     "updated_at": datetime.now().isoformat(),
                     "status": "incomplete",
                     "trades": pending_records,
+                    **target_record,
                 }
 
             # Always record history for audit trail
@@ -1276,12 +1640,16 @@ def run_main(profile: TradeProfile):
             logger.info("Running post-trade reconciliation...")
             drift_df = broker.reconcile(target_weights)
 
-        # Persist the score cross-section for the next run's turnover penalty
-        if (rebalance_completed and profile.persist_scores
-                and getattr(strategy, "last_scores_", None) is not None):
+        # Persist the score cross-section for the next run's turnover penalty:
+        # the one this run computed, or for a resumed attempt the one its
+        # first attempt computed with the target it just finished.
+        scores = resumed_scores if resumed_target is not None else getattr(
+            strategy, "last_scores_", None
+        )
+        if rebalance_completed and profile.persist_scores and scores is not None:
             state["prev_scores"] = {
                 sym: round(float(v), 6)
-                for sym, v in strategy.last_scores_.items()
+                for sym, v in scores.items()
                 if pd.notna(v)
             }
             save_state(profile.state_file, state)

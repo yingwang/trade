@@ -54,8 +54,9 @@ from typing import Optional
 import pandas as pd
 
 from quant.backtest.engine import BacktestResult
-from quant.data.earnings import (
+from quant.data.earnings import (  # noqa: F401  (EarningsCoverageError is re-exported)
     DEFAULT_UNIVERSE_FILE,
+    EarningsCoverageError,
     announcement_panels,
     current_members,
     fetch_earnings,
@@ -101,11 +102,26 @@ class EarningsStrategy(TrendStrategy):
         self.earnings_limit = int(e.get("earnings_limit", 100))
         self.universe_file = e.get("universe_file", DEFAULT_UNIVERSE_FILE)
         self.universe_lead_days = int(e.get("universe_lead_days", 400))
+        # Live path only: the share of the members with a price that must come
+        # back from Yahoo with announcements, or no target is built and the
+        # runner stands down (see EarningsCoverageError). Backtests are not gated.
+        self.min_coverage = float(e.get("min_coverage", 0.9))
         self._snapshots: Optional[pd.DataFrame] = None
         # Announcement history: set by run_backtest (or a test), fetched once
         # per process on the live path, and only when a scheduled target
         # needs it (the daily stop check does not).
         self._events: Optional[dict] = None
+        # Symbols already asked of Yahoo in this process, answered or not, so
+        # a backtest after the live target fetches only the names it lacks and
+        # a name Yahoo has nothing for is not asked again at every call.
+        self._requested: set[str] = set()
+        # True once the events came from this process's own live fetch: only
+        # then is a missing announcement history a data gap for today (in a
+        # backtest a name without events was never rankable, so never held).
+        self._events_live = False
+        # Held, still-eligible names whose announcements are missing from
+        # today's live fetch, found by the last scores_on: select() keeps them.
+        self._data_gap_names: set[str] = set()
 
     # ------------------------------------------------------------------
     # Universe
@@ -132,12 +148,34 @@ class EarningsStrategy(TrendStrategy):
         pre["announcements"] = None   # built on first use, see _announcements
         return pre
 
+    def coverage(self, pre: dict, events: dict, date=None) -> tuple[float, int, int]:
+        """``(share, covered, members)``: of the members with a price at
+        ``date`` (default the last row), how many have an announcement
+        history in ``events``."""
+        px = pre["px"]
+        date = px.index[-1] if date is None else date
+        eligible = pre["mask"].loc[date] & px.loc[date].notna()
+        names = list(eligible.index[eligible])
+        covered = sum(1 for s in names if events.get(s) is not None and not events[s].empty)
+        return (covered / len(names) if names else 1.0), covered, len(names)
+
     def _announcements(self, pre: dict) -> dict:
         if pre["announcements"] is None:
             px = pre["px"]
             events = self._events
             if events is None:
-                events = self._events = fetch_earnings(list(px.columns), limit=self.earnings_limit)
+                events = fetch_earnings(list(px.columns), limit=self.earnings_limit)
+                share, covered, members = self.coverage(pre, events)
+                if share < self.min_coverage:
+                    raise EarningsCoverageError(
+                        f"Earnings calendar covered {covered}/{members} members with a price "
+                        f"({share:.1%}), below earnings.min_coverage {self.min_coverage:.0%}; "
+                        "refusing to rank on a partial fetch"
+                    )
+                logger.info("Earnings coverage %d/%d members (%.1f%%)", covered, members, share * 100)
+                self._events = events
+                self._requested |= set(px.columns)
+                self._events_live = True
             pre["announcements"] = announcement_panels(
                 events, px.index, px, sue_lookback=self.sue_lookback,
                 next_known_within_days=self.next_known_within_days,
@@ -165,7 +203,13 @@ class EarningsStrategy(TrendStrategy):
 
     def scores_on(self, pre: dict, date) -> pd.Series:
         """Weighted average of the z-scored parts across the day's members."""
+        self._data_gap_names = set()
         parts = self.parts_on(pre, date)
+        if self._events_live:
+            events = self._events or {}
+            self._data_gap_names = {
+                s for s in parts.index if events.get(s) is None or events[s].empty
+            }
         if parts.empty:
             return pd.Series(dtype=float)
         available = parts.notna().sum(axis=1)
@@ -203,12 +247,55 @@ class EarningsStrategy(TrendStrategy):
             self.data.last_open_prices_ = self.data.last_open_prices_.reindex(columns=prices.columns)
         if self.data.last_volumes_ is not None:
             self.data.last_volumes_ = self.data.last_volumes_.reindex(columns=prices.columns)
-        if self._events is None:
-            self._events = fetch_earnings([c for c in prices.columns if c != self.data.benchmark], limit=self.earnings_limit)
+        # The live target fetched today's members only; the backtest also
+        # ranks the former ones, so it asks for the names it still lacks.
+        # Reusing the live cache as it stood ranked only today's members
+        # across the whole history (review 2026-11-21, F3).
+        self._ensure_events([c for c in prices.columns if c != self.data.benchmark])
         result = self.backtest_on(prices, start, end)
         result.metrics["Point-in-Time Universe"] = True
         result.metrics["Survivorship Bias Warning"] = True
         return result
+
+    def _ensure_events(self, symbols) -> dict:
+        """Announcement history for ``symbols``, fetching only the names not
+        asked for yet in this process (events a caller or test set count as
+        asked).  Backtest path: no coverage gate."""
+        events = dict(self._events or {})
+        asked = self._requested | set(events)
+        missing = [s for s in symbols if s not in asked]
+        if missing:
+            events.update(fetch_earnings(missing, limit=self.earnings_limit))
+            self._requested |= set(missing)
+        self._events = events
+        return events
+
+    def select(self, scores: pd.Series, held: Optional[pd.Series]) -> list[str]:
+        """The trend book's selection, except that a holding still eligible
+        today whose announcements are missing from today's live fetch keeps
+        its slot, ahead of the ranked names: it is unranked because a request
+        failed, not because it faded.  Anything else unranked (left the
+        index, no price, out of the buffer) is still sold."""
+        held_syms = list(held.index[held > 1e-6]) if held is not None else []
+        gaps = [s for s in held_syms if s in self._data_gap_names and s not in scores.index]
+        if not gaps:
+            return super().select(scores, held)
+        logger.warning(
+            "No announcement data today for held %s; keeping them rather than selling on a data gap",
+            sorted(gaps),
+        )
+        chosen = list(gaps[: self.positions])
+        for sym in super().select(scores, held):
+            if len(chosen) >= self.positions:
+                break
+            if sym not in chosen:
+                chosen.append(sym)
+        return chosen
+
+    def empty_target_intended(self, held_symbols) -> bool:
+        """The earnings book never means to sell everything: no regime cap and
+        no stops, so an empty target is a data failure (see the runner)."""
+        return False
 
     def gross_target(self, returns: pd.DataFrame, weights: pd.Series, cap: float) -> float:
         if self.fixed_gross is None:

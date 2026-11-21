@@ -21,7 +21,11 @@ matplotlib.use("Agg")
 
 from quant.utils.config import load_config
 from quant.strategy import MultiFactorStrategy
-from site_common import fetch_trade_history, generate_actual_attribution
+from site_common import (
+    current_portfolio_for_display,
+    fetch_trade_history,
+    generate_actual_attribution,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -137,6 +141,11 @@ def main():
             .get("split_cash_compensations", {})
             .get("multifactor", {})
         ),
+        split_presplit_sales=(
+            config.get("dashboard", {})
+            .get("split_presplit_sales", {})
+            .get("multifactor", {})
+        ),
     )
     trades["annual_risk_free_rate"] = float(
         config.get("backtest", {}).get("risk_free_rate", 0.0)
@@ -169,9 +178,10 @@ def main():
     from paper_trade_common import load_state, stop_exit_context
     from paper_trade import STATE_FILE
 
-    current_portfolio = strategy.get_current_portfolio(
+    current_portfolio, held_data_missing = current_portfolio_for_display(
+        strategy,
+        prev_weights,
         capital=capital,
-        prev_weights=prev_weights,
         **stop_exit_context(load_state(STATE_FILE)),
     )
 
@@ -179,6 +189,7 @@ def main():
     portfolio = generate_portfolio_data(
         strategy, current_portfolio, account_equity=capital
     )
+    portfolio["held_data_missing"] = held_data_missing
 
     logger.info("Generating factor data...")
     factors = generate_factor_data(strategy, current_portfolio)

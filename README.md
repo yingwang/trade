@@ -34,6 +34,10 @@ Weekly decisions use paper-window alpha + attribution, execution health, model d
 > **Configuration**: 5 price-based alpha factors (momentum, 52-week high proximity, short-term reversal, trend persistence, volatility contraction), 12 concentrated positions, 22% target volatility, 3-week rebalance with a 40% cap on total turnover (exit legs and leverage changes included), dynamic leverage with fast regime detection, Almgren-Chriss market impact cost model. Sharpe/Sortino computed against a 4% risk-free rate. Fundamental factors disabled due to yfinance look-ahead limitations.
 >
 > **配置**: 5个价格因子（动量50% + 52周新高20% + 短期反转10% + 波动率收缩10% + 趋势持续10%），12只集中持仓，22%目标波动率，3周再平衡+40%总换手上限（含退出腿与杠杆变化），快速regime检测动态杠杆，Almgren-Chriss市场冲击成本模型。Sharpe/Sortino 按 4% 无风险利率计算。基本面因子因yfinance前视偏差已禁用。
+>
+> **Basis changed after these tables (review fixes of 2026-11-21, not yet rerun)**: the 200-day trend filter no longer penalizes a name whose average is undefined (its average now tolerates up to ten missing bars, and a missing bar today or under 190 bars of history means no penalty); a capped rebalance that would push a sector over its cap now takes the excess back from that sector's buys and spends it on the other sectors' buys, instead of reshuffling names whose target had not changed; the engine executes an empty target as cash (the trend book's two-light rule) and closes a holding with no bar for five sessions. The tables below predate all four; refresh them with the `README Backtest Refresh` workflow.
+>
+> **以下表格的口径已变（2026-11-21 审查修复，尚未重跑）**：200 日均线过滤不再惩罚均线无法计算的名字（均线容许窗口内至多十根缺失，当日缺价或历史不足 190 根则不惩罚）；触及换手上限时若某行业超限，只回收该行业的买入，并把腾出的额度用于其他行业的买入，不再去动目标未变的持仓；引擎把空目标当作持现金执行，连续五个交易日无报价的持仓按最后收盘价了结。下面的表格都在这四项之前算出，需用 `README Backtest Refresh` 重跑。
 
 ### Multi-Factor Strategy / 多因子策略 — **Candidate / 候选线**
 

@@ -68,6 +68,7 @@ class AttributionResult:
             values["date"] = pd.Timestamp(date).strftime("%Y-%m-%d")
             daily_rows.append(values)
 
+        industry_measured = self.diagnostics.get("industry_available", True)
         return {
             "status": "ok",
             "summary": {
@@ -80,6 +81,7 @@ class AttributionResult:
             },
             "components": {
                 key: _json_number(value) for key, value in self.linked_totals.items()
+                if industry_measured or key != "industry"
             },
             "style_breakdown": {
                 key: _json_number(value) for key, value in self.style_totals.items()
@@ -370,6 +372,7 @@ def attribute_actual_performance(
     lookback: int = 252,
     min_observations: int = 60,
     annual_cash_return: float = 0.0,
+    reference_prices: pd.DataFrame | None = None,
 ) -> AttributionResult:
     """Attribute actual account alpha against ``benchmark``.
 
@@ -377,12 +380,26 @@ def attribute_actual_performance(
     for date T use observations strictly before T.  ``style_proxies`` maps a
     factor name to a long/short ETF pair; ``sector_proxies`` maps the sector
     strings used by yfinance to sector ETFs.
+
+    ``reference_prices`` are closes not adjusted for dividends (split-adjusted,
+    as yfinance's ``Close`` with ``auto_adjust=False``), the basis the fills
+    and share counts are on.  They give the previous close a fill's
+    implementation shortfall is measured against and the price that turns a
+    holding into a weight.  The dividend-adjusted close sits below the price
+    actually traded by every later dividend, so measured against it a buy
+    showed that much "trading cost" (and a sell that much gain), offset in the
+    residual.  A symbol without a reference price falls back to the adjusted
+    close; the diagnostics say how many did.
     """
 
     result = AttributionResult()
     equity = _as_series(portfolio_history, "equity")
     prices = _normalise_prices(asset_prices)
     proxies = _normalise_prices(proxy_prices)
+    references = (
+        _normalise_prices(reference_prices)
+        if reference_prices is not None else pd.DataFrame()
+    )
     if len(equity) < 2 or benchmark not in prices:
         result.summary = {"trading_days": max(0, len(equity) - 1)}
         result.diagnostics = {"reason": "Need two account values and benchmark prices"}
@@ -429,6 +446,7 @@ def attribute_actual_performance(
     regression_observations = []
     priced_positions = 0
     total_positions = 0
+    reference_fallbacks: set[str] = set()
 
     for date in valid_dates:
         previous_date = dates[dates.get_loc(date) - 1]
@@ -437,6 +455,16 @@ def attribute_actual_performance(
         end_quantities = holdings.loc[date]
         previous_prices = prices.reindex([previous_date], method="ffill").iloc[0]
         day_asset_returns = price_returns.reindex([date]).iloc[0]
+        # The fills' own basis for weights and shortfall; the adjusted close
+        # only where no reference price is available.
+        if references.empty:
+            previous_reference = previous_prices
+        else:
+            reference_row = references.reindex([previous_date], method="ffill").iloc[0]
+            names = previous_prices.index.union(reference_row.index)
+            reference_row = reference_row.reindex(names)
+            usable = reference_row.notna() & (reference_row > 0)
+            previous_reference = reference_row.where(usable, previous_prices.reindex(names))
 
         row = {
             "strategy_return": float(strategy_returns.loc[date]),
@@ -457,7 +485,13 @@ def attribute_actual_performance(
                 or not np.isfinite(day_asset_returns.get(symbol, np.nan))
             ):
                 continue
-            previous_price = float(previous_prices[symbol])
+            previous_price = float(previous_reference.get(symbol, np.nan))
+            if not np.isfinite(previous_price) or previous_price <= 0:
+                previous_price = float(previous_prices[symbol])
+            if not references.empty and not (
+                symbol in references and np.isfinite(references[symbol]).any()
+            ):
+                reference_fallbacks.add(symbol)
             asset_return = float(day_asset_returns[symbol])
             if previous_price <= 0 or not np.isfinite(asset_return):
                 continue
@@ -520,7 +554,7 @@ def attribute_actual_performance(
             day_trades = trades[trades["date"] == date]
             implementation_pnl = 0.0
             for trade in day_trades.itertuples(index=False):
-                reference = previous_prices.get(trade.symbol, np.nan)
+                reference = previous_reference.get(trade.symbol, np.nan)
                 if not np.isfinite(reference) or not np.isfinite(trade.price):
                     continue
                 signed_quantity = trade.quantity if trade.side == "buy" else -trade.quantity
@@ -572,6 +606,12 @@ def attribute_actual_performance(
             "price_coverage": (
                 float(priced_positions / total_positions) if total_positions else 1.0
             ),
+            "reference_prices": "unadjusted" if not references.empty else "adjusted_fallback",
+            "reference_fallback_symbols": sorted(reference_fallbacks),
+            # Without a sector classification the industry effect is not
+            # measured; it is zero by construction, not a measured zero, and
+            # to_dict leaves it out of the published components.
+            "industry_available": bool(sector_names),
             "median_regression_observations": (
                 float(np.median(regression_observations))
                 if regression_observations else 0.0

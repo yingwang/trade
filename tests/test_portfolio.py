@@ -389,6 +389,113 @@ class TestTurnoverCap:
         pd.testing.assert_series_equal(result, new)
 
 
+class TestTurnoverCapWithSectors:
+    """A capped blend that pushes a sector over its cap (review 2026-11-21,
+    F2): the sector projection used to scale the whole sector down and pour
+    the freed weight into other names, selling names whose target had not
+    changed and taking turnover past the cap."""
+
+    SECTORS = pd.Series({
+        **{s: "Tech" for s in "ABCDEF"},
+        **{s: "Fin" for s in "GHIJ"},
+        **{s: "Health" for s in "KLMN"},
+    })
+
+    @staticmethod
+    def _opt(config):
+        cfg = {
+            **config,
+            "portfolio": {**config["portfolio"], "max_turnover_per_rebalance": 0.40,
+                          "exit_turnover_share": 0.60, "max_position_weight": 0.12,
+                          "min_position_weight": 0.03},
+            "risk": {**config["risk"], "max_sector_weight": 0.50},
+            "leverage": {**config["leverage"], "max_leverage": 2.0},
+            "safety": {"max_position_pct_of_portfolio": 0.20},
+        }
+        return PortfolioOptimizer(cfg)
+
+    @staticmethod
+    def _turnover(new, prev):
+        union = new.index.union(prev.index)
+        return float((new.reindex(union).fillna(0) - prev.reindex(union).fillna(0)).abs().sum())
+
+    def test_rotation_inside_a_capped_sector_keeps_the_cap(self, config):
+        """The review's case: Tech rotates A, B into C, D while the book
+        re-levers from 90% to 140%, so every sell waits and the Tech buys
+        would take Tech to 61%."""
+        opt = self._opt(config)
+        prev = pd.Series({"A": .12, "B": .12, "E": .12, "F": .12,
+                          "G": .12, "H": .12, "I": .06, "J": .12})
+        new = pd.Series({"E": .12, "F": .12, "C": .12, "D": .12,
+                         "G": .12, "H": .12, "I": .08, "J": .12,
+                         "K": .12, "L": .12, "M": .12, "N": .12})
+        result = opt.enforce_turnover_cap(new, prev, gross_exposure_cap=1.5,
+                                          sector_map=self.SECTORS)
+        assert self._turnover(result, prev) <= 0.40 + 1e-9
+        # Unchanged targets are not traded, nothing is bought past its target.
+        assert result["E"] == pytest.approx(0.12)
+        assert result["F"] == pytest.approx(0.12)
+        assert result["I"] <= 0.08 + 1e-12
+        assert (result.reindex(new.index).fillna(0.0) <= new + 1e-12).all()
+        tech = float(result.reindex(list("ABCDEF")).fillna(0.0).sum())
+        assert tech <= 0.50 + 1e-9
+        # What the Tech buys gave back went to the other sectors' buys, which
+        # moved further toward their targets: the whole cap is spent and the
+        # book re-levers by it, as the blend intended.
+        assert result["K"] == pytest.approx(result["L"])
+        assert result["K"] > 0.12 * 0.40 / 0.74
+        assert self._turnover(result, prev) == pytest.approx(0.40)
+        assert float(result.sum()) == pytest.approx(0.90 + 0.40)
+
+    def test_equal_gross_rotation_keeps_the_gross_floor(self, config):
+        """Follow-up to F2: taking the Tech excess back from the Tech buys
+        alone left this 86% book at 80.7% gross, below min(current, target);
+        the freed budget now goes to the Fin buys within their bounds."""
+        opt = self._opt(config)
+        sectors = pd.Series({**{s: "Tech" for s in "ABCDEFX"}, **{s: "Fin" for s in "GHIJLMN"}})
+        prev = pd.Series({"A": .12, "B": .12, "C": .12, "D": .12, "E": .02,
+                          "G": .12, "H": .12, "I": .04, "J": .04, "L": .04})   # 86%
+        new = pd.Series({"C": .12, "D": .12, "E": .02, "F": .12, "X": .12,
+                         "G": .12, "H": .12, "M": .06, "N": .06})              # 86%
+        result = opt.enforce_turnover_cap(new, prev, gross_exposure_cap=1.5, sector_map=sectors)
+        assert float(result.sum()) == pytest.approx(0.86)
+        assert self._turnover(result, prev) <= 0.40 + 1e-9
+        assert float(result.reindex(list("ABCDEFX")).fillna(0.0).sum()) <= 0.50 + 1e-9
+        assert float(result.reindex(list("GHIJLMN")).fillna(0.0).sum()) <= 0.50 + 1e-9
+        # No name moves against its target, none past it.
+        assert result["C"] == pytest.approx(0.12) and result["D"] == pytest.approx(0.12)
+        assert (result.reindex(new.index).fillna(0.0) <= new + 1e-12).all()
+        union = result.index.union(prev.index)
+        moved = result.reindex(union).fillna(0.0) - prev.reindex(union).fillna(0.0)
+        toward = new.reindex(union).fillna(0.0) - prev.reindex(union).fillna(0.0)
+        assert ((moved * toward) >= -1e-12).all()
+
+    def test_sector_already_over_its_cap_moves_straight_to_target(self, config):
+        """A book that starts over a sector cap is de-concentrated in one go
+        (the existing bypass); the blend step never sees it."""
+        opt = self._opt(config)
+        prev = pd.Series({"A": .12, "B": .12, "C": .12, "D": .12, "E": .07,
+                          "G": .12, "H": .12})                      # Tech 55%
+        new = pd.Series({"A": .12, "B": .12, "C": .12, "D": .12,
+                         "G": .12, "H": .12, "K": .12, "L": .12})   # Tech 48%
+        result = opt.enforce_turnover_cap(new, prev, gross_exposure_cap=1.5,
+                                          sector_map=self.SECTORS)
+        pd.testing.assert_series_equal(result.sort_index(), new.sort_index(), check_names=False)
+
+    def test_blend_step_scales_an_over_cap_sector_without_buys_in_place(self, config):
+        """The step's own fallback: a sector over its cap with no buys left is
+        scaled down pro rata and the freed weight is not handed to anyone."""
+        opt = self._opt(config)
+        blended = pd.Series({"A": .30, "B": .30, "G": .10, "K": .10})
+        out = opt._cap_blended_sectors(
+            blended, blended.copy(), blended.copy(), pd.Index([]), self.SECTORS,
+        )
+        assert float(out[["A", "B"]].sum()) == pytest.approx(0.50)
+        assert out["A"] == pytest.approx(out["B"])
+        assert out["G"] == pytest.approx(0.10)
+        assert out["K"] == pytest.approx(0.10)
+
+
 @pytest.mark.parametrize("allocation", ["proportional", "mvo"])
 class TestSectorConstraints:
     """Sector limits hold on both allocation paths."""

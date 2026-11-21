@@ -191,3 +191,92 @@ class TestImpactModel:
                             volumes=pd.Series({"AAAA": 100_000.0}), sigmas=pd.Series({"AAAA": 0.04}))
         assert calm == pytest.approx(100.0)
         assert wild == pytest.approx(400.0)
+
+
+def _quiet_config(config):
+    """No stops and no costs, so the book changes only on the provider's word."""
+    return {
+        **config,
+        "portfolio": {**config["portfolio"], "transaction_cost_bps": 0},
+        "risk": {**config["risk"], "stop_loss_pct": 0.0},
+        "leverage": {**config["leverage"], "margin_annual_rate": 0.0},
+        "backtest": {**config["backtest"], "slippage_bps": 0, "market_impact_coeff": 0},
+    }
+
+
+class TestEmptyTargetIsCash:
+    """Review 2026-11-21, F4: None means no decision, an empty target means
+    hold cash.  The engine used to read both as "no decision", so the trend
+    book's two-light cash rule never ran in a backtest while the live runner
+    sold out."""
+
+    def test_empty_target_sells_the_book_and_none_leaves_it(self, config, synthetic_prices):
+        engine = BacktestEngine(_quiet_config(config))
+        dates = synthetic_prices.index
+        buy, cash, idle = dates[10], dates[30], dates[50]
+
+        def provider(date, current_weights):
+            if date == buy:
+                return pd.Series({"AAAA": 0.5, "BBBB": 0.4})
+            if date == cash:
+                return pd.Series(dtype=float)
+            return None
+
+        result = engine.run(
+            synthetic_prices, {}, benchmark_col="BENCH",
+            target_provider=provider, rebalance_dates=[buy, cash, idle],
+        )
+        rows = {row["date"]: row for row in result.positions_history}
+        assert rows[dates[29]]["holdings"][["AAAA", "BBBB"]].gt(0).all()
+        after = rows[dates[31]]
+        assert (after["holdings"] == 0).all()
+        assert after["cash"] == pytest.approx(after["value"])
+        # The idle date's None changes nothing: still all cash at the end.
+        assert (result.positions_history[-1]["holdings"] == 0).all()
+        assert cash in result.targets and result.targets[cash].empty
+
+
+class TestDeadHoldings:
+    """Review 2026-11-21, F10: a holding whose bars stop without a delisting
+    event used to be an unsellable exit that deferred every buy for the rest
+    of the run."""
+
+    @staticmethod
+    def _run(config, prices, gap_start, gap_len):
+        engine = BacktestEngine(_quiet_config(config))
+        frame = prices.copy()
+        end = None if gap_len is None else gap_start + gap_len
+        frame.iloc[gap_start:end, frame.columns.get_loc("AAAA")] = np.nan
+        dates = frame.index
+        first, second = dates[20], dates[gap_start + 10]
+
+        def provider(date, current_weights):
+            if date == first:
+                return pd.Series({"AAAA": 0.5, "BBBB": 0.4})
+            return pd.Series({"BBBB": 0.4, "CCCC": 0.4})
+
+        result = engine.run(
+            frame, {}, benchmark_col="BENCH",
+            target_provider=provider, rebalance_dates=[first, second],
+        )
+        return engine, frame, result
+
+    def test_name_whose_bars_stop_is_closed_and_buys_resume(self, config, synthetic_prices):
+        engine, frame, result = self._run(config, synthetic_prices, gap_start=60, gap_len=None)
+        dead = [t for t in result.trades if t["type"] == "dead_holding"]
+        assert len(dead) == 1 and dead[0]["symbols"] == ["AAAA"]
+        closed_on = frame.index[60 + engine.dead_holding_sessions - 1]
+        assert dead[0]["date"] == closed_on
+        rows = {row["date"]: row for row in result.positions_history}
+        held = rows[frame.index[59]]["holdings"]["AAAA"]
+        assert dead[0]["proceeds"] == pytest.approx(held * frame["AAAA"].iloc[59])
+        last = result.positions_history[-1]["holdings"]
+        assert last["AAAA"] == 0
+        assert last["CCCC"] > 0, "the buy side stayed frozen behind the dead name"
+
+    def test_short_gap_is_waited_out(self, config, synthetic_prices):
+        _, frame, result = self._run(config, synthetic_prices, gap_start=60, gap_len=2)
+        assert not [t for t in result.trades if t["type"] == "dead_holding"]
+        # The exit simply waits for the bar to come back.
+        assert result.positions_history[-1]["holdings"]["AAAA"] == 0
+        assert result.positions_history[-1]["holdings"]["CCCC"] > 0

@@ -236,6 +236,18 @@ class DataQualityChecker:
 # Live-path quality gate
 # ======================================================================
 
+class PartialBarError(RuntimeError):
+    """The newest bar is missing for more of the universe than the breadth
+    rule tolerates: the vendor has not finished writing the session.
+
+    Like a thin earnings calendar or a holding without a price this is
+    today's data being incomplete, so the live runner stands down on it
+    (STAND_DOWN:partial_bar) and the next slot fetches again; it still
+    subclasses RuntimeError, so the dashboards fail their build on it as on
+    any other gate error.
+    """
+
+
 def enforce_live_data_quality(
     prices: pd.DataFrame,
     benchmark: str = None,
@@ -332,8 +344,90 @@ def enforce_live_data_quality(
             "trading on degraded data"
         )
 
+    # The straggler fill below is for a symbol or two lagging the benchmark by
+    # a bar.  When the newest row is missing for more of the universe than the
+    # breadth rule tolerates, it is a half-formed bar, and filling it would
+    # turn it into a zero-return session for all of them: a broken feed.
+    if universe and len(clean) > 0:
+        missing_last = int(clean[universe].iloc[-1].isna().sum())
+        if missing_last / len(universe) > 1.0 - min_valid_frac + 1e-12:
+            raise PartialBarError(
+                f"Live data quality gate: {missing_last}/{len(universe)} symbols "
+                f"have no {pd.Timestamp(clean.index[-1]).date()} bar (more than "
+                f"{1.0 - min_valid_frac:.0%}); aborting today's run instead of "
+                "trading on a half-formed bar"
+            )
+
     keep = valid + ([benchmark] if benchmark is not None else [])
-    return clean[keep]
+    return fill_one_trailing_bar(clean[keep])
+
+
+def fill_one_trailing_bar(prices: pd.DataFrame) -> pd.DataFrame:
+    """Carry the previous close into a symbol's missing LAST bar, once.
+
+    The gate keeps a symbol that lags the benchmark by one bar.  Left as
+    NaN, that last bar made the earnings book treat a holding as having no
+    price (unrankable, so sold) and most factor-book signals undefined for
+    the day, a target the backtest never computes for that date.  Only the
+    final row is filled, only from the row before it, and only when that row
+    has a price: interior gaps and longer outages stay missing.
+    """
+    if prices is None or len(prices) < 2:
+        return prices
+    last, previous = prices.iloc[-1], prices.iloc[-2]
+    straggling = last.index[last.isna() & previous.notna()]
+    if len(straggling) == 0:
+        return prices
+    filled = prices.copy()
+    filled.iloc[-1, filled.columns.get_indexer(straggling)] = previous[straggling].to_numpy()
+    logger.warning(
+        "Live data quality gate: no %s bar for %s; carrying the previous close",
+        pd.Timestamp(prices.index[-1]).date(), sorted(map(str, straggling)),
+    )
+    return filled
+
+
+class HeldDataMissingError(RuntimeError):
+    """A symbol the account holds has no usable price data today.
+
+    The live runner stands down on it (STAND_DOWN:held_data_missing); the
+    dashboards, whose target is display only, log it and carry on.
+    ``symbols`` names the holdings concerned.
+    """
+
+    def __init__(self, message: str, symbols=()):
+        super().__init__(message)
+        self.symbols = list(symbols)
+
+
+def require_held_symbols_kept(held, kept: pd.DataFrame, expected) -> None:
+    """Abort when the gate dropped a symbol the account holds.
+
+    A held name missing from the gated frame has no score, so the
+    optimizer reads it as an exit and the turnover cap sells it: a data
+    fault turned into a trade.  ``expected`` is what the run asked for (the
+    requested universe and the columns the fetch returned); a holding
+    outside it (a name that left the universe) is a genuine exit and passes.
+    Raises HeldDataMissingError.
+    """
+    if held is None:
+        return
+    if isinstance(held, pd.Series):
+        names = held.index[pd.to_numeric(held, errors="coerce").fillna(0.0).abs() > 1e-12]
+    else:
+        names = list(held)
+    wanted = {str(symbol).upper() for symbol in expected}
+    present = {str(symbol).upper() for symbol in kept.columns}
+    dropped = sorted(
+        str(symbol) for symbol in names
+        if str(symbol).upper() in wanted and str(symbol).upper() not in present
+    )
+    if dropped:
+        raise HeldDataMissingError(
+            f"Live data quality gate: held symbol(s) {dropped} have no usable "
+            "price data; aborting instead of selling them as exits",
+            symbols=dropped,
+        )
 
 
 # ======================================================================

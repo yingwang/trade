@@ -26,6 +26,7 @@ from quant.data.point_in_time import load_point_in_time_bundle
 from quant.data.quality import (
     DataQualityChecker,
     enforce_live_data_quality,
+    require_held_symbols_kept,
     warn_survivorship_bias,
 )
 from quant.signals.factors import SignalGenerator
@@ -47,6 +48,36 @@ from quant.backtest.calendar import active_cooldowns, fixed_rebalance_dates
 ML_BACKEND_AVAILABLE = LGBM_AVAILABLE or SKLEARN_FALLBACK
 
 logger = logging.getLogger(__name__)
+
+# Trailing sessions of returns behind the risk model, and how many of them a
+# selected name needs before it can be held.
+COV_WINDOW = 126
+COV_MIN_OBSERVATIONS = 20
+
+
+def risk_model_inputs(
+    returns: pd.DataFrame, selected,
+) -> tuple[list[str], Optional[pd.DataFrame]]:
+    """The selected names the risk model can price, and their covariance.
+
+    One rule for the backtest and the live path (they used to prepare the
+    covariance differently, so one missing bar gave the two paths different
+    vol scaling for the same book).  ``returns`` ends at the decision close.
+    A name needs more than COV_MIN_OBSERVATIONS returns in the trailing
+    COV_WINDOW sessions; it is passed over, not replaced, otherwise.  A
+    missing return of a name that is kept counts as zero.  With fewer than
+    two names left the result is ``([], None)``: the backtest skips that
+    rebalance and the live path refuses to trade.
+    """
+    window = returns.tail(COV_WINDOW)
+    kept = [
+        symbol for symbol in selected
+        if symbol in window.columns
+        and window[symbol].notna().sum() > COV_MIN_OBSERVATIONS
+    ]
+    if len(kept) < 2:
+        return [], None
+    return kept, _ledoit_wolf_shrinkage(window[kept].fillna(0))
 
 
 class LGBMStrategy:
@@ -476,20 +507,9 @@ class LGBMStrategy:
             # Select top stocks and optimize weights
             selected = self.optimizer.select_top_stocks(scores)
 
-            ret_window = returns.loc[:date].tail(126)
-            selected_in_ret = [s for s in selected if s in ret_window.columns
-                               and ret_window[s].notna().sum() > 20]
-            if len(selected_in_ret) < 2:
+            selected_in_ret, cov = risk_model_inputs(returns.loc[:date], selected)
+            if not selected_in_ret:
                 return None
-
-            if len(ret_window) > 20:
-                cov = _ledoit_wolf_shrinkage(ret_window[selected_in_ret].fillna(0))
-            else:
-                n = len(selected_in_ret)
-                cov = pd.DataFrame(
-                    np.eye(n) * 0.04 / 252,
-                    index=selected_in_ret, columns=selected_in_ret,
-                )
 
             weights = self.optimizer.optimize_weights(
                 selected_in_ret, scores, cov,
@@ -662,10 +682,18 @@ class LGBMStrategy:
         """
         if capital is None:
             capital = self.config["backtest"]["initial_capital"]
+        # An empty book is None on the backtest path; same here.
+        if prev_weights is not None and len(prev_weights) == 0:
+            prev_weights = None
 
+        fetched = self.data.fetch_prices()
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark,
+            fetched, benchmark=self.data.benchmark,
             as_of=pd.Timestamp.now(),
+        )
+        # A holding the gate dropped would leave as an "exit": abort instead.
+        require_held_symbols_kept(
+            prev_weights, prices, list(self.data.symbols) + list(fetched.columns),
         )
         self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)
@@ -734,15 +762,14 @@ class LGBMStrategy:
             scores = scores.drop(labels=list(cooling), errors="ignore")
 
         selected = self.optimizer.select_top_stocks(scores)
-        selected_list = selected.tolist()
-
-        ret_window = returns[selected_list].tail(126)
-        if len(ret_window) > 20:
-            cov = _ledoit_wolf_shrinkage(ret_window)
-        else:
-            cov = pd.DataFrame(
-                np.eye(len(selected_list)) * 0.04 / 252,
-                index=selected_list, columns=selected_list,
+        selected_list, cov = risk_model_inputs(returns, selected.tolist())
+        if not selected_list:
+            # The backtest skips such a rebalance; live there is no "skip"
+            # that keeps the book honest, so refuse to trade.
+            raise RuntimeError(
+                "Fewer than two selected names have more than "
+                f"{COV_MIN_OBSERVATIONS} returns in the last {COV_WINDOW} sessions; "
+                "refusing to build a LightGBM target"
             )
 
         weights = self.optimizer.optimize_weights(

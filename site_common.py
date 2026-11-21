@@ -147,10 +147,60 @@ def _validated_split_cash_compensations(compensations: dict | None) -> dict:
     return result
 
 
+def _validated_presplit_sales(sales: dict | None) -> dict:
+    """Validate the recorded sales of shares a paper account still carried
+    in pre-split units (``dashboard.split_presplit_sales.<book>``).
+
+    ``{SYMBOL: [{date, quantity, price}, ...]}`` with the pre-split quantity
+    sold and the post-split fill price; an entry may also carry
+    ``post_split_shares_held``, the shares bought after the split and still
+    held at that date (0 when absent).  The record is authoritative through
+    its last date: the credit no longer depends on those orders staying among
+    the newest closed orders Alpaca returns.
+    """
+    result = {}
+    for raw_symbol, raw_entries in (sales or {}).items():
+        symbol = str(raw_symbol).upper().strip()
+        split = STOCK_SPLITS.get(symbol)
+        if split is None:
+            raise ValueError(f"Unknown pre-split sale symbol: {symbol}")
+        if not isinstance(raw_entries, list) or not raw_entries:
+            raise ValueError(f"Pre-split sales for {symbol} must be a non-empty list")
+        entries = []
+        for raw in raw_entries:
+            if not isinstance(raw, dict):
+                raise ValueError(f"Pre-split sale for {symbol} must be a mapping")
+            sale_date = str(raw.get("date", ""))
+            try:
+                datetime.strptime(sale_date, "%Y-%m-%d")
+            except ValueError as exc:
+                raise ValueError(
+                    f"Pre-split sale for {symbol} needs a YYYY-MM-DD date"
+                ) from exc
+            if sale_date < split["first_adjusted_session"]:
+                raise ValueError(
+                    f"Pre-split sale for {symbol} on {sale_date} precedes the split"
+                )
+            quantity = float(raw.get("quantity", 0))
+            price = float(raw.get("price", 0))
+            held = float(raw.get("post_split_shares_held", 0))
+            if not all(math.isfinite(v) for v in (quantity, price, held)) or quantity <= 0 or price <= 0 or held < 0:
+                raise ValueError(
+                    f"Pre-split sale for {symbol} needs a positive quantity and price"
+                )
+            entries.append({
+                "date": sale_date, "quantity": quantity, "price": price,
+                "post_split_shares_held": held,
+            })
+        result[symbol] = sorted(entries, key=lambda entry: entry["date"])
+    return result
+
+
 def _split_sold_credit(
     filled_orders,
     cash_compensations: dict | None = None,
     as_of: str | None = None,
+    presplit_sales: dict | None = None,
 ) -> float:
     """Cash that post-split sells of PRE-split shares failed to book.
 
@@ -159,16 +209,20 @@ def _split_sold_credit(
     after the split is booked correctly and must not be credited — so sells
     first consume the quantity visibly bought after the split date (correct
     bookings), and only the unexplained remainder is treated as pre-split
-    shares. Order history is finite (last ~200 orders); if a post-split buy
-    has rolled out of the window its sell would be over-credited, which we
-    accept and log.
+    shares. Order history is finite (the newest 500 closed orders), so a
+    pre-split sale that ages out of it would take its credit with it; the
+    sales recorded in ``presplit_sales`` stand in for every order of that
+    symbol up to the last recorded date.
     """
     compensations = _validated_split_cash_compensations(cash_compensations)
+    recorded = _validated_presplit_sales(presplit_sales)
     as_of = as_of or datetime.now(ZoneInfo("America/New_York")).date().isoformat()
     credit = 0.0
     for sym, split in STOCK_SPLITS.items():
         ratio = split["ratio"]
         split_date = split["date"]
+        ledger = recorded.get(sym, [])
+        through = ledger[-1]["date"] if ledger else None
 
         events = []
         for o in filled_orders:
@@ -178,13 +232,22 @@ def _split_sold_credit(
             fill_date = _eastern_date(timestamp)
             if timestamp is None or fill_date < split_date:
                 continue
+            if through is not None and fill_date <= through:
+                continue  # covered by the recorded sales
             qty = float(o.filled_qty)
             price = float(o.filled_avg_price) if o.filled_avg_price else 0.0
             events.append((timestamp, fill_date, _enum_value(o.side), qty, price))
 
         events.sort(key=lambda event: event[0])
-        post_split_bought = 0.0
+        post_split_bought = ledger[-1]["post_split_shares_held"] if ledger else 0.0
         symbol_credit = 0.0
+        for entry in ledger:
+            inferred = (ratio - 1) * entry["quantity"] * entry["price"]
+            symbol_credit += inferred
+            logger.info(
+                "Split sold-credit: %s recorded sale of %.0f pre-split share(s) "
+                "on %s -> +$%.2f", sym, entry["quantity"], entry["date"], inferred,
+            )
         for _, fill_date, side, qty, price in events:
             if side == "buy":
                 post_split_bought += qty
@@ -221,6 +284,7 @@ def _split_history_adjustments(
     raw_positions,
     filled_orders,
     cash_compensations: dict | None = None,
+    presplit_sales: dict | None = None,
 ) -> dict:
     """Build date-specific equity corrections for stale paper-account splits.
 
@@ -239,6 +303,7 @@ def _split_history_adjustments(
         return {}
 
     compensations = _validated_split_cash_compensations(cash_compensations)
+    recorded = _validated_presplit_sales(presplit_sales)
     history_dates = pd.DatetimeIndex(
         pd.to_datetime([row["date"] for row in portfolio_history])
     ).normalize().unique().sort_values()
@@ -258,6 +323,8 @@ def _split_history_adjustments(
         ):
             current_presplit_qty = float(current.qty)
 
+        ledger = recorded.get(symbol, [])
+        through = ledger[-1]["date"] if ledger else None
         events = []
         for order in filled_orders:
             if order.symbol != symbol:
@@ -266,6 +333,8 @@ def _split_history_adjustments(
             event_date = _eastern_date(timestamp)
             if not event_date or event_date < split["first_adjusted_session"]:
                 continue
+            if through is not None and event_date <= through:
+                continue  # covered by the recorded sales
             events.append(
                 (
                     timestamp,
@@ -277,8 +346,11 @@ def _split_history_adjustments(
             )
         events.sort(key=lambda event: event[0] or datetime.min.replace(tzinfo=timezone.utc))
 
-        post_split_bought = 0.0
-        presplit_sales = []
+        post_split_bought = ledger[-1]["post_split_shares_held"] if ledger else 0.0
+        presplit_sales = [
+            (pd.Timestamp(entry["date"]), entry["quantity"], entry["price"])
+            for entry in ledger
+        ]
         for _, event_date, side, qty, price in events:
             if side == "buy":
                 post_split_bought += qty
@@ -361,8 +433,13 @@ def fetch_trade_history(
     state_file: str,
     split_cash_compensations: dict | None = None,
     since: str | None = None,
+    split_presplit_sales: dict | None = None,
 ) -> dict:
     """Trade history + positions + equity history for one Alpaca account.
+
+    ``split_presplit_sales`` is the book's ``dashboard.split_presplit_sales``
+    entry: recorded sales of shares still in pre-split units, so the split
+    correction outlives the 500-order window (see _validated_presplit_sales).
 
     ``since`` (YYYY-MM-DD) keeps only the fills and the daily equity from that
     date on, for a book that took over an account another book had traded:
@@ -382,11 +459,41 @@ def fetch_trade_history(
             state_file,
             split_cash_compensations=split_cash_compensations,
             since=since,
+            split_presplit_sales=split_presplit_sales,
         )
 
     logger.warning("No Alpaca keys in %s/%s, falling back to local logs",
                    api_key_env, secret_key_env)
     return parse_local_trade_logs(state_file)
+
+
+def current_portfolio_for_display(strategy, prev_weights=None, **kwargs):
+    """The strategy's current target for a dashboard, and the held symbols
+    the live gate found without price data.
+
+    A live run stops when a holding has no usable price data
+    (HeldDataMissingError: the runner stands down rather than sell it as an
+    exit).  The page only displays the target, so it does not fail the
+    nightly build: it logs the symbols and shows the target computed without
+    those holdings, with the symbols published next to it so the page does
+    not pass that target off as what the account will trade.
+    """
+    from quant.data.quality import HeldDataMissingError
+
+    try:
+        return strategy.get_current_portfolio(prev_weights=prev_weights, **kwargs), []
+    except HeldDataMissingError as exc:
+        missing = sorted(exc.symbols)
+        logger.warning(
+            "Dashboard target: held %s have no usable price data today (a live "
+            "run would stand down); showing the target computed without them",
+            missing,
+        )
+        rest = (
+            prev_weights.drop(labels=missing, errors="ignore")
+            if prev_weights is not None else None
+        )
+        return strategy.get_current_portfolio(prev_weights=rest, **kwargs), missing
 
 
 def generate_actual_attribution(
@@ -477,6 +584,35 @@ def generate_actual_attribution(
     if sector_map is None and fundamentals is not None and not fundamentals.empty and "sector" in fundamentals:
         sector_map = fundamentals["sector"]
 
+    # Fills and share counts are on the unadjusted (split-adjusted only)
+    # basis; the shortfall reference and the holding weights must be too.
+    traded = sorted(
+        {str(p.get("symbol", "")).upper() for p in trades.get("positions", []) or []}
+        | {
+            str(t.get("symbol", "")).upper()
+            for r in trades.get("rebalances", []) or []
+            for t in r.get("trades", []) or []
+        }
+        - {""}
+    )
+    reference_prices = None
+    if traded:
+        equity_dates = pd.to_datetime(
+            [row["date"] for row in portfolio_history if row.get("equity") is not None]
+        )
+        reference_prices = _fetch_unadjusted_closes(
+            traded,
+            (equity_dates.min() - pd.Timedelta(days=10)).strftime("%Y-%m-%d"),
+            (equity_dates.max() + pd.Timedelta(days=2)).strftime("%Y-%m-%d"),
+        )
+        if reference_prices is None or reference_prices.empty:
+            logger.warning(
+                "Unadjusted closes unavailable; trading costs and weights fall back "
+                "to dividend-adjusted closes (a fill then shows every later "
+                "dividend as cost)"
+            )
+            reference_prices = None
+
     attribution_config = config.get("attribution", {})
     result = attribute_actual_performance(
         portfolio_history=portfolio_history,
@@ -495,6 +631,7 @@ def generate_actual_attribution(
         # Alpaca paper cash earns no interest.  This keeps the cash-drag term
         # tied to actual account economics rather than the backtest's 4% hurdle.
         annual_cash_return=float(attribution_config.get("annual_cash_return", 0.0)),
+        reference_prices=reference_prices,
     )
     payload = result.to_dict()
     payload.setdefault("methodology", {})
@@ -509,11 +646,43 @@ def generate_actual_attribution(
         "lookback_days": int(attribution_config.get("lookback_days", 252)),
         "min_observations": int(attribution_config.get("min_observations", 60)),
         "cash_return": float(attribution_config.get("annual_cash_return", 0.0)),
-        "trading_costs": "implementation shortfall versus prior adjusted close",
-        "sector_classification": "current yfinance sector snapshot",
+        "trading_costs": (
+            "implementation shortfall versus prior unadjusted close"
+            if reference_prices is not None
+            else "implementation shortfall versus prior adjusted close (unadjusted closes unavailable)"
+        ),
+        "sector_classification": (
+            "current yfinance sector snapshot" if sector_map is not None
+            else "none: industry effect not measured for this book"
+        ),
         "linking": "Carino",
     }
     return payload
+
+
+def _fetch_unadjusted_closes(symbols, start: str, end: str):
+    """Closes not adjusted for dividends (yfinance ``Close`` with
+    ``auto_adjust=False``, split-adjusted), one batched download.
+
+    Dashboard generators only, never the trading path.  None on failure.
+    """
+    try:
+        import pandas as pd
+        import yfinance as yf
+
+        downloaded = yf.download(
+            list(symbols), start=start, end=end, auto_adjust=False, progress=False,
+        )
+        if downloaded is None or downloaded.empty:
+            return None
+        if isinstance(downloaded.columns, pd.MultiIndex):
+            return downloaded["Close"]
+        if "Close" in downloaded:
+            return downloaded[["Close"]].rename(columns={"Close": list(symbols)[0]})
+        return None
+    except Exception as exc:
+        logger.warning("Could not fetch unadjusted closes for attribution: %s", exc)
+        return None
 
 
 def _attribution_rebalances(rebalances: list[dict]) -> list[dict]:
@@ -589,6 +758,7 @@ def _fetch_trades_from_alpaca(
     state_file,
     split_cash_compensations: dict | None = None,
     since: str | None = None,
+    split_presplit_sales: dict | None = None,
 ) -> dict:
     """Pull trade history and current positions from the Alpaca API."""
     try:
@@ -730,6 +900,7 @@ def _fetch_trades_from_alpaca(
         sold_credit = _split_sold_credit(
             filled_orders,
             cash_compensations=split_cash_compensations,
+            presplit_sales=split_presplit_sales,
         )
 
         equity_adjustment = held_adjustment + sold_credit
@@ -749,6 +920,7 @@ def _fetch_trades_from_alpaca(
             raw_positions,
             filled_orders,
             cash_compensations=split_cash_compensations,
+            presplit_sales=split_presplit_sales,
         )
         for row in portfolio_history:
             adjustment = history_adjustments.get(row["date"], 0.0)

@@ -70,6 +70,13 @@ class BacktestEngine:
         )
         # Fallback daily volatility when none is supplied for a symbol.
         self.default_daily_sigma = 0.02
+        # A holding with no bar for this many consecutive sessions, while the
+        # rest of the frame trades and no delisting event is due for it, is
+        # treated as gone and closed at its last close (see run).  Five
+        # sessions is one rebalance cycle of the earnings book, the live
+        # gate's staleness limit in calendar days, and longer than the one- or
+        # two-session vendor gaps and halts that resume.
+        self.dead_holding_sessions = int(bt_cfg.get("dead_holding_sessions", 5))
         # Symbol -> session its fixed stop was executed, for the strategies'
         # re-entry cooldown (read by their target providers during run()).
         self.stop_exits: dict[str, pd.Timestamp] = {}
@@ -173,7 +180,10 @@ class BacktestEngine:
         form is what the strategies use: the optimizer's turnover machinery
         then sees the drifted, stopped-out, partially filled book it will
         really trade from, exactly as the live path does, instead of the
-        previous period's paper target.
+        previous period's paper target.  A provider returns None for "no
+        decision" (the book is left alone) and an empty Series for "hold
+        cash" (the book is sold at the next bar), as the live runner reads
+        an empty target.
         """
 
         result = BacktestResult()
@@ -228,12 +238,19 @@ class BacktestEngine:
         pending_target: pd.Series | None = None
         pending_stops: set[str] = set()
         delistings_by_date: dict[pd.Timestamp, list[tuple[str, float]]] = {}
+        last_delisting: dict[str, pd.Timestamp] = {}
         if delisting_returns is not None and not delisting_returns.empty:
             for row in delisting_returns.itertuples(index=False):
                 event_date = pd.Timestamp(row.date)
                 delistings_by_date.setdefault(event_date, []).append(
                     (str(row.symbol), float(row.delisting_return))
                 )
+                symbol = str(row.symbol)
+                last_delisting[symbol] = max(
+                    event_date, last_delisting.get(symbol, event_date)
+                )
+        # Consecutive sessions each symbol has had no close, for dead holdings.
+        sessions_without_bar = pd.Series(0, index=symbols, dtype=int)
 
         rebalance_targets: dict[pd.Timestamp, pd.Series] = {}
         for raw_date, raw_target in target_weights_by_date.items():
@@ -277,6 +294,51 @@ class BacktestEngine:
                         "proceeds": max(0.0, payoff),
                     }
                 )
+
+            # A holding whose bars stopped (a name that left the vendor's data
+            # without a delisting event in the file) could never be sold, and
+            # an unsellable exit defers every buy: one such name froze the
+            # buy side for the rest of the run.  After dead_holding_sessions
+            # sessions without a bar it is closed at its last close, like a
+            # terminal payoff with no further return; a delisting event still
+            # due for the name takes precedence.
+            has_bar = close_raw.loc[date].notna()
+            sessions_without_bar = (sessions_without_bar + 1).where(~has_bar, 0)
+            if self.dead_holding_sessions > 0:
+                dead = [
+                    symbol
+                    for symbol in symbols
+                    if holdings[symbol] > 0
+                    and sessions_without_bar[symbol] >= self.dead_holding_sessions
+                    and not (
+                        symbol in last_delisting
+                        and last_delisting[symbol] >= pd.Timestamp(date).normalize()
+                    )
+                ]
+                for symbol in dead:
+                    last_close = close_px.get(symbol)
+                    value = (
+                        float(holdings[symbol]) * float(last_close)
+                        if self._valid_price(last_close) else 0.0
+                    )
+                    cash += value
+                    holdings[symbol] = 0.0
+                    entry_prices[symbol] = np.nan
+                    pending_stops.discard(symbol)
+                    result.trades.append(
+                        {
+                            "date": date,
+                            "type": "dead_holding",
+                            "symbols": [symbol],
+                            "sessions_without_bar": int(sessions_without_bar[symbol]),
+                            "proceeds": value,
+                        }
+                    )
+                if dead:
+                    logger.warning(
+                        "Closing %s at the last close on %s: no bar for %d sessions",
+                        sorted(dead), pd.Timestamp(date).date(), self.dead_holding_sessions,
+                    )
             open_marks = close_px.copy()
             available_exec = exec_px.map(self._valid_price)
             open_marks.loc[available_exec] = exec_px.loc[available_exec]
@@ -448,7 +510,12 @@ class BacktestEngine:
                 )
                 current_weights = current_weights[current_weights > 1e-12]
                 provided = target_provider(date, current_weights)
-                if provided is not None and len(provided) > 0:
+                # None is "no decision": the book stays as it is.  An empty
+                # target is a decision to hold cash, which the trend rules ask
+                # for (two regime lights, every holding stopped) and the live
+                # runner executes; treating it as "no decision" kept the
+                # backtest invested where the live book sold out.
+                if provided is not None:
                     new_target = pd.Series(provided, dtype=float).reindex(symbols).fillna(0.0)
                     result.targets[date] = pd.Series(provided, dtype=float)
             if new_target is not None:

@@ -75,6 +75,42 @@ class TestTrendFilter:
         result = trend_filter(px, long_window=200)
         assert result["DOWN"].iloc[-1] == 0.5
 
+    def test_unknown_average_or_price_is_not_penalized(self):
+        """Review 2026-11-21, F6: a missing bar or a short history is not a
+        downtrend, and a few gaps do not switch the filter off."""
+        dates = pd.bdate_range("2020-01-01", periods=500)
+        down = np.linspace(150, 50, 500)
+        px = pd.DataFrame(
+            {"GAP": down, "GAPS11": down, "SHORT": down, "LAST": down}, index=dates,
+        )
+        px.iloc[150, px.columns.get_loc("GAP")] = np.nan           # one interior gap
+        px.iloc[140:151, px.columns.get_loc("GAPS11")] = np.nan    # eleven gaps
+        px.iloc[:400, px.columns.get_loc("SHORT")] = np.nan        # 100 bars of history
+        px.iloc[-1, px.columns.get_loc("LAST")] = np.nan           # missing last bar
+        result = trend_filter(px, long_window=200)
+        # One gap inside the window: the average holds, the downtrend is seen.
+        assert result["GAP"].iloc[250] == 0.5
+        assert result["GAP"].iloc[150] == 1.0                      # no price that day
+        # Eleven gaps leave 189 of 200 bars: the average is unknown, no penalty.
+        assert result["GAPS11"].iloc[300] == 1.0
+        assert result["GAPS11"].iloc[-1] == 0.5                    # window clear again
+        assert result["SHORT"].iloc[-1] == 1.0
+        assert result["LAST"].iloc[-1] == 1.0
+        assert result["LAST"].iloc[-2] == 0.5
+
+    def test_full_history_name_keeps_the_plain_200_day_average(self):
+        rng = np.random.default_rng(4)
+        dates = pd.bdate_range("2020-01-01", periods=400)
+        px = pd.DataFrame(
+            {"A": 100 * np.cumprod(1 + rng.normal(0, 0.02, 400)),
+             "B": 100 * np.cumprod(1 + rng.normal(0, 0.02, 400))},
+            index=dates,
+        )
+        result = trend_filter(px, long_window=200)
+        plain = (px >= px.rolling(200).mean()).astype(float).replace(0.0, 0.5)
+        pd.testing.assert_frame_equal(result.iloc[199:], plain.iloc[199:])
+        assert (result["A"] == 0.5).any() and (result["A"] == 1.0).any()
+
 
 class TestBlowoffFilter:
     def test_normal_stock_no_penalty(self):

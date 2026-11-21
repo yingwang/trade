@@ -34,7 +34,9 @@ from quant.execution.safety import PreTradeCheck, SafetyConfig
 from quant.utils.config import load_config
 
 REPO = Path(__file__).resolve().parents[1]
-WORKFLOWS = ("rebalance.yml", "rebalance-lgbm.yml", "rebalance-trend.yml")
+# The three live books, and the retired trend workflow, which still greps
+# its run.log when dispatched for a dry run.
+WORKFLOWS = ("rebalance.yml", "rebalance-lgbm.yml", "rebalance-earnings.yml", "rebalance-trend.yml")
 
 # A Monday afternoon, in session.  The anchored 21-business-day schedule
 # from 2000-01-03 has 2026-09-23 as the last scheduled date on or before it
@@ -107,6 +109,16 @@ class FakeBroker:
         self.corporate_action_checks = 0
         self.clock_checks = 0
         self._counter = 0
+        # The broker's average entry per symbol (0 when not given), the
+        # clock's minutes to the close (None: unknown), the clock check after
+        # which the market reads closed, today's filled rebalance client ids,
+        # and splits the guard knows of.
+        self.avg_entry: dict[str, float] = {}
+        self.minutes_left = None
+        self.closes_after_checks = None
+        self.todays_fills: list[str] = []
+        self.splits: dict = {}
+        self.entry_record_lookup = None
 
     # run_main builds the broker itself; this stands in for the class.
     def construct(self, **kwargs):
@@ -117,10 +129,36 @@ class FakeBroker:
 
     def is_market_open(self):
         self.clock_checks += 1
+        if self.closes_after_checks is not None and self.clock_checks > self.closes_after_checks:
+            return False
         return self.market_open
+
+    def minutes_to_close(self):
+        return self.minutes_left
+
+    def todays_filled_client_ids(self, prefix="qts-reba-"):
+        if isinstance(self.todays_fills, Exception):
+            raise self.todays_fills
+        return [cid for cid in self.todays_fills if cid.startswith(prefix)]
+
+    def get_position_details(self):
+        return [
+            {"symbol": s, "qty": q, "avg_entry_price": self.avg_entry.get(s, 0.0),
+             "current_price": self.prices.get(s, 0.0)}
+            for s, q in self.positions.items()
+        ]
 
     def assert_corporate_actions_reconciled(self):
         self.corporate_action_checks += 1
+        if not self.splits:
+            return {}
+        from quant.data.corporate_actions import assert_corporate_actions_reconciled
+        records = self.entry_record_lookup() if self.entry_record_lookup else {}
+        return assert_corporate_actions_reconciled(
+            self.get_position_details(), as_of=FROZEN.date(), extra_splits=self.splits,
+            entry_prices=records.get("entry_prices"), entry_dates=records.get("entry_dates"),
+            reconciled=records.get("split_reconciled"),
+        )
 
     def get_portfolio_history(self):
         return list(self.history)
@@ -199,9 +237,13 @@ class FakeStrategy:
         self.target = target.astype(float)
         self.prices = dict(prices)
         self.calls = []
+        # Exceptions the next calls raise instead of answering, in order.
+        self.fail_with: list[Exception] = []
 
     def get_current_portfolio(self, capital=None, prev_weights=None, **context):
         self.calls.append({"capital": capital, "prev_weights": prev_weights, **context})
+        if self.fail_with:
+            raise self.fail_with.pop(0)
         latest = pd.Series(self.prices, dtype=float).reindex(self.target.index)
         dollars = self.target * capital
         return pd.DataFrame({
@@ -634,3 +676,276 @@ def test_failed_trigger_marker_treats_the_day_as_not_due(harness, capsys, caplog
     assert "Rebalance trigger failed; treating as not due: quote feed down" in caplog.text
     assert harness.strategy.calls == []
     assert broker.submitted == []
+
+
+def _due_state(now: datetime = FROZEN, **extra) -> dict:
+    """A state whose last rebalance was the scheduled date before the latest one: due today."""
+    last = pd.bdate_range(ANCHOR, pd.Timestamp(now).normalize(), freq="21B")[-2]
+    return {"last_rebalance": last.to_pydatetime().replace(hour=18).isoformat(),
+            "trade_history": [], **extra}
+
+
+def test_empty_target_while_holding_stands_down(harness, capsys):
+    before = harness.write_state(_due_state(entry_prices={"AAAA": 100.0}))
+    broker = FakeBroker(PRICES, cash=90_000.0, positions={"AAAA": 100})
+    harness.strategy.target = pd.Series(dtype=float)
+
+    harness.run(broker)
+
+    out = capsys.readouterr().out
+    assert _markers(out) == ["STAND_DOWN:empty_target"]
+    assert broker.submitted == [] and broker.positions == {"AAAA": 100.0}
+    state = harness.state()
+    # Nothing recorded: the rebalance stays due for the next slot.
+    assert state["last_rebalance"] == before["last_rebalance"]
+    assert "pending_rebalance" not in state and state["trade_history"] == []
+
+    # A strategy that says the empty book is its decision is obeyed.
+    harness.strategy.empty_target_intended = lambda held: held == ["AAAA"]
+    harness.run(broker, now=FROZEN + timedelta(hours=1))
+    assert [(o.side, o.symbol, o.quantity) for o in broker.submitted] == [("sell", "AAAA", 100.0)]
+    assert _markers(capsys.readouterr().out) == []
+    assert harness.state()["last_rebalance"] == (FROZEN + timedelta(hours=1)).isoformat()
+
+
+@pytest.mark.parametrize("closing", ["minutes", "closed"])
+def test_no_orders_are_started_at_the_close(harness, capsys, closing):
+    before = harness.write_state(_due_state())
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    if closing == "minutes":
+        broker.minutes_left = 6.0          # under the default ten
+    else:
+        broker.closes_after_checks = 2     # open for run_main's and run_rebalance's checks only
+
+    harness.run(broker)
+
+    out = capsys.readouterr().out
+    assert _markers(out) == ["STAND_DOWN:near_close"]
+    assert len(harness.strategy.calls) == 1 and broker.submitted == []
+    state = harness.state()
+    assert state["last_rebalance"] == before["last_rebalance"]
+    assert "pending_rebalance" not in state and state["trade_history"] == []
+    assert [e["event"] for e in harness.events()] == []
+
+    # With the session's end far enough away the same day trades normally.
+    broker.minutes_left, broker.closes_after_checks = 120.0, None
+    harness.run(broker, now=FROZEN + timedelta(minutes=5))
+    assert len(broker.submitted) == 3
+    assert harness.state()["last_rebalance"] == (FROZEN + timedelta(minutes=5)).isoformat()
+
+
+def test_fills_the_state_never_recorded_stand_down(harness, capsys, caplog):
+    before = harness.write_state(_due_state())
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    broker.todays_fills = ["qts-reba-" + "f" * 24, "qts-stop-" + "e" * 24]
+
+    harness.run(broker)
+
+    out = capsys.readouterr().out
+    assert _markers(out) == ["STAND_DOWN:state_behind_broker"]
+    assert harness.strategy.calls == [] and broker.submitted == []
+    assert harness.state()["last_rebalance"] == before["last_rebalance"]
+
+    # A broker that cannot list its orders does not block the run.
+    caplog.set_level(logging.WARNING, logger="paper_trade_common")
+    broker.todays_fills = RuntimeError("orders endpoint down")
+    harness.run(broker, now=FROZEN + timedelta(hours=1))
+    assert _markers(capsys.readouterr().out) == []
+    assert len(broker.submitted) == 3
+    assert "state not checked against them" in caplog.text
+
+
+def test_fills_this_state_recorded_are_not_mistaken_for_a_lost_commit(harness, capsys):
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    broker.fail_once = {"CCCC": "unknown"}
+    harness.run(broker)
+    # The broker now shows the two fills of the pending attempt (and a retry
+    # id of the first); the resumed attempt is not a fresh one and goes on.
+    known = [t["client_order_id"] for t in harness.state()["pending_rebalance"]["trades"][:2]]
+    broker.todays_fills = known + [known[0][:33] + "-r1-0000abcd"]
+    harness.run(broker, now=FROZEN + timedelta(hours=1))
+    assert _markers(capsys.readouterr().out) == []
+    assert "pending_rebalance" not in harness.state()
+
+
+def test_stop_records_follow_the_broker_positions(harness, capsys, caplog):
+    # ZZZZ left the account without the runner seeing it (its records are
+    # stale); CCCC was bought without the runner seeing the fill (no stop
+    # base) and is 20% under the broker's average entry of 25.
+    harness.write_state(_quiet_state(
+        entry_prices={"AAAA": 100.0, "ZZZZ": 50.0},
+        entry_dates={"AAAA": "2026-10-01", "ZZZZ": "2026-10-01"},
+        stop_loss_attempts={"ZZZZ": {"time": "2026-10-02T15:00:00", "status": "unknown"}},
+    ))
+    broker = FakeBroker(PRICES, cash=80_000.0, positions={"AAAA": 100, "CCCC": 500})
+    broker.avg_entry = {"AAAA": 99.0, "CCCC": 25.0}
+    caplog.set_level(logging.WARNING, logger="paper_trade_common")
+
+    harness.run(broker)
+
+    state = harness.state()
+    assert "ZZZZ" not in state["entry_prices"] and "ZZZZ" not in state["entry_dates"]
+    assert "ZZZZ" not in state["stop_loss_attempts"]
+    # AAAA keeps its own entry (never overwritten); CCCC gets the broker's.
+    assert "Held CCCC had no stop-loss base" in caplog.text
+    # ... and is sold on its stop in the same run, as it would have been.
+    [order] = broker.submitted
+    assert (order.symbol, order.side, order.purpose) == ("CCCC", "sell", "stop_loss")
+    assert state["entry_prices"] == {"AAAA": 100.0}
+    assert state["entry_dates"] == {"AAAA": "2026-10-01"}
+
+    # A second quiet run finds nothing to change and writes nothing new.
+    snapshot = harness.state()
+    harness.run(broker, now=FROZEN + timedelta(hours=1))
+    assert harness.state() == snapshot
+
+
+def test_split_the_broker_applied_moves_the_stop_base_once(harness, capsys):
+    from quant.data.corporate_actions import StockSplit
+
+    # AAAA was bought at 100, then split 2-for-1 on 2026-10-12; Alpaca
+    # adjusted the position to 200 shares at an average of 50, and it quotes
+    # 45.  Against the old base of 100 that is a 55% loss and the stop would
+    # sell it; against 50 it is 10%, inside the 12% stop.
+    harness.write_state(_quiet_state(
+        entry_prices={"AAAA": 100.0}, entry_dates={"AAAA": "2026-10-01"},
+    ))
+    broker = FakeBroker({**PRICES, "AAAA": 45.0}, cash=91_000.0, positions={"AAAA": 200})
+    broker.avg_entry = {"AAAA": 50.0}
+    split_day = datetime(2026, 10, 12).date()
+    broker.splits = {"AAAA": StockSplit("AAAA", 2.0, split_day, split_day)}
+
+    harness.run(broker)
+
+    assert broker.submitted == []
+    state = harness.state()
+    assert state["entry_prices"] == {"AAAA": 50.0}
+    assert state["split_reconciled"] == {"AAAA": "2026-10-12"}
+    assert _markers(capsys.readouterr().out) == []
+
+    # The next run neither rescales again nor trips the guard.
+    harness.run(broker, now=FROZEN + timedelta(hours=1))
+    assert broker.submitted == [] and harness.state()["entry_prices"] == {"AAAA": 50.0}
+
+
+def test_resumed_attempt_executes_its_first_target(harness):
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    broker.fail_once = {"CCCC": "unknown"}
+    profile = harness.profile(persist_scores=True)
+    harness.strategy.last_scores_ = pd.Series({"AAAA": 0.3, "BBBB": 0.2, "CCCC": 0.1})
+
+    harness.run(broker, profile=profile)
+
+    pending = harness.state()["pending_rebalance"]
+    assert pending["target"] == {"AAAA": 0.1, "BBBB": 0.1, "CCCC": 0.1}
+    assert pending["target_date"] == TODAY
+    assert pending["scores"] == {"AAAA": 0.3, "BBBB": 0.2, "CCCC": 0.1}
+
+    # The strategy would now want something else, and its scores moved on;
+    # the resume finishes the first attempt's target without asking it.
+    harness.strategy.target = pd.Series({"AAAA": 0.30})
+    harness.strategy.last_scores_ = pd.Series({"AAAA": 9.0})
+    harness.run(broker, now=FROZEN + timedelta(hours=1), profile=profile)
+
+    assert len(harness.strategy.calls) == 1
+    assert [(o.symbol, o.side, o.quantity) for o in broker.submitted[3:]] == [("CCCC", "buy", 500)]
+    state = harness.state()
+    assert "pending_rebalance" not in state
+    assert state["last_rebalance"] == (FROZEN + timedelta(hours=1)).isoformat()
+    # The completed cycle keeps the scores its target came from.
+    assert state["prev_scores"] == {"AAAA": 0.3, "BBBB": 0.2, "CCCC": 0.1}
+
+
+def test_resumed_target_is_recomputed_when_old_and_drops_names_since_stopped(harness):
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    broker.fail_once = {"CCCC": "unknown"}
+    profile = harness.profile(portfolio_context=common.stop_exit_context,
+                              record_stop_exits=common.record_fixed_stop_exits)
+    harness.run(broker, profile=profile)
+    pending = harness.state()["pending_rebalance"]
+
+    # CCCC was sold on a stop the next day: the resume must not buy it back.
+    next_day = FROZEN + timedelta(days=1)
+    state = harness.state()
+    state["stop_exits"] = {"CCCC": next_day.strftime("%Y-%m-%d")}
+    harness.write_state(state)
+    harness.run(broker, now=next_day, profile=profile)
+    assert len(harness.strategy.calls) == 1
+    assert [o.symbol for o in broker.submitted[3:]] == []
+    assert "pending_rebalance" not in harness.state()
+
+    # A pending target more than three sessions old is recomputed instead.
+    state = harness.state()
+    state.update(last_rebalance=None, pending_rebalance={**pending, "attempts": 1})
+    state.pop("stop_exits")
+    harness.write_state(state)
+    harness.run(broker, now=FROZEN + timedelta(days=7), profile=profile)
+    assert len(harness.strategy.calls) == 2
+    assert [o.symbol for o in broker.submitted[3:]] == ["CCCC"]
+
+
+def _incomplete_data_errors():
+    from quant.data.earnings import EarningsCoverageError
+    from quant.data.quality import HeldDataMissingError, PartialBarError
+
+    return [
+        (EarningsCoverageError("Earnings calendar covered 300/500 members with a price (60.0%)"),
+         "STAND_DOWN:earnings_coverage"),
+        (HeldDataMissingError("Live data quality gate: held symbol(s) ['AAAA'] have no usable price data",
+                              symbols=["AAAA"]),
+         "STAND_DOWN:held_data_missing"),
+        (PartialBarError("Live data quality gate: 30/100 symbols have no 2026-11-23 bar (more than 20%)"),
+         "STAND_DOWN:partial_bar"),
+    ]
+
+
+@pytest.mark.parametrize("error, marker", _incomplete_data_errors())
+def test_target_declined_on_incomplete_data_stands_down(harness, capsys, caplog, error, marker):
+    before = harness.write_state(_due_state())
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    harness.strategy.fail_with = [error]
+    caplog.set_level(logging.WARNING, logger="paper_trade_common")
+
+    harness.run(broker)       # no traceback: the job stays green
+
+    out = capsys.readouterr().out
+    assert _markers(out) == [marker]
+    assert "Rebalance declined, data incomplete" in caplog.text and str(error) in caplog.text
+    assert broker.submitted == []
+    state = harness.state()
+    # Nothing recorded: still due, no pending attempt, no history, no events.
+    assert state["last_rebalance"] == before["last_rebalance"]
+    assert "pending_rebalance" not in state and state["trade_history"] == []
+    assert harness.events() == []
+    assert not harness.lock_file.exists()
+
+    # The next slot gets complete data and trades.
+    later = FROZEN + timedelta(hours=1)
+    harness.run(broker, now=later)
+    assert _markers(capsys.readouterr().out) == []
+    assert len(broker.submitted) == 3
+    assert harness.state()["last_rebalance"] == later.isoformat()
+
+
+@pytest.mark.parametrize("error, marker", _incomplete_data_errors())
+def test_dry_run_on_incomplete_data_ends_the_preview_quietly(harness, capsys, error, marker):
+    harness.write_state(_due_state())
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    harness.strategy.fail_with = [error]
+
+    harness.run(broker, argv=("--dry-run",))
+
+    out = capsys.readouterr().out
+    assert f"DATA INCOMPLETE ({marker.split(':')[1]})" in out
+    assert _markers(out) == [] and broker.submitted == []
+
+
+def test_other_data_gate_errors_still_fail_the_run(harness):
+    harness.write_state(_due_state())
+    broker = FakeBroker(PRICES, cash=100_000.0)
+    harness.strategy.fail_with = [RuntimeError("Live data quality gate: only 3/10 symbols usable")]
+
+    with pytest.raises(RuntimeError, match="only 3/10 symbols usable"):
+        harness.run(broker)
+    assert broker.submitted == []
+    assert not harness.lock_file.exists()

@@ -9,7 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from quant.utils.config import load_config
+from quant.utils.config import load_config, validate_config
 from quant.strategy import MultiFactorStrategy
 
 
@@ -93,6 +93,8 @@ def cmd_backtest_trend(args):
                 else:
                     base[key] = value
         _merge(config, json.loads(args.override))
+        # The merged config is what runs: validate it like a loaded one.
+        validate_config(config)
         print(f"Config overrides: {args.override}")
     strategy = TrendStrategy(config)
     result = strategy.run_backtest(start=args.start, end=args.end)

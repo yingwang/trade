@@ -230,12 +230,19 @@
       const summary = data.summary;
       const diagnostics = data.diagnostics || {};
       const pct = value => `${value >= 0 ? '+' : ''}${(value * 100).toFixed(2)}pp`;
+      // A component the attribution did not measure (industry, when the book
+      // has no sector classification) is absent from data.components; it is
+      // shown as not available, never drawn as a zero bar.
+      const industryMeasured = diagnostics.industry_available !== false;
       const cardItems = [
         { label: 'Actual Alpha vs SPY', value: pct(summary.actual_alpha ?? 0) },
-        { label: 'Six Explained Effects', value: pct(summary.explained_alpha ?? 0) },
+        { label: industryMeasured ? 'Six Explained Effects' : 'Five Explained Effects', value: pct(summary.explained_alpha ?? 0) },
         { label: 'Reconciliation Residual', value: pct(summary.reconciliation_residual ?? 0) },
         { label: 'Position Price Coverage', value: `${((diagnostics.price_coverage ?? 0) * 100).toFixed(1)}%` },
       ];
+      if (!industryMeasured) {
+        cardItems.push({ label: 'Industry Effect', value: 'n/a: no sector map for this book' });
+      }
       document.getElementById('attribution-metrics').innerHTML = cardItems.map(it => `
         <div class="card">
           <div class="card-value ${String(it.value).startsWith('-') ? 'negative' : 'positive'}">${it.value}</div>
@@ -251,7 +258,7 @@
         trading_costs: 'Trading Costs / 交易成本',
         reconciliation_residual: 'Residual / 对账残差',
       };
-      const componentKeys = Object.keys(componentLabels);
+      const componentKeys = Object.keys(componentLabels).filter(key => key in (data.components || {}));
       const componentValues = componentKeys.map(key => data.components?.[key] ?? 0);
       Plotly.newPlot('attribution-chart', [{
         type: 'bar', orientation: 'h',
@@ -274,7 +281,9 @@
       ].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
       const detailContainer = document.getElementById('attribution-detail-chart');
       if (!details.length) {
-        detailContainer.innerHTML = '<p class="meta">Style and industry proxy history is not yet available.</p>';
+        detailContainer.innerHTML = industryMeasured
+          ? '<p class="meta">Style and industry proxy history is not yet available.</p>'
+          : '<p class="meta">Style proxy history is not yet available; industry is not measured for this book.</p>';
         return;
       }
       Plotly.newPlot('attribution-detail-chart', [{
@@ -284,7 +293,7 @@
         marker: { color: details.map(item => item[1] >= 0 ? '#4fc3f7' : '#ff9800') },
         hovertemplate: '%{x}<br>%{y:.2%}<extra></extra>',
       }], {
-        title: 'Style and industry detail / 风格与行业明细',
+        title: industryMeasured ? 'Style and industry detail / 风格与行业明细' : 'Style detail (industry not measured) / 风格明细',
         paper_bgcolor: '#1a1a2e', plot_bgcolor: '#1a1a2e',
         font: { color: '#e0e0e0' },
         xaxis: { tickangle: -35, gridcolor: '#333' },

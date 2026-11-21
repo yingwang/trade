@@ -562,6 +562,7 @@ earnings:
   fixed_gross: 1.0              # hold this times equity (capped by the regime and leverage caps); null = volatility target
   require_uptrend: false        # true: only names above their 200-day average are ranked
   earnings_limit: 100           # announcements per name requested from Yahoo
+  min_coverage: 0.9             # live runs only: stand down (STAND_DOWN:earnings_coverage) when fewer of the members with a price come back with announcements
   positions: 25
   rank_buffer: 40               # a holding stays while still inside the top 40
   # Stops and regime lights are off: on this ranking each of them cost return

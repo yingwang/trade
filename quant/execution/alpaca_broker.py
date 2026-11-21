@@ -47,6 +47,27 @@ def _attr(obj: object, name: str, default=None):
     return getattr(obj, name, default)
 
 
+# Share classes: the strategies spell them as Yahoo does (BRK-B, BF-B), Alpaca
+# with a dot (BRK.B, BF.B).  Only this adapter translates, so every record the
+# runner keeps, and every idempotency key, uses the internal spelling.
+def to_broker_symbol(symbol: str) -> str:
+    return str(symbol).replace("-", ".")
+
+
+def from_broker_symbol(symbol: str) -> str:
+    return str(symbol).replace(".", "-")
+
+
+# Length of the intent part of a client order id: "qts-" + four letters of
+# the purpose + "-" + 24 hex digits.  Retry ids and TWAP slice ids start with
+# the same characters, so this prefix names the intent they all serve.
+CLIENT_ID_INTENT_LENGTH = 33
+
+
+def client_id_intent(client_order_id: str) -> str:
+    return str(client_order_id or "")[:CLIENT_ID_INTENT_LENGTH]
+
+
 class AlpacaBroker(BaseBroker):
     """Paper/live Alpaca implementation with safety and recovery controls."""
 
@@ -306,7 +327,7 @@ class AlpacaBroker(BaseBroker):
             from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
             common = {
-                "symbol": order.symbol,
+                "symbol": to_broker_symbol(order.symbol),
                 "qty": float(order.quantity),
                 "side": OrderSide.BUY if order.side == "buy" else OrderSide.SELL,
                 "time_in_force": TimeInForce.DAY,
@@ -317,7 +338,7 @@ class AlpacaBroker(BaseBroker):
             return MarketOrderRequest(**common)
         except ImportError:
             return {
-                "symbol": order.symbol,
+                "symbol": to_broker_symbol(order.symbol),
                 "qty": float(order.quantity),
                 "side": order.side,
                 "type": order.order_type,
@@ -665,7 +686,7 @@ class AlpacaBroker(BaseBroker):
     def get_positions(self) -> pd.Series:
         positions = self._client().get_all_positions()
         return pd.Series(
-            {_attr(p, "symbol"): float(_attr(p, "qty")) for p in positions},
+            {from_broker_symbol(_attr(p, "symbol")): float(_attr(p, "qty")) for p in positions},
             dtype=float,
         )
 
@@ -673,7 +694,7 @@ class AlpacaBroker(BaseBroker):
         details = []
         for p in self._client().get_all_positions():
             details.append({
-                "symbol": _attr(p, "symbol"),
+                "symbol": from_broker_symbol(_attr(p, "symbol")),
                 "qty": float(_attr(p, "qty", 0) or 0),
                 "avg_entry_price": float(_attr(p, "avg_entry_price", 0) or 0),
                 "current_price": float(_attr(p, "current_price", 0) or 0),
@@ -697,10 +718,23 @@ class AlpacaBroker(BaseBroker):
                 self._recent_splits_cache = {}
         return self._recent_splits_cache
 
-    def assert_corporate_actions_reconciled(self) -> None:
+    # Optional () -> {"entry_prices", "entry_dates", "split_reconciled"}, the
+    # runner's own record of its positions, set by the trading entry point
+    # once the state is loaded.  It is what lets the guard tell a position the
+    # broker adjusted for a small split from one it did not.
+    entry_record_lookup = None
+
+    def assert_corporate_actions_reconciled(self) -> dict:
         details = self.get_position_details()
         extra = self._recent_splits([str(d.get("symbol", "")) for d in details])
-        assert_corporate_actions_reconciled(details, extra_splits=extra)
+        records = dict(self.entry_record_lookup() or {}) if self.entry_record_lookup else {}
+        return assert_corporate_actions_reconciled(
+            details,
+            extra_splits=extra,
+            entry_prices=records.get("entry_prices"),
+            entry_dates=records.get("entry_dates"),
+            reconciled=records.get("split_reconciled"),
+        )
 
     def get_portfolio_value(self) -> float:
         return float(_attr(self._client().get_account(), "equity"))
@@ -766,15 +800,16 @@ class AlpacaBroker(BaseBroker):
         }
 
     def _get_price_safe(self, symbol: str) -> Optional[float]:
+        broker_symbol = to_broker_symbol(symbol)
         try:
             if self.data_client is not None:
                 from alpaca.data.requests import StockLatestTradeRequest
-                request = StockLatestTradeRequest(symbol_or_symbols=[symbol])
+                request = StockLatestTradeRequest(symbol_or_symbols=[broker_symbol])
                 trades = self.data_client.get_stock_latest_trade(request)
-                trade = trades[symbol]
+                trade = trades[broker_symbol]
                 return float(_attr(trade, "price"))
             # Compatibility for injected/legacy test clients.
-            trade = self._client().get_latest_trade(symbol)
+            trade = self._client().get_latest_trade(broker_symbol)
             return float(_attr(trade, "price"))
         except Exception as exc:
             logger.warning("Could not get price for %s: %s", symbol, exc)
@@ -856,3 +891,51 @@ class AlpacaBroker(BaseBroker):
         except Exception as exc:
             logger.warning("Could not check market clock: %s", exc)
             return False
+
+    def minutes_to_close(self) -> Optional[float]:
+        """Minutes from the broker clock's time to its next close; None when
+        the clock or either time is unavailable.  The rebalance target takes
+        minutes to compute, so the runner asks again right before it sends
+        orders: a DAY market order submitted after the close is queued for
+        the next open and cancelled here after its fill timeout."""
+        try:
+            clock = self._client().get_clock()
+            next_close = _attr(clock, "next_close", None)
+            now = _attr(clock, "timestamp", None)
+            if next_close is None:
+                return None
+            next_close = pd.Timestamp(next_close)
+            now = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz="UTC")
+            if next_close.tzinfo is None or now.tzinfo is None:
+                return None
+            return float((next_close - now).total_seconds()) / 60.0
+        except Exception as exc:
+            logger.warning("Could not read the market close from the clock: %s", exc)
+            return None
+
+    def todays_filled_client_ids(self, prefix: str = "qts-reba-") -> list[str]:
+        """Client ids of today's (New York date) orders with a fill whose id
+        starts with ``prefix``.  Errors propagate; the caller decides."""
+        client = self._client()
+        start = datetime.now(NY_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+        try:
+            from alpaca.trading.enums import QueryOrderStatus
+            from alpaca.trading.requests import GetOrdersRequest
+
+            orders = list(client.get_orders(
+                GetOrdersRequest(status=QueryOrderStatus.ALL, after=start, limit=500)
+            ))
+        except ImportError:
+            orders = list(client.get_orders(status="all", after=start.isoformat(), limit=500))
+        out = []
+        for o in orders:
+            cid = str(_attr(o, "client_order_id", "") or "")
+            if not cid.startswith(prefix):
+                continue
+            try:
+                filled = float(_attr(o, "filled_qty", 0) or 0)
+            except (TypeError, ValueError):
+                filled = 0.0
+            if filled > 0:
+                out.append(cid)
+        return out

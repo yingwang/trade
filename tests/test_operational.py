@@ -305,7 +305,9 @@ class TestRebalanceSafety:
         assert kwargs["avg_daily_volume"] == 2_000_000.0
 
     def test_failed_sell_blocks_subsequent_buys(self, config, quiet_exec_log):
-        """A target must not assume failed exits produced cash/risk capacity."""
+        """A target must not assume failed exits produced cash/risk capacity:
+        a sell whose fate can still change (here cancelled with nothing
+        filled) blocks every buy."""
         from paper_trade import run_rebalance
 
         broker = MagicMock()
@@ -315,13 +317,12 @@ class TestRebalanceSafety:
         broker.get_current_prices.return_value = {"AAAA": 100.0, "BBBB": 100.0}
         broker.is_market_open.return_value = True
 
-        def reject_sell(order, avg_daily_volume=None):
+        def cancel_sell(order, avg_daily_volume=None):
             assert order.side == "sell"
-            order.status = "rejected"
-            order.reject_reason = "simulated broker rejection"
+            order.status = "cancelled"
             return order
 
-        broker.submit_order.side_effect = reject_sell
+        broker.submit_order.side_effect = cancel_sell
 
         strategy = MagicMock()
         strategy.get_current_portfolio.return_value = pd.DataFrame(
@@ -346,10 +347,63 @@ class TestRebalanceSafety:
 
         assert broker.submit_order.call_count == 1
         assert [record["status"] for record in records] == [
-            "rejected",
+            "cancelled",
             "not_submitted",
         ]
         assert records[1]["side"] == "buy"
+
+    def test_refused_sell_leaves_only_what_it_would_fund_unbought(self, config, quiet_exec_log):
+        """A sell the broker refused outright (nothing filled) is final: the
+        buys go out except the smallest ones whose cost covers what the sell
+        would have raised, which are recorded as unfunded."""
+        from paper_trade import run_rebalance
+
+        broker = MagicMock()
+        broker.get_portfolio_value.return_value = 100_000
+        broker.get_daily_pnl.return_value = 0.0
+        broker.get_positions.return_value = pd.Series({"EEEE": 30.0})
+        broker.get_current_prices.return_value = {
+            "AAAA": 100.0, "BBBB": 100.0, "CCCC": 100.0, "DDDD": 100.0, "EEEE": 100.0,
+        }
+        broker.is_market_open.return_value = True
+        broker.minutes_to_close.return_value = None
+
+        def submit(order, avg_daily_volume=None):
+            if order.side == "sell":
+                order.status = "rejected"
+                order.reject_reason = "asset is not tradable"
+                return order
+            order.status = "filled"
+            order.filled_quantity = float(order.quantity)
+            order.filled_price = 100.0
+            return order
+
+        broker.submit_order.side_effect = submit
+        strategy = MagicMock()
+        # EEEE ($3,000) is sold in full; buys of $1,000, $2,000, $4,000, $8,000.
+        weights = {"AAAA": 0.01, "BBBB": 0.02, "CCCC": 0.04, "DDDD": 0.08}
+        strategy.get_current_portfolio.return_value = pd.DataFrame(
+            {"score": 1.0, "weight": weights, "weight_pct": 1.0, "dollars": 1.0,
+             "shares": 1, "price": 100.0}
+        )
+        strategy.data.fetch_adv.return_value = {}
+
+        records, _ = run_rebalance(
+            strategy, broker, self._config_with_safety(config), dry_run=False
+        )
+
+        by_symbol = {r["symbol"]: r["status"] for r in records}
+        # The $1,000 and $2,000 buys cover the refused $3,000; the rest go out.
+        assert by_symbol == {
+            "EEEE": "rejected", "AAAA": "unfunded", "BBBB": "unfunded",
+            "CCCC": "filled", "DDDD": "filled",
+        }
+        assert [o.args[0].symbol for o in broker.submit_order.call_args_list] == [
+            "EEEE", "CCCC", "DDDD",
+        ]
+        from paper_trade_common import classify_rebalance_outcome
+        done, reason = classify_rebalance_outcome(records, 0)
+        assert done is True and "2 unfunded" in reason and "1 rejected" in reason
 
     def test_min_trade_size_comes_from_portfolio_config(self, config, quiet_exec_log):
         """A trim under portfolio.min_trade_notional_usd never reaches the
@@ -850,6 +904,20 @@ class TestBatchThreeHardening:
         assert classify_rebalance_outcome(stuck, 1)[0] is False
         done, reason = classify_rebalance_outcome(stuck, 2)
         assert done is True and "abandoned" in reason
+
+    def test_cancelled_order_without_fill_keeps_the_rebalance_pending(self):
+        """A DAY order sent after the close is queued, then cancelled at its
+        fill timeout with nothing filled: its leg is still owed, so the cycle
+        must not close as settled."""
+        from paper_trade_common import classify_rebalance_outcome
+
+        late = [{"status": "filled"}, {"status": "cancelled", "qty": 0.0}]
+        done, reason = classify_rebalance_outcome(late, 0)
+        assert done is False and "uncertain" in reason
+        # A buy left unfunded by a refused sell is final.
+        funded = [{"status": "rejected"}, {"status": "unfunded"}, {"status": "filled"}]
+        done, reason = classify_rebalance_outcome(funded, 0)
+        assert done is True and "1 unfunded" in reason
 
     def test_should_rebalance_follows_the_anchored_schedule(self):
         from datetime import datetime

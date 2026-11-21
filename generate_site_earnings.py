@@ -30,7 +30,11 @@ matplotlib.use("Agg")
 
 from quant.utils.config import load_config
 from quant.earnings_strategy import EarningsStrategy
-from site_common import fetch_trade_history, generate_actual_attribution
+from site_common import (
+    current_portfolio_for_display,
+    fetch_trade_history,
+    generate_actual_attribution,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -106,6 +110,9 @@ def main():
             config.get("dashboard", {}).get("split_cash_compensations", {}).get("earnings", {})
         ),
         since=config.get("dashboard", {}).get("account_since"),
+        split_presplit_sales=(
+            config.get("dashboard", {}).get("split_presplit_sales", {}).get("earnings", {})
+        ),
     )
     if trades.get("source") == "local":
         # Without account keys, refuse rather than publishing another book's history.
@@ -130,8 +137,11 @@ def main():
     )
 
     logger.info("Computing current target book...")
-    current_portfolio = strategy.get_current_portfolio(capital=capital, prev_weights=prev_weights)
+    current_portfolio, held_data_missing = current_portfolio_for_display(
+        strategy, prev_weights, capital=capital,
+    )
     portfolio = generate_portfolio_data(strategy, current_portfolio, account_equity=capital)
+    portfolio["held_data_missing"] = held_data_missing
 
     logger.info("Generating actual alpha attribution...")
     attribution = generate_actual_attribution(
@@ -139,8 +149,10 @@ def main():
     )
 
     logger.info("Generating backtest data...")
-    # The backtest fetches its own prices for the point-in-time universe; the
-    # announcement history fetched for the target above is reused.
+    # The backtest fetches its own prices for the point-in-time universe. The
+    # announcement history fetched for the target above covers today's
+    # members only; the backtest requests the former members it still lacks
+    # (reusing the cache as is ranked only today's members across history).
     backtest = generate_backtest_data(strategy)
 
     for name, data in [

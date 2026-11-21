@@ -454,3 +454,18 @@ def test_reentry_cooldown_is_configured_and_validated():
         with pytest.raises(ValueError, match="reentry_cooldown_sessions"):
             validate_config(cfg)
 
+
+
+def test_empty_target_is_intended_only_on_a_zero_cap_or_every_holding_stopped(config):
+    from quant.trend_strategy import TrendStrategy
+
+    strategy = TrendStrategy({**config, "portfolio": {**config["portfolio"], "target_volatility": 0.2,
+                                                       "max_position_weight": 0.3}})
+    strategy.last_decision_ = {"regime_cap": 0.0, "exits": []}
+    assert strategy.empty_target_intended(["AAAA", "BBBB"]) is True
+    strategy.last_decision_ = {"regime_cap": 1.0, "exits": ["AAAA", "BBBB"]}
+    assert strategy.empty_target_intended(["AAAA", "BBBB"]) is True
+    strategy.last_decision_ = {"regime_cap": 1.0, "exits": ["AAAA"]}
+    assert strategy.empty_target_intended(["AAAA", "BBBB"]) is False
+    strategy.last_decision_ = {}
+    assert strategy.empty_target_intended(["AAAA"]) is False

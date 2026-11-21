@@ -149,16 +149,29 @@ def trend_factor(prices: pd.DataFrame, short_window: int = 50,
     return zs
 
 
+# Missing bars the trend filter's moving average tolerates inside its window.
+TREND_FILTER_MISSING_BARS = 10
+
+
 def trend_filter(prices: pd.DataFrame, long_window: int = 200,
                  penalty: float = 0.5) -> pd.DataFrame:
     """Trend filter: penalize stocks trading below their 200-day SMA.
 
     Returns a DataFrame of multipliers (1.0 for uptrend, `penalty` for downtrend).
-    Used as a post-composite filter rather than a scored factor.
+    Used as a post-composite filter rather than a scored factor.  The average
+    tolerates up to ten missing bars in its window (it is the mean of the bars
+    present); a name with the whole window gets the plain 200-day mean.
+    Where the price or the average is still unknown (a missing bar today,
+    under ``long_window - 10`` bars of history, or more than ten gaps) the
+    stock is not known to be below it, so no penalty applies.  ``prices >=
+    sma`` with a full-window mean used to read one missing bar as "below" for
+    the next 200 sessions.
     """
-    sma_long = prices.rolling(long_window).mean()
-    above = prices >= sma_long
-    return above.astype(float).replace(0.0, penalty)
+    sma_long = prices.rolling(
+        long_window, min_periods=max(1, long_window - TREND_FILTER_MISSING_BARS),
+    ).mean()
+    below = prices < sma_long
+    return (~below).astype(float).replace(0.0, penalty)
 
 
 def blowoff_filter(prices: pd.DataFrame, window: int = 20,
@@ -328,6 +341,27 @@ ML_INPUT_FACTORS = (
     "vol_contraction", "trend_persistence",
 )
 
+# Every name signals.factor_weights may carry.  A weight under any other key
+# used to be skipped without a word (and the remaining weights renormalized),
+# so a typo silently dropped a factor; the config validator and
+# SignalGenerator reject unknown names against this list.
+PRICE_FACTORS = (
+    "momentum", "mean_reversion", "trend", "volatility", "short_term_reversal",
+    "trend_persistence", "high_proximity", "vol_contraction",
+)
+FUNDAMENTAL_FACTORS = ("value", "quality")
+KNOWN_FACTORS = PRICE_FACTORS + FUNDAMENTAL_FACTORS
+# Renamed keys still read (with a warning) for older configs.
+LEGACY_FACTOR_NAMES = {"volume_momentum": "trend_persistence"}
+
+
+def unknown_factor_names(names) -> list[str]:
+    """The factor_weights keys that name no factor."""
+    return sorted(
+        str(name) for name in names
+        if name not in KNOWN_FACTORS and name not in LEGACY_FACTOR_NAMES
+    )
+
 
 class SignalGenerator:
     """Combines multiple alpha factors into a composite signal."""
@@ -348,6 +382,12 @@ class SignalGenerator:
         # not listed there default to 0 — a factor must never silently revive
         # because someone deleted its config line.
         self.weights = dict(sig_cfg.get("factor_weights", {}))
+        unknown = unknown_factor_names(self.weights)
+        if unknown:
+            raise ValueError(
+                f"signals.factor_weights names unknown factor(s) {unknown}; "
+                f"known: {list(KNOWN_FACTORS)}"
+            )
 
         # Legacy key: "volume_momentum" was renamed to "trend_persistence"
         # (the factor is return autocorrelation and never used volume data).

@@ -11,6 +11,7 @@ from quant.data.point_in_time import load_point_in_time_bundle
 from quant.data.quality import (
     DataQualityChecker,
     enforce_live_data_quality,
+    require_held_symbols_kept,
     warn_survivorship_bias,
 )
 from quant.signals.factors import SignalGenerator
@@ -163,6 +164,10 @@ class MultiFactorStrategy:
                 return None
 
             selected = self.optimizer.select_top_stocks(day_scores)
+            if len(selected) == 0:
+                # No usable score is no decision, not a decision to hold cash
+                # (the engine sells the book on an empty target).
+                return None
 
             # Covariance from trailing returns using Ledoit-Wolf shrinkage
             ret_window = returns.loc[:date].tail(126)
@@ -305,9 +310,14 @@ class MultiFactorStrategy:
             capital = self.config["backtest"]["initial_capital"]
 
         # Hard quality gate: never generate live orders from a broken fetch
+        fetched = self.data.fetch_prices()
         prices = enforce_live_data_quality(
-            self.data.fetch_prices(), benchmark=self.data.benchmark,
+            fetched, benchmark=self.data.benchmark,
             as_of=pd.Timestamp.now(),
+        )
+        # A holding the gate dropped would leave as an "exit": abort instead.
+        require_held_symbols_kept(
+            prev_weights, prices, list(self.data.symbols) + list(fetched.columns),
         )
         self.last_prices_ = prices
         returns = MarketData.compute_returns(prices)

@@ -224,3 +224,70 @@ def test_fixed_gross_and_no_trailing_stop(strategy):
     held = pd.Series(0.3, index=["AAAA", "BBBB"])
     assert strategy.trailing_exits(pre, prices.index[-1], held, {"AAAA": prices.index[0]}) == []
     assert strategy.maintenance_target(pre, prices.index[-1], held) is None
+
+
+def _live(strategy, monkeypatch, events):
+    """The live path: no events preset, Yahoo's answer is ``events``."""
+    import quant.earnings_strategy as module
+
+    calls = []
+
+    def fetch(symbols, limit=100):
+        calls.append(list(symbols))
+        return events
+
+    strategy._events = None
+    monkeypatch.setattr(module, "fetch_earnings", fetch)
+    return calls
+
+
+def test_live_fetch_with_thin_coverage_fails_before_a_target(strategy, monkeypatch):
+    from quant.earnings_strategy import EarningsCoverageError
+
+    prices = _prices()
+    events = _events(prices.index)
+    thin = {s: events[s] for s in ["AAAA", "BBBB", "CCCC"]}       # 3 of 9 members
+    calls = _live(strategy, monkeypatch, thin)
+    pre = strategy.precompute(prices)
+    with pytest.raises(EarningsCoverageError, match="3/9"):
+        strategy.scheduled_target(pre, prices.index[-1], pd.Series(0.3, index=["AAAA", "DDDD"]))
+    assert len(calls) == 1
+    # A full answer passes the gate and is kept for the run.
+    _live(strategy, monkeypatch, events)
+    pre = strategy.precompute(prices)
+    assert not strategy.scheduled_target(pre, prices.index[-1], None).empty
+    assert strategy._events is events and strategy.min_coverage == 0.9
+
+
+def test_backtest_events_are_never_gated(strategy):
+    prices = _prices()
+    strategy._events = {"AAAA": _events(prices.index)["AAAA"]}   # 1 of 9, preset as a backtest does
+    pre = strategy.precompute(prices)
+    strategy.scheduled_target(pre, prices.index[-1], None)
+    assert strategy._data_gap_names == set()
+
+
+def test_held_name_missing_from_todays_fetch_keeps_its_slot(strategy, monkeypatch, caplog):
+    prices = _prices()
+    late = prices.index[-1]
+    events = _events(prices.index)
+    # Yahoo answered for every member but AAAA (8/9 is above the 0.8 floor
+    # set here); JJJJ left the index and has no data either.
+    partial = {s: f for s, f in events.items() if s not in ("AAAA", "JJJJ")}
+    strategy.min_coverage = 0.8
+    _live(strategy, monkeypatch, partial)
+    pre = strategy.precompute(prices)
+    held = pd.Series(0.3, index=["AAAA", "JJJJ"])
+
+    target = strategy.scheduled_target(pre, late, held)
+
+    assert "AAAA" not in strategy.last_scores_.index      # unranked: one part only
+    assert "AAAA" in target.index                          # but kept, not sold on a data gap
+    assert "JJJJ" not in target.index                      # left the index: sold as before
+    assert len(target) == strategy.positions
+    assert "No announcement data today for held ['AAAA']" in caplog.text
+
+
+def test_earnings_book_never_intends_an_empty_book(strategy):
+    strategy.last_decision_ = {"regime_cap": 0.0, "exits": ["AAAA"]}
+    assert strategy.empty_target_intended(["AAAA"]) is False
