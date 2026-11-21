@@ -1,0 +1,211 @@
+{
+  "updated_at": "2026-11-20 21:08 EST",
+  "gross_pct": 100.0,
+  "total_invested_pct": 100.0,
+  "cash_pct": 0.0,
+  "account_equity_basis": 78432.91,
+  "candidates": 490,
+  "universe_size": 503,
+  "positions": [
+    {
+      "symbol": "ECHO",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 33,
+      "price": 92.31,
+      "score": 2.4742
+    },
+    {
+      "symbol": "CPT",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 32,
+      "price": 96.28,
+      "score": 1.9357
+    },
+    {
+      "symbol": "MU",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 4,
+      "price": 690.44,
+      "score": 1.9262
+    },
+    {
+      "symbol": "LITE",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 5,
+      "price": 535.15,
+      "score": 1.845
+    },
+    {
+      "symbol": "WDC",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 10,
+      "price": 296.78,
+      "score": 1.6987
+    },
+    {
+      "symbol": "CIEN",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 11,
+      "price": 262.63,
+      "score": 1.5171
+    },
+    {
+      "symbol": "VRT",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 16,
+      "price": 184.99,
+      "score": 1.4028
+    },
+    {
+      "symbol": "VLO",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 9,
+      "price": 338.46,
+      "score": 1.3445
+    },
+    {
+      "symbol": "FLEX",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 42,
+      "price": 74.22,
+      "score": 1.3278
+    },
+    {
+      "symbol": "GLW",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 29,
+      "price": 105.97,
+      "score": 1.255
+    },
+    {
+      "symbol": "STX",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 6,
+      "price": 521.39,
+      "score": 1.1983
+    },
+    {
+      "symbol": "OKE",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 36,
+      "price": 86.52,
+      "score": 1.1634
+    },
+    {
+      "symbol": "DLTR",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 22,
+      "price": 140.24,
+      "score": 1.1474
+    },
+    {
+      "symbol": "PSX",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 12,
+      "price": 242.71,
+      "score": 1.1195
+    },
+    {
+      "symbol": "COHR",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 14,
+      "price": 214.94,
+      "score": 1.0731
+    },
+    {
+      "symbol": "TER",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 13,
+      "price": 227.43,
+      "score": 1.0342
+    },
+    {
+      "symbol": "ALB",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 37,
+      "price": 82.93,
+      "score": 1.0051
+    },
+    {
+      "symbol": "MPC",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 8,
+      "price": 367.93,
+      "score": 1.0025
+    },
+    {
+      "symbol": "MRNA",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 15,
+      "price": 199.33,
+      "score": 0.983
+    },
+    {
+      "symbol": "DOW",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 103,
+      "price": 30.25,
+      "score": 0.9748
+    },
+    {
+      "symbol": "INTC",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 56,
+      "price": 55.72,
+      "score": 0.9696
+    },
+    {
+      "symbol": "SJM",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 23,
+      "price": 131.29,
+      "score": 0.8977
+    },
+    {
+      "symbol": "DELL",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 10,
+      "price": 312.54,
+      "score": 1.3567
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 18,
+      "price": 166.46,
+      "score": 1.0835
+    },
+    {
+      "symbol": "EOG",
+      "weight_pct": 4.0,
+      "dollars": 3137.0,
+      "shares": 20,
+      "price": 149.49,
+      "score": 1.0702
+    }
+  ]
+}

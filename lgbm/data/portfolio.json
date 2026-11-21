@@ -1,0 +1,138 @@
+{
+  "updated_at": "2026-11-20 21:03 EST",
+  "regime": "normal",
+  "strategy": "LightGBM",
+  "total_invested_pct": 70.3,
+  "cash_pct": 29.7,
+  "account_equity_basis": 124831.52,
+  "positions": [
+    {
+      "symbol": "META",
+      "weight_pct": 8.81,
+      "dollars": 10996.0,
+      "shares": 18,
+      "price": 596.22,
+      "score": 0.987
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 6.9,
+      "dollars": 8614.0,
+      "shares": 41,
+      "price": 205.71,
+      "score": 0.8589
+    },
+    {
+      "symbol": "ORCL",
+      "weight_pct": 6.3,
+      "dollars": 7865.0,
+      "shares": 71,
+      "price": 110.57,
+      "score": 0.9978
+    },
+    {
+      "symbol": "ABT",
+      "weight_pct": 6.02,
+      "dollars": 7517.0,
+      "shares": 72,
+      "price": 103.87,
+      "score": 0.8688
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 5.99,
+      "dollars": 7483.0,
+      "shares": 5,
+      "price": 1351.12,
+      "score": 0.4509
+    },
+    {
+      "symbol": "UNH",
+      "weight_pct": 5.72,
+      "dollars": 7139.0,
+      "shares": 21,
+      "price": 330.48,
+      "score": 0.7365
+    },
+    {
+      "symbol": "QCOM",
+      "weight_pct": 5.31,
+      "dollars": 6626.0,
+      "shares": 40,
+      "price": 162.01,
+      "score": 0.9744
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 4.35,
+      "dollars": 5435.0,
+      "shares": 4,
+      "price": 1295.86,
+      "score": 0.7735
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 3.94,
+      "dollars": 4922.0,
+      "shares": 16,
+      "price": 303.68,
+      "score": 0.8283
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.53,
+      "dollars": 4411.0,
+      "shares": 18,
+      "price": 243.46,
+      "score": 0.9178
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 2.83,
+      "dollars": 3534.0,
+      "shares": 10,
+      "price": 338.93,
+      "score": 0.9399
+    },
+    {
+      "symbol": "CRM",
+      "weight_pct": 2.8,
+      "dollars": 3495.0,
+      "shares": 19,
+      "price": 183.31,
+      "score": 0.9389
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 2.41,
+      "dollars": 3009.0,
+      "shares": 21,
+      "price": 141.48,
+      "score": 0.9266
+    },
+    {
+      "symbol": "ON",
+      "weight_pct": 2.39,
+      "dollars": 2984.0,
+      "shares": 45,
+      "price": 65.72,
+      "score": 0.926
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 1.48,
+      "dollars": 1853.0,
+      "shares": 9,
+      "price": 203.68,
+      "score": 0.8586
+    },
+    {
+      "symbol": "MRVL",
+      "weight_pct": 1.48,
+      "dollars": 1853.0,
+      "shares": 13,
+      "price": 138.47,
+      "score": 0.8685
+    }
+  ]
+}

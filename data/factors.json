@@ -1,0 +1,116 @@
+{
+  "factors": [
+    "momentum",
+    "high_proximity",
+    "short_term_reversal",
+    "vol_contraction",
+    "trend_persistence"
+  ],
+  "stocks": {
+    "DE": {
+      "momentum": 1.587,
+      "high_proximity": 0.597,
+      "short_term_reversal": 0.871,
+      "vol_contraction": 0.305,
+      "trend_persistence": 0.908
+    },
+    "AMD": {
+      "momentum": 1.647,
+      "high_proximity": 0.59,
+      "short_term_reversal": 1.392,
+      "vol_contraction": -1.817,
+      "trend_persistence": -0.24
+    },
+    "MA": {
+      "momentum": 1.706,
+      "high_proximity": 1.421,
+      "short_term_reversal": -0.553,
+      "vol_contraction": 0.467,
+      "trend_persistence": -0.389
+    },
+    "V": {
+      "momentum": 2.38,
+      "high_proximity": 1.298,
+      "short_term_reversal": -0.416,
+      "vol_contraction": -0.002,
+      "trend_persistence": -1.05
+    },
+    "AMZN": {
+      "momentum": 1.322,
+      "high_proximity": 0.903,
+      "short_term_reversal": -0.043,
+      "vol_contraction": -0.352,
+      "trend_persistence": 0.944
+    },
+    "TGT": {
+      "momentum": 0.494,
+      "high_proximity": 0.855,
+      "short_term_reversal": -2.332,
+      "vol_contraction": -1.118,
+      "trend_persistence": -1.621
+    },
+    "CRWD": {
+      "momentum": 1.925,
+      "high_proximity": 1.352,
+      "short_term_reversal": -2.216,
+      "vol_contraction": 1.484,
+      "trend_persistence": 0.417
+    },
+    "KO": {
+      "momentum": 1.167,
+      "high_proximity": 0.278,
+      "short_term_reversal": 0.612,
+      "vol_contraction": -0.438,
+      "trend_persistence": 0.726
+    },
+    "ABBV": {
+      "momentum": 1.188,
+      "high_proximity": 0.915,
+      "short_term_reversal": -0.482,
+      "vol_contraction": 0.563,
+      "trend_persistence": -0.991
+    },
+    "LMT": {
+      "momentum": 0.53,
+      "high_proximity": 0.408,
+      "short_term_reversal": 0.125,
+      "vol_contraction": 0.502,
+      "trend_persistence": 1.672
+    },
+    "SNOW": {
+      "momentum": 0.613,
+      "high_proximity": 0.429,
+      "short_term_reversal": 0.367,
+      "vol_contraction": 0.845,
+      "trend_persistence": 1.045
+    },
+    "TMO": {
+      "momentum": 1.143,
+      "high_proximity": 0.83,
+      "short_term_reversal": -0.979,
+      "vol_contraction": -0.436,
+      "trend_persistence": -0.115
+    },
+    "LLY": {
+      "momentum": 0.958,
+      "high_proximity": 0.592,
+      "short_term_reversal": -0.135,
+      "vol_contraction": -0.351,
+      "trend_persistence": 1.099
+    },
+    "RTX": {
+      "momentum": 0.154,
+      "high_proximity": 0.422,
+      "short_term_reversal": -0.681,
+      "vol_contraction": -0.802,
+      "trend_persistence": 0.123
+    },
+    "PNC": {
+      "momentum": -0.042,
+      "high_proximity": 0.299,
+      "short_term_reversal": 0.25,
+      "vol_contraction": -1.26,
+      "trend_persistence": 0.313
+    }
+  }
+}

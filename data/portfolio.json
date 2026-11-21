@@ -1,0 +1,129 @@
+{
+  "updated_at": "2026-11-20 21:02 EST",
+  "regime": "normal",
+  "total_invested_pct": 114.1,
+  "cash_pct": 0,
+  "account_equity_basis": 111380.24,
+  "positions": [
+    {
+      "symbol": "DE",
+      "weight_pct": 10.89,
+      "dollars": 12124.0,
+      "shares": 19,
+      "price": 624.89,
+      "score": 1.1211
+    },
+    {
+      "symbol": "AMD",
+      "weight_pct": 10.84,
+      "dollars": 12073.0,
+      "shares": 24,
+      "price": 489.19,
+      "score": 0.8749
+    },
+    {
+      "symbol": "MA",
+      "weight_pct": 10.75,
+      "dollars": 11976.0,
+      "shares": 19,
+      "price": 626.5,
+      "score": 1.0898
+    },
+    {
+      "symbol": "V",
+      "weight_pct": 10.6,
+      "dollars": 11808.0,
+      "shares": 29,
+      "price": 402.25,
+      "score": 1.3028
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 10.56,
+      "dollars": 11765.0,
+      "shares": 45,
+      "price": 257.37,
+      "score": 0.8968
+    },
+    {
+      "symbol": "TGT",
+      "weight_pct": 10.26,
+      "dollars": 11426.0,
+      "shares": 68,
+      "price": 167.46,
+      "score": -0.0891
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 10.0,
+      "dollars": 11137.0,
+      "shares": 45,
+      "price": 243.46,
+      "score": 1.2012
+    },
+    {
+      "symbol": "KO",
+      "weight_pct": 6.65,
+      "dollars": 7407.0,
+      "shares": 77,
+      "price": 96.09,
+      "score": 0.7289
+    },
+    {
+      "symbol": "ABBV",
+      "weight_pct": 5.59,
+      "dollars": 6229.0,
+      "shares": 21,
+      "price": 283.54,
+      "score": 0.6861
+    },
+    {
+      "symbol": "LMT",
+      "weight_pct": 5.45,
+      "dollars": 6071.0,
+      "shares": 10,
+      "price": 571.85,
+      "score": 0.5765
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 5.44,
+      "dollars": 6064.0,
+      "shares": 22,
+      "price": 268.59,
+      "score": 0.6181
+    },
+    {
+      "symbol": "TMO",
+      "weight_pct": 5.44,
+      "dollars": 6055.0,
+      "shares": 8,
+      "price": 688.75,
+      "score": 0.5845
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 5.23,
+      "dollars": 5828.0,
+      "shares": 4,
+      "price": 1351.12,
+      "score": 0.6588
+    },
+    {
+      "symbol": "RTX",
+      "weight_pct": 3.24,
+      "dollars": 3610.0,
+      "shares": 18,
+      "price": 193.44,
+      "score": 0.0127
+    },
+    {
+      "symbol": "PNC",
+      "weight_pct": 3.12,
+      "dollars": 3479.0,
+      "shares": 15,
+      "price": 218.0,
+      "score": -0.0464
+    }
+  ]
+}
