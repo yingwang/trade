@@ -343,3 +343,61 @@ def test_industry_is_left_out_when_the_book_has_no_sector_map():
     with_map = attribute_actual_performance(**kwargs, sector_map={"AAAA": "Technology"}).to_dict()
     assert "industry" in with_map["components"]
     assert with_map["diagnostics"]["industry_available"] is True
+
+
+def test_lagging_alpaca_history_appends_current_session_instead_of_clobbering_prior_close(monkeypatch):
+    """When update-site runs after the close before Alpaca's 1D history posts
+    today's bar, current_equity belongs to today's session — it must be appended
+    as today's row rather than overwriting yesterday's close."""
+    dates = pd.bdate_range("2026-11-18", periods=3)  # Nov 18, Nov 19, Nov 20
+    asset_prices = pd.DataFrame(
+        {"SPY": [100.0, 98.0, 95.0], "AAAA": [100.0, 99.0, 90.0]},
+        index=dates,
+    )
+
+    def download(symbols, *args, auto_adjust=True, **kwargs):
+        if auto_adjust:
+            return pd.concat({"Close": asset_prices[["SPY"]]}, axis=1)
+        return pd.concat({"Close": asset_prices[["AAAA"]]}, axis=1)
+
+    monkeypatch.setattr("yfinance.download", download)
+
+    # 10 shares of AAAA held throughout: equity is 1000 -> 990 -> 900.
+    # Alpaca's 1D portfolio_history still ends on Nov 19 (990), while
+    # account.equity is already Nov 20's post-close 900.
+    trades = {
+        "account": {"equity": 900.0},
+        "portfolio_history": _history(dates[:2], [1_000.0, 990.0]),
+        "positions": [{"symbol": "AAAA", "qty": 10}],
+        "rebalances": [],
+    }
+    payload = generate_actual_attribution(
+        trades,
+        asset_prices,
+        None,
+        {"attribution": {"lookback_days": 2, "min_observations": 1}},
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["summary"]["period_end"] == "2026-11-20"
+    assert payload["summary"]["trading_days"] == 2
+    assert payload["summary"]["account_return"] == pytest.approx(-0.10)
+    assert payload["summary"]["benchmark_return"] == pytest.approx(-0.05)
+    assert payload["summary"]["reconciliation_residual"] == pytest.approx(0.0, abs=1e-9)
+    assert [row["date"] for row in payload["daily"]] == ["2026-11-19", "2026-11-20"]
+
+
+def test_align_current_equity_updates_in_place_and_maps_earnings_log():
+    from pathlib import Path
+    from site_common import align_current_equity_to_session, events_log_for_state
+
+    hist = [
+        {"date": "2026-11-19", "equity": 1_000.0, "profit_loss": 0.0},
+        {"date": "2026-11-20", "equity": 1_010.0, "profit_loss": 10.0},
+    ]
+    updated = align_current_equity_to_session(hist, 1_025.5, "2026-11-20")
+    assert len(updated) == 2
+    assert updated[-1] == {"date": "2026-11-20", "equity": 1_025.5, "profit_loss": 25.5}
+    assert events_log_for_state("logs/paper_trade_earnings_state.json") == Path(
+        "logs/trade_events_earnings.jsonl"
+    )

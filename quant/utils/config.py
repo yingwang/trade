@@ -316,10 +316,15 @@ def validate_config(config: dict) -> dict:
 
 def load_config(path: str = None) -> dict:
     """Load configuration from YAML file."""
+    repo_root = Path(__file__).resolve().parents[2]
     if path is None:
-        path = Path(__file__).resolve().parents[2] / "config.yaml"
+        path = repo_root / "config.yaml"
     else:
         path = Path(path)
+        if not path.is_absolute() and not path.exists():
+            candidate = repo_root / path
+            if candidate.exists():
+                path = candidate
 
     with open(path) as f:
         return validate_config(yaml.safe_load(f))

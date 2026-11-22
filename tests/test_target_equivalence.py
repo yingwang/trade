@@ -255,10 +255,17 @@ def _lgbm_live(cfg: dict, prices: pd.DataFrame, date, prev_weights, prev_scores,
     return table["weight"]
 
 
+def _require_lightgbm():
+    try:
+        import lightgbm  # noqa: F401
+    except (ImportError, OSError) as exc:
+        pytest.skip(f"lightgbm native library unavailable: {exc}")
+
+
 def test_lgbm_target_matches_backtest_for_the_same_drifted_book(config, synthetic_prices, monkeypatch):
     """Review 2026-11-21, F11: the LightGBM book had no equivalence test, and
     its two paths prepared the risk model differently."""
-    pytest.importorskip("lightgbm")
+    _require_lightgbm()
     cfg = _factor_config(config)
     result, seen = _lgbm_backtest(cfg, synthetic_prices, monkeypatch)
     scheduled = [d for d in sorted(seen) if seen[d][2] is not None]
@@ -276,7 +283,7 @@ def test_lgbm_target_matches_backtest_across_a_missing_bar(config, synthetic_pri
     """One missing session inside the risk window: the backtest counted its
     returns as zero, the live path dropped the rows, and a vol-scaled book
     came out different."""
-    pytest.importorskip("lightgbm")
+    _require_lightgbm()
     cfg = _factor_config(config)
     cfg["portfolio"]["target_volatility"] = 0.05   # keep vol scaling below the leverage cap
     prices = synthetic_prices.copy()
@@ -318,7 +325,7 @@ def optimizer_ledoit_wolf(frame):
 
 
 def test_lgbm_live_path_refuses_a_target_the_backtest_would_skip(config, synthetic_prices, monkeypatch):
-    pytest.importorskip("lightgbm")
+    _require_lightgbm()
     from quant.signals import lgbm_strategy
 
     cfg = _factor_config(config)

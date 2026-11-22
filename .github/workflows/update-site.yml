@@ -2,7 +2,9 @@
 
   on:
     schedule:
-      - cron: '0 21 * * 1-5'
+      # 22:00 UTC is 17:00 EST / 18:00 EDT: past the 16:00 ET close and
+      # MarketData's 16:15 ET daily-bar completion grace in both winter and summer.
+      - cron: '0 22 * * 1-5'
     push:
       branches: [main]
       paths:

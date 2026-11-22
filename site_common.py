@@ -518,10 +518,23 @@ def generate_actual_attribution(
         dict(row) for row in (trades.get("portfolio_history", []) or [])
     ]
     current_equity = trades.get("account", {}).get("equity")
-    if portfolio_history and current_equity is not None:
-        # Match the actual-performance panel: the broker's current account
-        # equity is the authoritative final observation.
-        portfolio_history[-1]["equity"] = float(current_equity)
+    if portfolio_history and current_equity is not None and not trades.get("equity_aligned"):
+        # Align the broker's post-close equity with the latest completed
+        # session rather than clobbering T-1 when Alpaca's 1D bar lags.
+        import pandas as pd
+
+        latest_session = None
+        if asset_prices is not None and not getattr(asset_prices, "empty", True):
+            latest_session = (
+                pd.to_datetime(asset_prices.index)
+                .tz_localize(None)
+                .normalize()
+                .max()
+                .strftime("%Y-%m-%d")
+            )
+        portfolio_history = align_current_equity_to_session(
+            portfolio_history, current_equity, latest_session
+        )
     if len([row for row in portfolio_history if row.get("equity") is not None]) < 2:
         return {
             "status": "insufficient_data",
@@ -927,6 +940,39 @@ def _fetch_trades_from_alpaca(
             if row["equity"] is not None and adjustment:
                 row["equity"] = round(row["equity"] + adjustment, 2)
 
+        # Fetch completed SPY closes once so we know the latest settled US
+        # session before aligning current_equity onto portfolio_history.
+        valid_hist = [h for h in portfolio_history if h.get("equity") is not None and h.get("date")]
+        spy_by_date = _fetch_spy_closes(
+            valid_hist[0]["date"],
+            valid_hist[-1]["date"],
+        ) if valid_hist else {}
+        latest_spy_session = max(spy_by_date) if spy_by_date else None
+
+        intraday_open = False
+        try:
+            clock = api.get_clock()
+            intraday_open = bool(getattr(clock, "is_open", False))
+        except Exception:
+            pass
+        market_now = datetime.now(ZoneInfo("America/New_York"))
+        market_today = market_now.date().isoformat()
+        in_close_grace = (
+            latest_spy_session is not None
+            and market_today > latest_spy_session
+            and market_now.weekday() < 5
+            and (16, 0) <= (market_now.hour, market_now.minute) < (16, 15)
+        )
+        equity_is_post_close = not (
+            latest_spy_session is not None
+            and market_today > latest_spy_session
+            and (intraday_open or in_close_grace)
+        )
+        if equity_is_post_close and latest_spy_session is not None:
+            portfolio_history = align_current_equity_to_session(
+                portfolio_history, account_info["equity"], latest_spy_session
+            )
+
         equity_by_date = {
             row["date"]: row["equity"]
             for row in portfolio_history
@@ -937,8 +983,8 @@ def _fetch_trades_from_alpaca(
                 rebalance["date"], account_info["equity"]
             )
 
-        # Fetch SPY benchmark aligned to portfolio history dates
-        spy_history = _fetch_spy_benchmark(portfolio_history)
+        # Build SPY benchmark aligned to the finalized portfolio history dates
+        spy_history = _build_spy_history(portfolio_history, spy_by_date)
 
         return {
             "source": "alpaca",
@@ -948,6 +994,7 @@ def _fetch_trades_from_alpaca(
             "spy_history": spy_history,
             "rebalances": rebalances,
             "corporate_action_adjustments": history_adjustments,
+            "equity_aligned": True,
         }
 
     except Exception as e:
@@ -955,47 +1002,128 @@ def _fetch_trades_from_alpaca(
         return parse_local_trade_logs(state_file)
 
 
-def _fetch_spy_benchmark(portfolio_history) -> list:
-    """SPY equity curve normalized to the account's starting equity."""
-    spy_history = []
-    valid_hist = [h for h in portfolio_history if h.get("equity") is not None]
-    if not valid_hist:
-        return spy_history
+def align_current_equity_to_session(
+    portfolio_history: list[dict],
+    current_equity: float | None,
+    latest_session: str | None,
+    *,
+    max_gap_days: int = 10,
+) -> list[dict]:
+    """Align the broker's post-close equity with ``latest_session``.
+
+    Alpaca's ``1D`` portfolio history often still ends at ``T-1`` right after
+    the US close while ``account.equity`` already reflects ``T``. Updating
+    ``history[-1]`` in place when ``last_date == latest_session`` and appending
+    a ``latest_session`` row when ``last_date < latest_session`` prevents ``T``'s
+    P&L from being misattributed to ``T-1`` and keeps ``T``'s fills in-window.
+    """
+    rows = [dict(row) for row in (portfolio_history or [])]
+    if not rows or current_equity is None or not latest_session:
+        return rows
+    equity_val = round(float(current_equity), 2)
+    if not math.isfinite(equity_val):
+        return rows
+
+    valid_indices = [
+        i for i, r in enumerate(rows) if r.get("equity") is not None and r.get("date")
+    ]
+    if not valid_indices:
+        return rows
+
+    last_idx = valid_indices[-1]
+    last_date = str(rows[last_idx]["date"])[:10]
+    target_date = str(latest_session)[:10]
+
+    if last_date == target_date:
+        prev_eq = (
+            float(rows[valid_indices[-2]]["equity"])
+            if len(valid_indices) >= 2
+            else None
+        )
+        rows[last_idx]["equity"] = equity_val
+        if "profit_loss" in rows[last_idx] and prev_eq is not None:
+            rows[last_idx]["profit_loss"] = round(equity_val - prev_eq, 2)
+        return rows
+
+    if last_date < target_date:
+        try:
+            gap = (
+                datetime.strptime(target_date, "%Y-%m-%d").date()
+                - datetime.strptime(last_date, "%Y-%m-%d").date()
+            ).days
+        except ValueError:
+            return rows
+        if 0 < gap <= max_gap_days:
+            prev_eq = float(rows[last_idx]["equity"])
+            rows.append(
+                {
+                    "date": target_date,
+                    "equity": equity_val,
+                    "profit_loss": round(equity_val - prev_eq, 2),
+                }
+            )
+    return rows
+
+
+def _fetch_spy_closes(start_date: str, last_hist_date: str | None = None) -> dict[str, float]:
+    """Return completed daily SPY closes from ``start_date`` through the latest completed session."""
+    spy_by_date: dict[str, float] = {}
     try:
         import yfinance as yf
-        start_date = valid_hist[0]["date"]
-        # yfinance end is exclusive, add 2 days buffer
-        end_dt = datetime.strptime(valid_hist[-1]["date"], "%Y-%m-%d") + timedelta(days=2)
-        spy = yf.download("SPY", start=start_date, end=end_dt.strftime("%Y-%m-%d"),
-                          progress=False)
+        from quant.data.market_data import MarketData
+
+        exclusive_end = MarketData._exclusive_download_end()
+        if last_hist_date:
+            hist_end = (
+                datetime.strptime(last_hist_date, "%Y-%m-%d") + timedelta(days=2)
+            ).strftime("%Y-%m-%d")
+            exclusive_end = max(exclusive_end, hist_end)
+        spy = yf.download("SPY", start=start_date, end=exclusive_end, progress=False)
         if not spy.empty:
-            if hasattr(spy.columns, 'levels'):
+            if hasattr(spy.columns, "levels"):
                 spy.columns = spy.columns.get_level_values(0)
-            # Build date->close lookup, forward-fill for non-trading days
-            spy_by_date = {}
             for idx_date, row in spy.iterrows():
                 spy_by_date[idx_date.strftime("%Y-%m-%d")] = float(row["Close"])
-            start_equity = valid_hist[0]["equity"]
-            first_spy = spy_by_date.get(valid_hist[0]["date"])
-            if first_spy is None:
-                first_spy = float(spy["Close"].iloc[0])
-            last_spy_close = first_spy
-            for h in valid_hist:
-                d = h["date"]
-                if d in spy_by_date:
-                    last_spy_close = spy_by_date[d]
-                spy_equity = start_equity * last_spy_close / first_spy
-                spy_history.append({"date": d, "equity": round(spy_equity, 2)})
-            logger.info("Fetched %d days of SPY benchmark data", len(spy_history))
     except Exception as e:
         logger.warning("Could not fetch SPY benchmark: %s", e)
+    return spy_by_date
+
+
+def _build_spy_history(portfolio_history, spy_by_date: dict[str, float]) -> list:
+    """Normalize SPY closes in ``spy_by_date`` onto ``portfolio_history`` dates."""
+    spy_history = []
+    valid_hist = [h for h in portfolio_history if h.get("equity") is not None]
+    if not valid_hist or not spy_by_date:
+        return spy_history
+    start_equity = valid_hist[0]["equity"]
+    first_spy = spy_by_date.get(valid_hist[0]["date"])
+    if first_spy is None:
+        first_spy = next(iter(spy_by_date.values()))
+    last_spy_close = first_spy
+    for h in valid_hist:
+        d = h["date"]
+        if d in spy_by_date:
+            last_spy_close = spy_by_date[d]
+        spy_equity = start_equity * last_spy_close / first_spy
+        spy_history.append({"date": d, "equity": round(spy_equity, 2)})
+    logger.info("Fetched %d days of SPY benchmark data", len(spy_history))
     return spy_history
+
+
+def _fetch_spy_benchmark(portfolio_history) -> list:
+    """SPY equity curve normalized to the account's starting equity."""
+    valid_hist = [h for h in portfolio_history if h.get("equity") is not None]
+    if not valid_hist:
+        return []
+    spy_by_date = _fetch_spy_closes(valid_hist[0]["date"], valid_hist[-1]["date"])
+    return _build_spy_history(portfolio_history, spy_by_date)
 
 
 _EVENTS_LOG_BY_STATE = {
     "logs/paper_trade_state.json": "logs/trade_events_multi.jsonl",
     "logs/paper_trade_lgbm_state.json": "logs/trade_events_lgbm.jsonl",
     "logs/paper_trade_trend_state.json": "logs/trade_events_trend.jsonl",
+    "logs/paper_trade_earnings_state.json": "logs/trade_events_earnings.jsonl",
 }
 
 

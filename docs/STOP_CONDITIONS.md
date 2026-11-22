@@ -68,3 +68,25 @@ Unfreezing params requires: sample gate met **or** a written CEO exception on th
 - The owner retired the trend book as the lowest actual paper return of the three (100,000 on 2026-09-17, 92,707 on 2026-10-22). `rebalance-trend.yml` is disabled, has no schedule and refuses live runs. From 2026-10-23 the same Alpaca paper account trades the earnings book (`rebalance-earnings.yml`, keys `ALPACA_TREND_*` or legacy `ALPACA_CLAUDE_*`); its state file starts empty and does not import the trend book's equity history, and its dashboard starts at 2026-10-23.
 - LightGBM stays a Research line. Its workflow was disabled for part of 2026-10-22 while the cooldown below was added, then re-enabled.
 - Both factor books now skip names sold on a fixed stop for 5 sessions (`risk.reentry_cooldown_sessions`), backtest and live alike.
+
+---
+
+## Earnings Book — Candidate (observing since 2026-10-23)
+
+**Params freeze:** values in `config_earnings.yaml` as selected on 2026-10-22 (`docs/research/2026-10-22-alpha-audit.md`): point-in-time S&P 500 universe, equal-weighted 3-part composite (`sue`, `eps_growth`, `12-6m momentum`), top 25 equal weights with 40-rank buffer, 5-session rebalance on the anchored calendar, `1.0x` gross exposure, no stops and no regime lights.
+
+### Minimum paper sample before keep / cut debate
+
+Do not judge structural edge or open parameter changes until **≥ 60** paper trading days (~12 five-session rebalance cycles, mid-January 2027), unless a hard stop below fires earlier.
+
+### Hard circuit breaker / park conditions
+
+Recommend parking or halting the Earnings paper book if **any**:
+
+1. **Drawdown breaker (`config_earnings.yaml` `risk.max_drawdown_limit: 0.30`):** paper max drawdown from post-takeover peak (`$97,105.27`) reaches **≥ 30%** (automatically enforced by `check_portfolio_drawdown` on daily runs).
+2. **Calendar coverage degradation:** `STAND_DOWN:earnings_coverage` (`< 90%` of priced S&P 500 members returning Yahoo earnings dates) blocks **3** consecutive 5-session rebalance cycles.
+3. **Operational failure:** scheduled rebalance or dashboard Actions fail **3** consecutive scheduled days.
+
+### Pre-registered research watch (no live change without unfreeze note)
+
+- `max_sector_weight: 1.0` and `industry_neutral: false` allowed ~44% concentration in Semis / Optical / Storage hardware during Oct–Nov 2026 (21-day drawdown `-20.4%`). Any sector cap or sector-neutral z-score adjustment must first beat or match the 2010–2026 unlevered baseline (`16.7%` CAGR, `0.63` Sharpe, `-34%` MDD) on `research.yml` before an explicit unfreeze note is recorded here.

@@ -176,8 +176,9 @@
       const hist = data.portfolio_history.filter(d => d.equity != null);
       if (hist.length < 2) return;
 
-      // Update last point with current account equity if available
-      if (data.account && data.account.equity != null) {
+      // Legacy fallback: site_common already aligns post-close equity onto the
+      // matching session; avoid overwriting an older close when equity_aligned is set.
+      if (!data.equity_aligned && data.account && data.account.equity != null) {
         hist[hist.length - 1].equity = data.account.equity;
       }
 
