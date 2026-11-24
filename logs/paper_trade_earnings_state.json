@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "last_rebalance": "2026-11-16T20:28:01.627468",
+  "last_rebalance": "2026-11-24T14:49:16.760695",
   "trade_history": [
     {
       "date": "2026-10-23T15:07:39.018820",
@@ -946,6 +946,130 @@
           "reject_reason": ""
         }
       ]
+    },
+    {
+      "date": "2026-11-24T14:49:16.760709",
+      "completed": true,
+      "outcome": "all orders filled",
+      "trades": [
+        {
+          "time": "2026-11-24T14:48:43.917221",
+          "symbol": "DLTR",
+          "side": "sell",
+          "qty": 6.0,
+          "requested_qty": 6.0,
+          "status": "filled",
+          "price": 153.41,
+          "signal_price": 154.34,
+          "order_id": "8859827e-3bc0-4623-93bc-aab0621f76bf",
+          "client_order_id": "qts-reba-05ef8111c9bb8f18efd33afd",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:48:48.022546",
+          "symbol": "KEYS",
+          "side": "sell",
+          "qty": 11.0,
+          "requested_qty": 11.0,
+          "status": "filled",
+          "price": 277.82,
+          "signal_price": 278.38,
+          "order_id": "c643c40b-b0fd-4ab7-aaff-93246d5701de",
+          "client_order_id": "qts-reba-cb1f0fcf3082b1f5dd6a6400",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:48:52.092203",
+          "symbol": "ROST",
+          "side": "sell",
+          "qty": 14.0,
+          "requested_qty": 14.0,
+          "status": "filled",
+          "price": 218.66,
+          "signal_price": 218.78,
+          "order_id": "83e21854-f0b2-4e9c-bda3-9d67f3534575",
+          "client_order_id": "qts-reba-8c1864c85454c51ab388ad2c",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:48:56.090380",
+          "symbol": "TGT",
+          "side": "sell",
+          "qty": 20.0,
+          "requested_qty": 20.0,
+          "status": "filled",
+          "price": 173.88,
+          "signal_price": 174.02,
+          "order_id": "b139b63d-305a-4b9d-8770-0c974f4bb976",
+          "client_order_id": "qts-reba-c5dc13552adcc8c7fd81261e",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:49:01.415968",
+          "symbol": "ALB",
+          "side": "buy",
+          "qty": 5.0,
+          "requested_qty": 5.0,
+          "status": "filled",
+          "price": 81.886,
+          "signal_price": 81.615,
+          "order_id": "61a91fbe-1025-4a36-95a9-5cd3fb00762d",
+          "client_order_id": "qts-reba-65c279b34dd3b7383ef6b599",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:49:04.284063",
+          "symbol": "DDOG",
+          "side": "buy",
+          "qty": 18.0,
+          "requested_qty": 18.0,
+          "status": "filled",
+          "price": 169.69,
+          "signal_price": 170.29,
+          "order_id": "5311e965-4040-4e3e-b861-c2bc834343f1",
+          "client_order_id": "qts-reba-105ded9812a6561974d1f1b9",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:49:08.245217",
+          "symbol": "DELL",
+          "side": "buy",
+          "qty": 10.0,
+          "requested_qty": 10.0,
+          "status": "filled",
+          "price": 299.309,
+          "signal_price": 299.97,
+          "order_id": "52bc6d2d-52f3-404a-96e5-0ca523e45fbb",
+          "client_order_id": "qts-reba-568fab1bf72feb3fb72fdfa0",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:49:12.256132",
+          "symbol": "MPC",
+          "side": "buy",
+          "qty": 1.0,
+          "requested_qty": 1.0,
+          "status": "filled",
+          "price": 354.6,
+          "signal_price": 353.65,
+          "order_id": "104042f7-9e50-4289-88c0-8fbaa7fd40e9",
+          "client_order_id": "qts-reba-abb5745245dd406bbe4b764b",
+          "reject_reason": ""
+        },
+        {
+          "time": "2026-11-24T14:49:15.178714",
+          "symbol": "NTAP",
+          "side": "buy",
+          "qty": 19.0,
+          "requested_qty": 19.0,
+          "status": "filled",
+          "price": 163.62,
+          "signal_price": 164.395,
+          "order_id": "adaad06c-2020-4d5b-9fa6-7bd61a1354cb",
+          "client_order_id": "qts-reba-2c6d4d64ee027f99996eb360",
+          "reject_reason": ""
+        }
+      ]
     }
   ],
   "equity_history_seeded_at": "2026-10-22T00:00:00",
@@ -972,7 +1096,8 @@
     "2026-11-17": 83536.21,
     "2026-11-18": 83239.66,
     "2026-11-19": 82679.37,
-    "2026-11-20": 77284.83
+    "2026-11-20": 77284.83,
+    "2026-11-24": 80752.34
   },
   "peak_equity": 97105.27,
   "entry_prices": {
@@ -980,14 +1105,11 @@
     "CIEN": 323.5,
     "DLTR": 124.980333,
     "DOW": 32.18,
-    "KEYS": 315.46,
     "LITE": 778.49,
     "MPC": 459.45625,
     "PSX": 285.25,
-    "ROST": 229.68,
     "STX": 649.69,
     "TER": 313.31,
-    "TGT": 153.7,
     "VLO": 423.55,
     "WDC": 352.65,
     "COHR": 200.898235,
@@ -999,21 +1121,22 @@
     "CPT": 100.01,
     "ECHO": 101.25,
     "MRNA": 270.6,
-    "FLEX": 74.51
+    "FLEX": 74.51,
+    "MU": 979.4375,
+    "DDOG": 169.69,
+    "DELL": 299.309,
+    "NTAP": 163.62
   },
   "entry_dates": {
     "ALB": "2026-10-23",
     "CIEN": "2026-10-23",
     "DLTR": "2026-10-23",
     "DOW": "2026-10-23",
-    "KEYS": "2026-10-23",
     "LITE": "2026-10-23",
     "MPC": "2026-10-23",
     "PSX": "2026-10-23",
-    "ROST": "2026-10-23",
     "STX": "2026-10-23",
     "TER": "2026-10-23",
-    "TGT": "2026-10-23",
     "VLO": "2026-10-23",
     "WDC": "2026-10-23",
     "COHR": "2026-11-02",
@@ -1025,30 +1148,40 @@
     "CPT": "2026-11-09",
     "ECHO": "2026-11-09",
     "MRNA": "2026-11-09",
-    "FLEX": "2026-11-16"
+    "FLEX": "2026-11-16",
+    "MU": "2026-11-24",
+    "DDOG": "2026-11-24",
+    "DELL": "2026-11-24",
+    "NTAP": "2026-11-24"
   },
   "daily_tracker": {
-    "trade_date": "2026-11-16",
-    "total_value_traded": 8797.130000000001,
+    "trade_date": "2026-11-24",
+    "total_value_traded": 20435.64,
     "total_realised_pnl": 0.0,
-    "orders_submitted": 6,
-    "orders_filled": 6,
+    "orders_submitted": 9,
+    "orders_filled": 9,
     "orders_rejected": 0,
     "processed_client_order_ids": [
-      "qts-reba-741ed0ca0ced42967cf07aa1",
-      "qts-reba-b097f3905c632e9fb11d167d",
-      "qts-reba-c083c9de8c5ca81570de75dc",
-      "qts-reba-ef5ff2afde845ee16aafb2f2",
-      "qts-reba-f778cb3fa2914e1d14b9fe71",
-      "qts-reba-fe4e7d75c169d832672c7e4d"
+      "qts-reba-05ef8111c9bb8f18efd33afd",
+      "qts-reba-105ded9812a6561974d1f1b9",
+      "qts-reba-2c6d4d64ee027f99996eb360",
+      "qts-reba-568fab1bf72feb3fb72fdfa0",
+      "qts-reba-65c279b34dd3b7383ef6b599",
+      "qts-reba-8c1864c85454c51ab388ad2c",
+      "qts-reba-abb5745245dd406bbe4b764b",
+      "qts-reba-c5dc13552adcc8c7fd81261e",
+      "qts-reba-cb1f0fcf3082b1f5dd6a6400"
     ],
     "processed_fill_values": {
-      "qts-reba-741ed0ca0ced42967cf07aa1": 406.83000000000004,
-      "qts-reba-b097f3905c632e9fb11d167d": 650.8199999999999,
-      "qts-reba-c083c9de8c5ca81570de75dc": 3398.4,
-      "qts-reba-ef5ff2afde845ee16aafb2f2": 3278.44,
-      "qts-reba-f778cb3fa2914e1d14b9fe71": 546.1,
-      "qts-reba-fe4e7d75c169d832672c7e4d": 516.54
+      "qts-reba-05ef8111c9bb8f18efd33afd": 920.46,
+      "qts-reba-105ded9812a6561974d1f1b9": 3054.42,
+      "qts-reba-2c6d4d64ee027f99996eb360": 3108.78,
+      "qts-reba-568fab1bf72feb3fb72fdfa0": 2993.09,
+      "qts-reba-65c279b34dd3b7383ef6b599": 409.42999999999995,
+      "qts-reba-8c1864c85454c51ab388ad2c": 3061.24,
+      "qts-reba-abb5745245dd406bbe4b764b": 354.6,
+      "qts-reba-c5dc13552adcc8c7fd81261e": 3477.6,
+      "qts-reba-cb1f0fcf3082b1f5dd6a6400": 3056.02
     }
   },
   "market_closed_attempts": {
