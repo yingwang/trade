@@ -1,0 +1,105 @@
+{
+  "features": [
+    {
+      "feature": "momentum",
+      "importance": 621.8247,
+      "importance_pct": 43.3
+    },
+    {
+      "feature": "high_proximity",
+      "importance": 95.0133,
+      "importance_pct": 6.62
+    },
+    {
+      "feature": "short_term_reversal",
+      "importance": 53.494,
+      "importance_pct": 3.73
+    },
+    {
+      "feature": "vol_contraction",
+      "importance": 53.1282,
+      "importance_pct": 3.7
+    },
+    {
+      "feature": "trend_persistence",
+      "importance": 50.9119,
+      "importance_pct": 3.55
+    },
+    {
+      "feature": "rsi_14",
+      "importance": 41.2122,
+      "importance_pct": 2.87
+    },
+    {
+      "feature": "macd_line",
+      "importance": 40.6903,
+      "importance_pct": 2.83
+    },
+    {
+      "feature": "macd_signal",
+      "importance": 29.1348,
+      "importance_pct": 2.03
+    },
+    {
+      "feature": "macd_histogram",
+      "importance": 26.7812,
+      "importance_pct": 1.87
+    },
+    {
+      "feature": "bb_width",
+      "importance": 26.1663,
+      "importance_pct": 1.82
+    },
+    {
+      "feature": "atr_proxy_14",
+      "importance": 25.9257,
+      "importance_pct": 1.81
+    },
+    {
+      "feature": "updown_bias_21",
+      "importance": 23.4399,
+      "importance_pct": 1.63
+    },
+    {
+      "feature": "ret_5d",
+      "importance": 23.0906,
+      "importance_pct": 1.61
+    },
+    {
+      "feature": "ret_10d",
+      "importance": 21.5504,
+      "importance_pct": 1.5
+    },
+    {
+      "feature": "ret_21d",
+      "importance": 21.0692,
+      "importance_pct": 1.47
+    },
+    {
+      "feature": "ret_63d",
+      "importance": 20.0116,
+      "importance_pct": 1.39
+    },
+    {
+      "feature": "vol_5d",
+      "importance": 17.7238,
+      "importance_pct": 1.23
+    },
+    {
+      "feature": "vol_10d",
+      "importance": 17.5978,
+      "importance_pct": 1.23
+    },
+    {
+      "feature": "vol_21d",
+      "importance": 16.8754,
+      "importance_pct": 1.18
+    },
+    {
+      "feature": "vol_63d",
+      "importance": 16.2559,
+      "importance_pct": 1.13
+    }
+  ],
+  "updated_at": "2026-11-27 22:44 EST"
+}

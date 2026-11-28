@@ -1,0 +1,130 @@
+{
+  "updated_at": "2026-11-27 22:42 EST",
+  "regime": "high_vol",
+  "total_invested_pct": 80.0,
+  "cash_pct": 20.0,
+  "account_equity_basis": 127004.58,
+  "positions": [
+    {
+      "symbol": "TGT",
+      "weight_pct": 9.67,
+      "dollars": 12283.0,
+      "shares": 71,
+      "price": 171.97,
+      "score": -0.1495
+    },
+    {
+      "symbol": "V",
+      "weight_pct": 8.45,
+      "dollars": 10728.0,
+      "shares": 24,
+      "price": 429.56,
+      "score": 1.0754
+    },
+    {
+      "symbol": "MA",
+      "weight_pct": 7.88,
+      "dollars": 10004.0,
+      "shares": 14,
+      "price": 666.96,
+      "score": 0.841
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 7.4,
+      "dollars": 9392.0,
+      "shares": 43,
+      "price": 217.2,
+      "score": 1.4331
+    },
+    {
+      "symbol": "DE",
+      "weight_pct": 7.36,
+      "dollars": 9346.0,
+      "shares": 14,
+      "price": 654.24,
+      "score": 0.3062
+    },
+    {
+      "symbol": "AMZN",
+      "weight_pct": 6.25,
+      "dollars": 7941.0,
+      "shares": 31,
+      "price": 254.12,
+      "score": 0.4739
+    },
+    {
+      "symbol": "LMT",
+      "weight_pct": 6.0,
+      "dollars": 7622.0,
+      "shares": 12,
+      "price": 605.88,
+      "score": 1.0812
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 5.64,
+      "dollars": 7167.0,
+      "shares": 5,
+      "price": 1392.38,
+      "score": 1.2691
+    },
+    {
+      "symbol": "TMO",
+      "weight_pct": 5.29,
+      "dollars": 6721.0,
+      "shares": 9,
+      "price": 683.04,
+      "score": 0.9733
+    },
+    {
+      "symbol": "KO",
+      "weight_pct": 3.59,
+      "dollars": 4554.0,
+      "shares": 46,
+      "price": 97.4,
+      "score": 0.6098
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 3.58,
+      "dollars": 4551.0,
+      "shares": 12,
+      "price": 366.76,
+      "score": 0.9399
+    },
+    {
+      "symbol": "SNOW",
+      "weight_pct": 3.54,
+      "dollars": 4501.0,
+      "shares": 16,
+      "price": 276.29,
+      "score": 0.7502
+    },
+    {
+      "symbol": "PG",
+      "weight_pct": 1.78,
+      "dollars": 2264.0,
+      "shares": 13,
+      "price": 172.86,
+      "score": 0.6396
+    },
+    {
+      "symbol": "TSLA",
+      "weight_pct": 1.78,
+      "dollars": 2264.0,
+      "shares": 5,
+      "price": 400.0,
+      "score": 0.6989
+    },
+    {
+      "symbol": "ZS",
+      "weight_pct": 1.78,
+      "dollars": 2264.0,
+      "shares": 9,
+      "price": 239.49,
+      "score": 0.6643
+    }
+  ],
+  "held_data_missing": []
+}

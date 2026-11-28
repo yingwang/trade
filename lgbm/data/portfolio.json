@@ -1,0 +1,131 @@
+{
+  "updated_at": "2026-11-27 22:43 EST",
+  "regime": "high_vol",
+  "strategy": "LightGBM",
+  "total_invested_pct": 49.6,
+  "cash_pct": 50.4,
+  "account_equity_basis": 129567.81,
+  "positions": [
+    {
+      "symbol": "ZS",
+      "weight_pct": 5.5,
+      "dollars": 7122.0,
+      "shares": 29,
+      "price": 239.49,
+      "score": 0.7734
+    },
+    {
+      "symbol": "LLY",
+      "weight_pct": 5.05,
+      "dollars": 6538.0,
+      "shares": 4,
+      "price": 1392.38,
+      "score": 0.7051
+    },
+    {
+      "symbol": "META",
+      "weight_pct": 4.94,
+      "dollars": 6399.0,
+      "shares": 10,
+      "price": 628.96,
+      "score": 0.454
+    },
+    {
+      "symbol": "MPWR",
+      "weight_pct": 4.8,
+      "dollars": 6213.0,
+      "shares": 4,
+      "price": 1265.02,
+      "score": 0.889
+    },
+    {
+      "symbol": "JNJ",
+      "weight_pct": 4.48,
+      "dollars": 5810.0,
+      "shares": 21,
+      "price": 275.51,
+      "score": 0.9271
+    },
+    {
+      "symbol": "NET",
+      "weight_pct": 4.29,
+      "dollars": 5563.0,
+      "shares": 18,
+      "price": 296.79,
+      "score": 0.8888
+    },
+    {
+      "symbol": "CRWD",
+      "weight_pct": 3.98,
+      "dollars": 5162.0,
+      "shares": 23,
+      "price": 217.2,
+      "score": 0.8947
+    },
+    {
+      "symbol": "QCOM",
+      "weight_pct": 3.41,
+      "dollars": 4418.0,
+      "shares": 24,
+      "price": 179.27,
+      "score": 0.8921
+    },
+    {
+      "symbol": "INTU",
+      "weight_pct": 3.25,
+      "dollars": 4206.0,
+      "shares": 15,
+      "price": 271.94,
+      "score": 0.8947
+    },
+    {
+      "symbol": "DDOG",
+      "weight_pct": 2.33,
+      "dollars": 3022.0,
+      "shares": 18,
+      "price": 165.75,
+      "score": 0.8914
+    },
+    {
+      "symbol": "AMAT",
+      "weight_pct": 1.51,
+      "dollars": 1962.0,
+      "shares": 6,
+      "price": 322.04,
+      "score": 0.8904
+    },
+    {
+      "symbol": "KLAC",
+      "weight_pct": 1.51,
+      "dollars": 1962.0,
+      "shares": 13,
+      "price": 140.86,
+      "score": 0.8906
+    },
+    {
+      "symbol": "LRCX",
+      "weight_pct": 1.51,
+      "dollars": 1962.0,
+      "shares": 10,
+      "price": 192.69,
+      "score": 0.8901
+    },
+    {
+      "symbol": "PANW",
+      "weight_pct": 1.51,
+      "dollars": 1962.0,
+      "shares": 5,
+      "price": 366.76,
+      "score": 0.8886
+    },
+    {
+      "symbol": "ON",
+      "weight_pct": 1.51,
+      "dollars": 1962.0,
+      "shares": 29,
+      "price": 66.24,
+      "score": 0.89
+    }
+  ],
+  "held_data_missing": []
+}
